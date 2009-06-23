@@ -7,8 +7,7 @@
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setupMap()}"/>
 	
 	<mx:VBox left="15" top="15" right="15" width="100">
-		<mx:VBox width="100%">
-			<ns1:CommonSenseAirQualityPlot id="topPlot" dataField="value" width="100%"/>				
+		<mx:VBox id="plots" width="100%" verticalGap="8">
 		</mx:VBox>
 		<mx:LinkButton label="load data" click="{triggerLoadingPopup()}" />
 		<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
@@ -17,6 +16,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import components.CommonSenseAirQualityPlot;
 			import mx.managers.PopUpManager;
 			import components.loading.DataLoadingPanel;
 			import components.DataMarkerClip;
@@ -39,7 +39,6 @@
 			import com.modestmaps.Map;
 			import com.modestmaps.extras.ZoomSlider;
 			import com.modestmaps.extras.MapControls;
-			import components.DataPointMarker;
 			import flash.sampler.Sample;
 			import com.modestmaps.geo.Location;
 			
@@ -71,10 +70,18 @@
 			/******** Local Vars **********************************************************/
 			protected var maxPoints:int = 1000;
 			
+			//the map!
 			protected var map:TweenMap;
-			protected var _plotClip:MarkerClip;
+			
+			//Clip the flags are drawn into
 			protected var _flagsClip:MarkerClip;
+			
+			//Clip the textures are drawn into
 			protected var _plotSprite:DataMarkerClip;
+			
+			//An object containing lists of data points (as Vector.<Object>) indexed by the URI they were loaded from
+			protected var _dataSets:Object = {};
+			
 			
 			//protected var dataSource:Object = Embedded20090514PMData;
 			protected var dataSource:Object = outside20090514PMData;
@@ -101,10 +108,8 @@
 				map.zoomDuration = 0.5;
 				map.panAndZoomDuration = 0.6;
 				
-				_plotClip = new MarkerClip(map);
 				_plotSprite = new DataMarkerClip(map);
 				_flagsClip = new MarkerClip(map);
-				map.addChild(_plotClip);
 				map.addChild(_plotSprite);
 				map.addChild(_flagsClip);
 				
@@ -114,8 +119,8 @@
 				map.setCenterZoom(new Location(37.803,-122.298),14);
 				
 				//Listeners for datapoint tips
-				map.addEventListener(MarkerEvent.MARKER_ROLL_OVER, handleMarkerOver);
-				map.addEventListener(MarkerEvent.MARKER_ROLL_OUT, handleMarkerOut);
+				//map.addEventListener(MarkerEvent.MARKER_ROLL_OVER, handleMarkerOver);
+				//map.addEventListener(MarkerEvent.MARKER_ROLL_OUT, handleMarkerOut);
 								
 				//Listeners for triggering menus
 				map.addEventListener(MouseEvent.MOUSE_DOWN, handleMouseDown);
@@ -134,9 +139,8 @@
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
 					
 				//Plot data and existing markers
-				loadFileData(dataSource,false,function():void{
-						_plotSprite.data = _plotData;
-						topPlot.data = _plotData;
+				loadFileData(dataSource,function():void{
+						//plot any flag markers
 						plotExistingMarkers();	
 						//let commentspace know we're loaded				
 						dispatchComplete();
@@ -144,23 +148,28 @@
 				
 			}
 			
-					
-			protected var _plotData:Vector.<Object> = new Vector.<Object>();
 			
-			protected function loadFileData(source:Object,append:Boolean=false,onComplete:Function=null):void{
+			protected function loadFileData(source:Object,onComplete:Function=null):void{
+			
+				var dataURI:String = source.toString(); 
 			
 				//helper method for processing loaded CSV data.
 				var processLoaded:Function = function(data:String):void{
 					var entries:Array = data.split(/\r|\n/gi);
 					
-					if(!append) _plotData = new Vector.<Object>()
+					_dataSets[dataURI] = new Vector.<Object>();
 				
 					for(var i:int = 1; i < entries.length; i++){
 						var entry:Array = (entries[i] as String).split(',');
 						var pointData:Object = {time:entry[0],lat:entry[1],lon:entry[2],value:entry[3],level:entry[4]};
-						_plotData.push(pointData);
+						_dataSets[dataURI].push(pointData);
 					}
-					if(onComplete)onComplete();
+					
+					//add a new scatterplot if necessary
+					addScatterPlot(dataURI,dataURI); 
+					_plotSprite.data = _dataSets;
+					
+					if(onComplete != null)onComplete();
 				}
 				
 				//Handle embedded data		
@@ -177,6 +186,16 @@
 				else throw new ArgumentError("Invalid data source. Source should either " + 
 						"be the URI of a text file containing data or a Class containing " + 
 						"an embedded text file.");
+			}
+			
+			
+			protected function addScatterPlot(dataURI:String,plotName:String=""):void{
+				var newPlot:CommonSenseAirQualityPlot = new CommonSenseAirQualityPlot();
+				newPlot.percentWidth = 100;
+				newPlot.displayName = plotName;
+				newPlot.dataField = "value";
+				newPlot.data = _dataSets[dataURI];
+				plots.addChild(newPlot);
 			}
 			
 			
@@ -334,20 +353,15 @@
 				//Start the panning an timer
 				t.start();
 				map.panTo(loc);
-				
-				
 			}
 			
-			
-			
 			/**Data Point Tooltipping*/
-			protected var dpTip:DataPointTooltip = new DataPointTooltip();
+			/*protected var dpTip:DataPointTooltip = new DataPointTooltip();
 			protected function handleMarkerOver(me:MarkerEvent):void{
 				if(me.marker is DataPointMarker){
 					if(!dpTip.parent) this.addChild(dpTip);
 					dpTip.marker = (me.marker as DataPointMarker);
 					dpTip.visible = true;
-					var dpXY:Point = _plotClip.localToGlobal(new Point(me.marker.x,me.marker.y)); 
 					dpTip.x = dpXY.x;
 					dpTip.y = dpXY.y;
 				}
@@ -356,7 +370,7 @@
 				if(me.marker is DataPointMarker){
 					dpTip.visible = false;
 				}
-			}
+			}*/
 			
 			
 			/******** Implements IStatefulVis *************************************************/	
@@ -368,7 +382,10 @@
 			public function get state():Object{
 				var cz:Array = map.getCenterZoom();
 				var cl:Location = roundLocation(cz[0] as Location);
-				return {centerLat:cl.lat,centerLon:cl.lon,zoom:cz[1],dataSource:dataSource.toLocaleString()};
+				var ds:String = "";
+				for(var d:String in _dataSets) ds += (d + ",");
+				if(ds.length > 0)ds = ds.slice(0,ds.length - 1);
+				return {centerLat:cl.lat,centerLon:cl.lon,zoom:cz[1],dataSource:ds};
 			}
 			
 			public function set state(o:Object):void{
@@ -409,7 +426,6 @@
 					var m:FlagMarker = _flagsClip.getChildAt(i) as FlagMarker;
 					var ml:Location = map.getCenter();
 					var mz:int = map.getZoom();
-					//m.highlight(m.location.equals(ml) && m.zoom == mz);
 					m.highlight(locEquals(m.location,ml) && m.zoom == mz);
 				}
 			}
@@ -444,13 +460,18 @@
 				else return null;
 			}
 			
+			
+			/**
+			 * Triggers a popup display that allows data to be loaded from
+			 *  outside.
+			 */
 			protected function triggerLoadingPopup():void{
 				var dataPanel:DataLoadingPanel = new DataLoadingPanel();
 				
 				//when the okay button is clicked
 				dataPanel.onLoadClick = function(e:Event=null):void{
 						var url:String = dataPanel.selectedURL;
-						if(url) loadFileData(url,true);
+						if(url) loadFileData(url);
 						PopUpManager.removePopUp(dataPanel);
 					};
 					//when the cancel button is clicked

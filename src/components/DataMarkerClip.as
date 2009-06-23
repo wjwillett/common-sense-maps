@@ -18,35 +18,35 @@ package components
 
 	public class DataMarkerClip extends Sprite
 	{
-		
+		protected var _data:Object;//Vector.<Object>;
 		protected var _map:Map;
-		protected function get map():Map{ return _map;}
-		
-		
-		public function set data(d:Vector.<Object>):void{
-			_data = d;
-			plotData(); 
-		}
-		public function get data():Vector.<Object>{
-			return _data;
-		}
-		protected var _data:Vector.<Object>;
-		
-		public var pointDiameter:Number = 12;
 		
 		// setting this.dirty = true will redraw an MapEvent.RENDERED
 		protected var _dirty:Boolean;
-		
-		public var pointOverlapTolerance:Number = 11;
-		
-		public var zoomTolerance:Number = 5; 
-    
     	protected var drawCoord:Coordinate; 
-		
-		
 		protected var bitmap:Bitmap = new Bitmap();
 		protected var plotBitmapData:BitmapData;
 		
+		protected function get map():Map{ return _map;}
+		
+		public var pointOverlapTolerance:Number = 11;
+		public var zoomTolerance:Number = 5; 
+		public var pointDiameter:Number = 12;
+		
+		/**
+		 * A data object should be an Object containing
+		 *  sets of points (as Vector.<Object>s) 
+		 *  indexed by the URI of that set of points.  
+		 * @param d
+		 * 
+		 */		
+		public function set data(d:Object):void{
+			_data = d;
+			plotData(); 
+		}
+		public function get data():Object{
+			return _data;
+		}
 		
 		
 		public function DataMarkerClip(map:Map,data:Vector.<Object> = null)
@@ -136,40 +136,43 @@ package components
 			
 			plotBitmapData.lock();
 			
-			var prevPoint:Object;
-			var prevPt:Point;
-			//iterate through recorded points
-			for(var i:int=0; i < data.length; i++){
-				var point:Object = data[i]; 
-			
-				//determine location
-				var dLoc:Location = new Location(point.lat,point.lon);
-				var dPt:Point = _map.locationPoint(dLoc);
-	
-				//skip if position, level not different from last
-				if(prevPoint && prevPoint.level == point.level 
-						&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
-						&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
-					continue;
-				}  
-								
-				//draw the point
-				if(!prevPoint || prevPoint.level != point.level){
-					var color:uint = AirQualityColors.getColorForLevel(point.level);
-					plotShape.graphics.clear();
-					plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
-					plotShape.graphics.beginFill(color,0.6);
-					plotShape.graphics.drawCircle(0,0,pointDiameter/2);
-        			plotShape.graphics.endFill();
-    			}
-				translationMatrix.tx = dPt.x + (w - map.getWidth()) / 2;
-				translationMatrix.ty = dPt.y + (h - map.getHeight()) / 2;
+			//for each of the sets of points...
+			for each(var pSet:Vector.<Object> in _data){
+				var prevPoint:Object;
+				var prevPt:Point;
+				//iterate through recorded points
+				for(var i:int=0; i < pSet.length; i++){
+					var point:Object = pSet[i]; 
 				
-				plotBitmapData.draw(plotShape,translationMatrix);
-				
-				
-				prevPoint = point;
-				prevPt = dPt;
+					//determine location
+					var dLoc:Location = new Location(point.lat,point.lon);
+					var dPt:Point = _map.locationPoint(dLoc);
+		
+					//skip if position, level not different from last
+					if(prevPoint && prevPoint.level == point.level 
+							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
+							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
+						continue;
+					}  
+									
+					//draw the point
+					if(!prevPoint || prevPoint.level != point.level){
+						var color:uint = AirQualityColors.getColorForLevel(point.level);
+						plotShape.graphics.clear();
+						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+						plotShape.graphics.beginFill(color,0.6);
+						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
+	        			plotShape.graphics.endFill();
+	    			}
+					translationMatrix.tx = dPt.x + (w - map.getWidth()) / 2;
+					translationMatrix.ty = dPt.y + (h - map.getHeight()) / 2;
+					
+					plotBitmapData.draw(plotShape,translationMatrix);
+					
+					
+					prevPoint = point;
+					prevPt = dPt;
+				}
 			}
 			
 			plotBitmapData.unlock();
