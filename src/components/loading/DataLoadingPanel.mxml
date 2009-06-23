@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="400" height="300" horizontalAlign="right">
+	<mx:DataGrid id="grid" width="100%" height="100%" initialize="{setupGrid()}">
+		<mx:columns>
+                <mx:DataGridColumn dataField="item_name" headerText="Name"/>
+                <mx:DataGridColumn dataField="date_time" headerText="Date"/>
+                <mx:DataGridColumn dataField="source_name" headerText="Source"/>
+            </mx:columns>
+	</mx:DataGrid>
+	<mx:HBox width="100%" horizontalAlign="right">
+		<mx:Button id="loadButton" label="Load" click="{onLoadClick()}"/>
+		<mx:Button id="cancelButton" label="Cancel" click="{onCancelClick()}"/>
+	</mx:HBox>
+	
+	
+	<mx:Script>
+		<![CDATA[
+		
+			protected const DATA_INDEX_XML_URL:String = "http://www.eecs.berkeley.edu/~willettw//temp/CommonSenseDataIndex.xml";
+			
+			public function get selectedURL():String{
+				 return grid.selectedItem ? grid.selectedItem.url : null;
+			}
+			
+			public var onLoadClick:Function;
+			public var onCancelClick:Function;
+			
+			protected function setupGrid():void{
+				
+				var request:URLRequest = new URLRequest(DATA_INDEX_XML_URL);
+				var loader:URLLoader = new URLLoader(request);
+				
+				loader.addEventListener(Event.COMPLETE,function(e:Event):void{
+						var gridXML:XMLList = XMLList(loader.data);
+						grid.dataProvider = gridXML..item;
+					});
+			}
+			
+			
+		]]>
+	</mx:Script>
+</mx:VBox>

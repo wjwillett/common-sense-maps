@@ -146,7 +146,7 @@ package components
 				var dLoc:Location = new Location(point.lat,point.lon);
 				var dPt:Point = _map.locationPoint(dLoc);
 	
-				//skip if position, level different from last
+				//skip if position, level not different from last
 				if(prevPoint && prevPoint.level == point.level 
 						&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
 						&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){

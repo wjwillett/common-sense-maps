@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:display="flash.display.*"  height="100">
+	
+	<mx:Canvas id="container" width="100%" height="100%"
+		resize="{refresh()}" mouseOver="{}" mouseOut="{}"/>
+	<mx:LinkButton id="zIn" click="{zoomIn()}" label="+"/>
+	<mx:LinkButton id="zOut" click="{zoomOut()}" left="25" label="-"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import fl.events.ScrollEvent;
+			import fl.controls.ScrollBarDirection;
+			import fl.controls.ScrollBar;
+			import __AS3__.vec.Vector;
+			
+			protected var _data:Vector.<Object>;
+			protected var fPoint:uint;
+			protected var lPoint:uint;
+			protected var minVal:Number;
+			protected var maxVal:Number; 
+			
+			protected var _hScroll:ScrollBar = new ScrollBar();
+						
+			override public function get data():Object{return _data;}
+			override public function set data(d:Object):void{
+				if(d is Vector.<Object>){ 
+					_data = d as Vector.<Object>; plotData();
+					
+					fPoint = 0;
+					lPoint = _data.length;
+					
+					//Find min and max
+					for each(var o:Object in data){
+						var val:Number = Number(o[dataField]);
+						if(isNaN(minVal) || val < minVal) minVal = val;
+						if(isNaN(maxVal) || val > maxVal) maxVal = val;
+					}
+					if(isNaN(minVal) || isNaN(maxVal)) return;
+					
+					refresh();
+				}
+				else throw new ArgumentError("CommonSenseAirQualityPlot currently expects " + 
+						"its data object to be of type Vector.<Object>");
+			}
+
+			public var dataField:String;			
+			public var margin:Number = 20;
+			public var pointDiameter:Number = 6;
+			public var pointOverlapTolerance:Number = 8;
+			public var zoomPercentage:Number = 0.5;
+			public var minPoints:uint = 50;
+
+			public function refresh():void{
+				plotData();
+			}
+			
+			
+				
+			protected function plotData(e:Event=null):void{
+
+				//clear previously drawn bitmaps
+				while(container.rawChildren.numChildren > 0)container.rawChildren.removeChildAt(0);
+
+				//If no data do nothing
+				if(!data || data.length == 0) return;
+				
+				var pointRange:Number = lPoint - fPoint;
+				var dataRange:Number = maxVal - minVal;
+				
+				//prep the shape object and bitmap data we'll use to draw the points
+				var plotShape:Shape = new Shape();
+				var translationMatrix:Matrix = new Matrix();
+				var plotBitmapData:BitmapData = new BitmapData(container.width,container.height,true,0xDDCCCCCC);
+				
+				plotBitmapData.lock();
+				
+				var prevPoint:Object;
+				var prevPt:Point;
+				//iterate through recorded points
+				for(var i:int=fPoint; i < lPoint; i++){
+					var point:Object = data[i]; 
+				
+					//determine location
+					var dPt:Point = new Point((i - fPoint) / pointRange * (container.width - 2 * margin) + margin,
+						 (container.height - 2 * margin) * (1 - point[dataField] / dataRange) + margin); 
+		
+					//skip if position, level not different from last
+					if(prevPoint && prevPoint.level == point.level 
+							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
+							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
+						continue;
+					}  
+									
+					//draw the point
+					if(!prevPoint || prevPoint.level != point.level){
+						var color:uint = AirQualityColors.getColorForLevel(point.level);
+						plotShape.graphics.clear();
+						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+						plotShape.graphics.beginFill(color,0.6);
+						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
+	        			plotShape.graphics.endFill();
+	    			}
+					translationMatrix.tx = dPt.x;
+					translationMatrix.ty = dPt.y;
+					
+					plotBitmapData.draw(plotShape,translationMatrix);
+										
+					prevPoint = point;
+					prevPt = dPt;
+				}
+				
+				plotBitmapData.unlock();
+				
+				var bitmap:Bitmap = new Bitmap(plotBitmapData);
+				container.rawChildren.addChild(bitmap);
+				
+				//draw and position the scrollBar if necessary.
+				setupScrollBar();
+			}
+			
+			protected function setupScrollBar():void{
+				if(fPoint > 0 || lPoint < _data.length){
+					_hScroll.direction = ScrollBarDirection.HORIZONTAL;
+					_hScroll.x = margin - pointDiameter / 2;
+					_hScroll.y = container.height - _hScroll.height;
+					_hScroll.width = container.width - 2 * margin + pointDiameter;
+					
+					_hScroll.setScrollProperties(lPoint-fPoint,0,_data.length,(lPoint-fPoint) / 10);
+					_hScroll.scrollPosition = fPoint;
+					
+					if(!_hScroll.hasEventListener(ScrollEvent.SCROLL)){
+						_hScroll.addEventListener(ScrollEvent.SCROLL, handleScroll);
+					}
+									
+					container.rawChildren.addChild(_hScroll);
+				}
+			}
+			
+			protected var _scrollTimer:Timer;
+			
+			protected function handleScroll(se:ScrollEvent):void{	
+				var range:Number = lPoint - fPoint;
+				fPoint = Math.max(_hScroll.scrollPosition,0);
+				lPoint = Math.min(fPoint + range,_data.length - 1);
+				if(_scrollTimer && _scrollTimer.running){
+					_scrollTimer.reset();
+					_scrollTimer.start();
+				} 
+				else{
+					_scrollTimer = new Timer(500);
+					_scrollTimer.addEventListener(TimerEvent.TIMER,function(e:Event):void{
+						_scrollTimer.stop();
+							refresh();
+						});
+					_scrollTimer.start();
+				}
+					
+			}
+			
+			protected function zoomIn():void{
+				var numPoints:int = int(Math.max((lPoint - fPoint) * zoomPercentage,minPoints));
+				var midPoint:int = int(Math.round(fPoint + (lPoint - fPoint) / 2));
+				fPoint = int(Math.max(0,midPoint - numPoints / 2));
+				lPoint = int(Math.min(_data.length,midPoint + numPoints / 2 - 1));
+				refresh();
+			}
+			
+			protected function zoomOut():void{
+				var numPoints:int = int(Math.max((lPoint - fPoint) / zoomPercentage,minPoints));
+				var midPoint:int = int(Math.round(fPoint + (lPoint - fPoint) / 2));
+				fPoint = int(Math.max(0,midPoint - numPoints / 2));
+				lPoint = int(Math.min(_data.length - 1,midPoint + numPoints / 2 - 1));
+				refresh();
+			}
+			
+			
+			
+		]]>
+	</mx:Script>
+	
+	
+	
+</mx:Canvas>

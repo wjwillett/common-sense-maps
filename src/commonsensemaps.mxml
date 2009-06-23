@@ -4,13 +4,21 @@
 	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*">
 	
 	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
-		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setupMap()}">
-		
-	</mx:Canvas>
-	<ns1:AirQualityLegend top="15" left="15" width="150" height="160" />
+		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setupMap()}"/>
+	
+	<mx:VBox left="15" top="15" right="15" width="100">
+		<mx:VBox width="100%">
+			<ns1:CommonSenseAirQualityPlot id="topPlot" dataField="value" width="100%"/>				
+		</mx:VBox>
+		<mx:LinkButton label="load data" click="{triggerLoadingPopup()}" />
+		<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
+	</mx:VBox>
+	
 
 	<mx:Script>
 		<![CDATA[
+			import mx.managers.PopUpManager;
+			import components.loading.DataLoadingPanel;
 			import components.DataMarkerClip;
 			import components.AirQualityColors;
 			import mx.messaging.AbstractConsumer;
@@ -46,12 +54,19 @@
 			
 			/******** Source Data **********************************************************/
 			[Embed(source = "assets/2009-05-14 (West Oakland PM + GPS).csv", mimeType="application/octet-stream")]
-			protected var Embedded20090514PMData:Class;
+			protected const Embedded20090514PMData:Class;
+			protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv";
 
 			
 			/******** Constants **********************************************************/
 			protected const CLICK_RADIUS:Number = 2;
 			
+			protected static const DESATURATION_MATRIX:Array = [
+					0.3, 0.59, 0.3, 0, 0,
+		            0.3, 0.59, 0.3, 0, 0,
+		            0.3, 0.59, 0.3, 0, 0,
+		            0, 0, 0, 0.5, 0
+		        ];
 			
 			/******** Local Vars **********************************************************/
 			protected var maxPoints:int = 1000;
@@ -61,7 +76,8 @@
 			protected var _flagsClip:MarkerClip;
 			protected var _plotSprite:DataMarkerClip;
 			
-			protected var dataSource:Object = Embedded20090514PMData;
+			//protected var dataSource:Object = Embedded20090514PMData;
+			protected var dataSource:Object = outside20090514PMData;
 			
 			//flag to prevent updated events from being dispatched during panAndZoomTo runs
 			protected var _isPanningAndZooming:Boolean = false; 
@@ -74,6 +90,7 @@
 				
 				map = new TweenMap();
 				map.setMapProvider(new MicrosoftHybridMapProvider(10,19));
+				map.grid.filters = [new ColorMatrixFilter(DESATURATION_MATRIX)];
 				container.rawChildren.addChild(map);
 				
 				map.x = 0;
@@ -92,17 +109,9 @@
 				map.addChild(_flagsClip);
 				
 				map.addChild(new MapControls(map));
-				//map.addChild(new ZoomSlider(map));
 
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),14);
-				
-				//Plot data and existing markers
-				loadFileData();
-				_plotSprite.data = _plotData;
-				//plotFileData();
-				plotExistingMarkers();
-								
 				
 				//Listeners for datapoint tips
 				map.addEventListener(MarkerEvent.MARKER_ROLL_OVER, handleMarkerOver);
@@ -124,57 +133,52 @@
 				
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
 					
-				//let commentspace know we're loaded				
-				dispatchComplete();
+				//Plot data and existing markers
+				loadFileData(dataSource,false,function():void{
+						_plotSprite.data = _plotData;
+						topPlot.data = _plotData;
+						plotExistingMarkers();	
+						//let commentspace know we're loaded				
+						dispatchComplete();
+					});
+				
 			}
 			
-			
-			/**
-			 * Plots data tracks from the specifed data source
-			 * 
-			 */
-			protected function plotFileData():void{
-				
-				var plotData:String = (dataSource is Class ? new dataSource() : '');	
-				var entries:Array = plotData.split(/\r|\n/gi);
-				
-				//sample only a fraction of the total points
-				var lastIndex:int;	 
-				var pointCount:int = 0;
-				var marker:DataPointMarker;
-				for(var i:int = 1; i < entries.length; i = i + int(entries.length/maxPoints)){
 					
-					var entry:Array = (entries[i] as String).split(',');
-					if(i <= lastIndex || !entry || entry.length < 3) break;
-					lastIndex = i;
-					
-					marker = new DataPointMarker(entry[1], entry[2], entry[3],entry[4],entry[0]);
-					_plotClip.attachMarker(marker,marker.location);
-					
-					pointCount++;
-				}
-				
-				trace("Plotted " + pointCount + " of " + entries.length + " points");
-				
-				//center map on the last point
-				if(marker) map.setCenterZoom(marker.location,14);
-			}
-			
 			protected var _plotData:Vector.<Object> = new Vector.<Object>();
 			
-			protected function loadFileData():void{
-				var data:String = (dataSource is Class ? new dataSource() : '');	
-				var entries:Array = data.split(/\r|\n/gi);
+			protected function loadFileData(source:Object,append:Boolean=false,onComplete:Function=null):void{
+			
+				//helper method for processing loaded CSV data.
+				var processLoaded:Function = function(data:String):void{
+					var entries:Array = data.split(/\r|\n/gi);
+					
+					if(!append) _plotData = new Vector.<Object>()
 				
-				//sample only a fraction of the total points
-				var lastIndex:int;	 
-				for(var i:int = 1; i < entries.length; i++){
-					var entry:Array = (entries[i] as String).split(',');
-					var pointData:Object = {time:entry[0],lat:entry[1],lon:entry[2],value:entry[3],level:entry[4]};
-					_plotData.push(pointData);
+					for(var i:int = 1; i < entries.length; i++){
+						var entry:Array = (entries[i] as String).split(',');
+						var pointData:Object = {time:entry[0],lat:entry[1],lon:entry[2],value:entry[3],level:entry[4]};
+						_plotData.push(pointData);
+					}
+					if(onComplete)onComplete();
 				}
 				
+				//Handle embedded data		
+				if(source is Class) processLoaded(new (source as Class)());
+				//Load data from the web
+				else if(source is String){
+					var request:URLRequest = new URLRequest(source as String);
+					var loader:URLLoader = new URLLoader(request);
+					loader.addEventListener(Event.COMPLETE,function(e:Event):void{
+							processLoaded(loader.data as String);
+						});
+						
+				}
+				else throw new ArgumentError("Invalid data source. Source should either " + 
+						"be the URI of a text file containing data or a Class containing " + 
+						"an embedded text file.");
 			}
+			
 			
 			/**
 			 * Plots and persisted markers from the MarkerManager
@@ -438,6 +442,24 @@
 					return iconClass;				
 				}
 				else return null;
+			}
+			
+			protected function triggerLoadingPopup():void{
+				var dataPanel:DataLoadingPanel = new DataLoadingPanel();
+				
+				//when the okay button is clicked
+				dataPanel.onLoadClick = function(e:Event=null):void{
+						var url:String = dataPanel.selectedURL;
+						if(url) loadFileData(url,true);
+						PopUpManager.removePopUp(dataPanel);
+					};
+					//when the cancel button is clicked
+					//when the okay button is clicked
+				dataPanel.onCancelClick = function(e:Event=null):void{
+						PopUpManager.removePopUp(dataPanel);
+					};
+				PopUpManager.addPopUp(dataPanel,this,true);
+				PopUpManager.centerPopUp(dataPanel);
 			}
 			
 		]]>
