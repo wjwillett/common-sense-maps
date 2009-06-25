@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:display="flash.display.*"  height="100"
+	backgroundColor="0xDDCCCCCC" backgroundAlpha="0.8" 
+	horizontalScrollPolicy="off" verticalScrollPolicy="off">
+	
+	<mx:VRule id="tipLine" top="{margin}" bottom="{margin}" visible="false"/>
+	
+	<mx:Canvas id="container" width="100%" height="100%" resize="{refresh()}" 
+		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" mouseMove="{handleMouseMove(event)}" 
+		horizontalScrollPolicy="off" verticalScrollPolicy="off" 
+		alpha="{plotCheck.selected ? 1 : 0.4}" enabled="{plotCheck.selected}"/>
+	<mx:ProgressBar id="progressBar" mode="manual" minimum="0" verticalCenter="10" left="{margin + 40}" right="{2 * margin}"/>
+	<mx:CheckBox id="plotCheck" x="15" y="5" selected="true"/>
+	<mx:LinkButton id="zIn" click="{zoomIn()}" label="+" x="8" y="28" 
+		enabled="{plotCheck.selected}" toolTip="zoom in"/>
+	<mx:LinkButton id="zOut" click="{zoomOut()}" label="-" left="10" top="55" 
+		enabled="{plotCheck.selected}" toolTip="zoom out"/>
+	<mx:Label text="{displayName}" left="37" fontFamily="Helvetica" color="#898989" fontSize="15" fontWeight="normal" top="5"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import etc.AirQualityColors;
+			import events.DataPointEvent;
+			import mx.controls.ToolTip;
+			import mx.core.IToolTip;
+			import mx.managers.ToolTipManager;
+			import fl.events.ScrollEvent;
+			import fl.controls.ScrollBarDirection;
+			import fl.controls.ScrollBar;
+			import __AS3__.vec.Vector;
+			
+			
+			//Data Management variables
+			protected var _data:Vector.<Object>;
+			protected var fPoint:uint; 		//the index in _data of the lowest point currently displayed
+			protected var lPoint:uint;		//the index in _data of the highest point currently displayed
+			protected var minVal:Number;	//the lowest data value
+			protected var maxVal:Number; 	//the highest data value
+			
+			protected var _bitmap:Bitmap;
+			protected var _mask:Sprite = new Sprite();
+			protected var _hScroll:ScrollBar = new ScrollBar();
+						
+			override public function get data():Object{return _data;}
+			override public function set data(d:Object):void{
+				if(d is Vector.<Object>){ 
+					_data = d as Vector.<Object>; plotData();
+					
+					fPoint = 0;
+					lPoint = _data.length;
+					
+					//Find min and max
+					for each(var o:Object in data){
+						var val:Number = Number(o[dataField]);
+						if(isNaN(minVal) || val < minVal) minVal = val;
+						if(isNaN(maxVal) || val > maxVal) maxVal = val;
+					}
+					if(isNaN(minVal) || isNaN(maxVal)) return;
+					
+					refresh();
+				}
+				else if(d == null) return;
+				else throw new ArgumentError("CommonSenseAirQualityPlot currently expects " + 
+						"its data object to be of type Vector.<Object>");
+			}
+
+			[Bindable]
+			public var displayName:String;
+			public var dataField:String = 'value';
+			public var margin:Number = 20;
+			public var pointDiameter:Number = 6;
+			public var pointOverlapTolerance:Number = 8;
+			public var zoomPercentage:Number = 0.7;
+			public var minPoints:uint = 100;
+
+			public function refresh():void{
+				plotData();
+			}
+			
+			
+				
+			protected function plotData(e:Event=null):void{
+				
+				if(!container) return;
+
+				//clear previously drawn bitmaps
+				while(container.rawChildren.numChildren > 0)container.rawChildren.removeChildAt(0);
+
+				//If no data do nothing
+				if(!data || data.length == 0) return;
+				
+				var pointRange:Number = lPoint - fPoint;
+				var dataRange:Number = maxVal - minVal;
+				
+				//prep the shape object and bitmap data we'll use to draw the points
+				var plotShape:Shape = new Shape();
+				var translationMatrix:Matrix = new Matrix();
+				var plotBitmapData:BitmapData = new BitmapData(container.width * 2,container.height,true,0x00FFFFFF);
+				
+				plotBitmapData.lock();
+				
+				var prevPoint:Object;
+				var prevPt:Point;
+				
+				//draw outside the current range so that scrolling 
+				// cuts less abruptly
+				var fdPoint:int = Math.max(0,fPoint - pointRange);
+				var ldPoint:int = Math.min(_data.length - 1, lPoint + pointRange);
+				
+				for(var i:int=fdPoint; i < ldPoint; i++){
+					var point:Object = data[i]; 
+				
+					//determine location
+					var dPt:Point = dataToPoint(data[i],i);
+		
+					//skip if position, level not different from last
+					if(prevPoint && prevPoint.level == point.level 
+							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
+							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
+						continue;
+					}  
+									
+					//draw the point
+					if(!prevPoint || prevPoint.level != point.level){
+						var color:uint = AirQualityColors.getColorForLevel(point.level);
+						plotShape.graphics.clear();
+						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+						plotShape.graphics.beginFill(color,0.6);
+						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
+	        			plotShape.graphics.endFill();
+	    			}
+					translationMatrix.tx = dPt.x;
+					translationMatrix.ty = dPt.y;
+					
+					plotBitmapData.draw(plotShape,translationMatrix);
+										
+					prevPoint = point;
+					prevPt = dPt;
+				}
+				
+				plotBitmapData.unlock();
+				
+				_bitmap = new Bitmap(plotBitmapData);
+				_bitmap.x = -(container.width / 2);
+				
+				container.rawChildren.addChild(_bitmap);
+				
+				//draw and position the scrollBar and mask
+				setupMask();
+				setupScrollBar();
+			}
+		
+
+			/**
+			 * Setup and place the mask for the bitmap 
+			 */ 
+			protected function setupMask():void{
+				_mask.graphics.clear();
+				_mask.graphics.beginFill(0xFFFFFF);
+				_mask.graphics.drawRect(margin - pointDiameter / 2,margin - pointDiameter / 2,
+					container.width - 2 * margin + pointDiameter, container.height - margin);
+				_mask.graphics.endFill();
+				
+				container.rawChildren.addChild(_mask);
+				
+				if(container.mask != _mask)container.mask = _mask;
+			}
+			
+			/**
+			 * Set up and place the scroll bar
+			 */
+			protected function setupScrollBar():void{
+				_hScroll.direction = ScrollBarDirection.HORIZONTAL;
+				_hScroll.x = margin - pointDiameter / 2;
+				_hScroll.y = container.height - _hScroll.height - margin + 10;
+				_hScroll.width = container.width - 2 * margin + pointDiameter;
+				
+				var range:Number = lPoint - fPoint; 
+				
+				_hScroll.setScrollProperties(range,0,_data.length - 1 - range,range / 10);
+				_hScroll.scrollPosition = fPoint;
+				
+				if(!_hScroll.hasEventListener(ScrollEvent.SCROLL)){
+					_hScroll.addEventListener(ScrollEvent.SCROLL, handleScroll);
+				}
+								
+				container.rawChildren.addChild(_hScroll);
+			}
+			
+			protected var _scrollTimer:Timer;
+			
+			
+			protected function handleScroll(se:ScrollEvent):void{	
+				var range:Number = lPoint - fPoint;
+				_bitmap.x -= ((se.position - fPoint) * (container.width - 2 * margin) / range);  
+				fPoint = Math.max(_hScroll.scrollPosition,0);
+				lPoint = Math.min(fPoint + range,_data.length - 1);
+				
+				if(_scrollTimer && _scrollTimer.running){
+					_scrollTimer.reset();
+					_scrollTimer.start();
+				} 
+				else{
+					_scrollTimer = new Timer(300);
+					_scrollTimer.addEventListener(TimerEvent.TIMER,function(e:Event):void{
+						_scrollTimer.stop();
+							refresh();
+						});
+					_scrollTimer.start();
+				}
+					
+			}
+			
+			protected function zoomIn():void{
+				var numPoints:int = int(Math.max((lPoint - fPoint) * zoomPercentage,minPoints));
+				var midPoint:int = int(Math.round(fPoint + (lPoint - fPoint) / 2));
+				fPoint = int(Math.max(0,midPoint - numPoints / 2));
+				lPoint = int(Math.min(_data.length - 1,midPoint + numPoints / 2 - 1));
+				refresh();
+			}
+			
+			protected function zoomOut():void{
+				var numPoints:int = int(Math.max((lPoint - fPoint) / zoomPercentage,minPoints));
+				var midPoint:int = int(Math.round(fPoint + (lPoint - fPoint) / 2));
+				fPoint = int(Math.max(0,midPoint - numPoints / 2));
+				lPoint = int(Math.min(_data.length - 1,midPoint + numPoints / 2 - 1));
+				refresh();
+			}
+			
+			protected function dataToPoint(pointData:Object,pointNum:int=-1):Point{
+				if(pointNum == -1) pointNum = (_data as Vector.<Object>).lastIndexOf(pointData);
+				return new Point((pointNum - fPoint) / (lPoint - fPoint) * (container.width - 2 * margin) + container.width / 2 + margin,
+						 (container.height - 2 * margin - 10) * (1 - pointData[dataField] / maxVal - minVal) + margin); 
+			}
+			
+			
+			/****************************** Tooltipping Methods ************************************/
+			protected var _plotTip:ToolTip;
+			
+			/**
+			 * Draws and positions a tooltip for the given datapoint.
+			 */
+			public function drawDataTip(dataPoint:Object):void{
+				
+				var ptPosition:Point = dataToPoint(dataPoint);
+				ptPosition = container.localToGlobal(ptPosition);
+				if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
+			
+				//color the tip and add additional text if possible
+				if(dataPoint.level){
+					_plotTip.setStyle("backgroundColor",AirQualityColors.getColorForLevel(dataPoint.level));
+					_plotTip.setStyle("backgroundAlpha",0.7);
+					_plotTip.text = dataPoint.time + "\n" + dataPoint.value + " (" + dataPoint.level + ")";
+					_plotTip.x = ptPosition.x + _bitmap.x;
+					_plotTip.y = ptPosition.y;
+					
+					//Plot an accentuated version of the point as part of the tooltip
+					_plotTip.graphics.lineStyle(2,0xffffff,0.7);
+					_plotTip.graphics.beginFill(AirQualityColors.getColorForLevel(dataPoint.level),1);
+					_plotTip.graphics.drawCircle(0,0,(2/3)*pointDiameter);
+	    			_plotTip.graphics.endFill();
+	    			_plotTip.graphics.beginFill(0xffffff,1);
+	    			_plotTip.graphics.drawCircle(0,0,pointDiameter/3);
+	    			_plotTip.graphics.endFill();
+				}
+				else _plotTip.text = dataPoint.value;
+			}	
+				
+				
+			public function discardActiveDataTip():void{
+				if(_plotTip){
+					ToolTipManager.destroyToolTip(_plotTip);
+					_plotTip = null;
+					dispatchEvent(new DataPointEvent(DataPointEvent.UNHOVER));
+				}
+			}
+			
+			
+			protected function handleMouseMove(me:MouseEvent):void{
+				
+				//if we've moused over some other child (like the scrollbar) do nothing
+				if(me.target != container) return;
+				
+				//calculate the location we're currently mousing over and locate the nearest matching point
+				var position:Number = me.localX - margin;
+				var overPtNum:int = fPoint + int(position * (lPoint - fPoint)/(container.width - 2 * margin));
+				overPtNum = Math.max(Math.min(overPtNum,_data.length),0);
+				var overPt:Object = data[overPtNum];
+				
+				
+				//If we have a point, mark it
+				if(overPt){
+					drawDataTip(overPt);
+					tipLine.x = me.localX;
+					tipLine.visible = true;
+					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,overPt));
+				} 
+				//If no points, throw away any tip we might have
+				else{
+					discardActiveDataTip();
+					tipLine.visible = false;
+				} 
+				
+			}
+			
+			protected function handleMouseOut(me:MouseEvent):void{
+				tipLine.visible = false;
+				discardActiveDataTip();
+			}
+			
+			
+			
+		]]>
+	</mx:Script>
+	
+	
+</mx:Canvas>

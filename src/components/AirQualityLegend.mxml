@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" >
+	<mx:Script>
+		<![CDATA[
+			import etc.AirQualityColors;
+		]]>
+	</mx:Script>
 	<mx:Legend backgroundColor="0xCCCCCC" backgroundAlpha="0.80" height="100%" width="100%">
 				<mx:LegendItem label="Good" fontWeight="bold">
 		           <mx:fill>
