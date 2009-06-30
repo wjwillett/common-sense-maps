@@ -1,26 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="400" height="300" horizontalAlign="right">
-	<mx:DataGrid id="grid" width="100%" height="100%" initialize="{setupGrid()}">
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="700" height="400">
+	<mx:DataGrid id="grid" width="100%" height="50%" initialize="{setupGrid()}"
+		enabled="{radioGroup.selectedValue=='grid'}" visible="false">
 		<mx:columns>
                 <mx:DataGridColumn dataField="item_name" headerText="Name"/>
                 <mx:DataGridColumn dataField="date_time" headerText="Date"/>
                 <mx:DataGridColumn dataField="source_name" headerText="Source"/>
             </mx:columns>
 	</mx:DataGrid>
+	<mx:Label text="Load Additional Data:" fontSize="18" fontFamily="Helvetica"/>
+	<mx:HBox width="100%">
+		<mx:RadioButtonGroup id="radioGroup"/>
+		<mx:RadioButton label="List" id="gridRadio" group="{radioGroup}" value='grid' visible="false"/>
+		<mx:RadioButton id="otherRadio" group="{radioGroup}" value="other" selected="true" visible="false"/>
+		<mx:HBox id="loadControls" enabled="{radioGroup.selectedValue=='other'}">
+			<mx:ComboBox id="badgeIdCombo" dataProvider="{BADGES}" labelField="name"></mx:ComboBox>
+			<mx:ComboBox id="pollutantCombo" dataProvider="{POLLUTANTS}" 
+				labelField="pollutant" enabled="false"/>	
+		</mx:HBox>
+	</mx:HBox>
 	<mx:HBox width="100%" horizontalAlign="right">
 		<mx:Button id="loadButton" label="Load" click="{onLoadClick()}"/>
 		<mx:Button id="cancelButton" label="Cancel" click="{onCancelClick()}"/>
 	</mx:HBox>
 	
-	
 	<mx:Script>
 		<![CDATA[
+			import mx.collections.ArrayCollection;
 		
 			protected const DATA_INDEX_XML_URL:String = "http://www.eecs.berkeley.edu/~willettw//temp/CommonSenseDataIndex.xml";
 			
+			protected const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgeapi/";
+			//protected const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgeapi/";
+			
+			protected const BADGES:Array = [
+				{name:"Badge 1",id:'000000000001'},
+				{name:"Badge 2",id:'000000000002'},
+				{name:"Badge 3",id:'000000000003'},
+				{name:"Badge 4",id:'000000000004'},
+				{name:"Badge 5",id:'000000000005'},
+				{name:"Badge 6",id:'000000000006'},
+				{name:"Badge 7",id:'000000000007'},
+				{name:"Badge 8",id:'000000000008'},
+				{name:"Badge 9",id:'000000000009'},
+				{name:"Badge 10",id:'00000000000A'},
+				{name:"Badge 11",id:'00000000000B'},
+				{name:"Badge 12",id:'00000000000C'},
+				{name:"Badge 13",id:'00000000000D'},
+				{name:"Badge 14",id:'00000000000E'},
+				{name:"Badge 15",id:'00000000000F'}];
+				
+			protected const POLLUTANTS:Array = [
+				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'co',multiplier:0.001},
+				{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'o3',multiplier:0.001},
+				{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
+				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:,multiplier:},
+				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:,multiplier:},
+				{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}];
+				
+			
 			public function get selectedURL():String{
-				 return grid.selectedItem ? grid.selectedItem.url : null;
+				if(radioGroup.selectedValue=='grid'){
+				 	return grid.selectedItem ? grid.selectedItem.url : null;
+				}
+				else if(radioGroup.selectedValue=='other'){
+				 	return buildURL();
+				}
+				else return null; 
 			}
+			
+			public function get selectedItem():Object{
+				if(radioGroup.selectedValue=='grid'){
+				 	return grid.selectedItem;
+				}
+				else{
+					return {reading:pollutantCombo.selectedItem.abbreviation,url:buildURL()};
+				}
+			}
+			
+			protected function buildURL():String{
+				return BASE_DB_QUERY_URL + "?badge_id=" + badgeIdCombo.selectedItem.id + 
+				 		"&reading=" + pollutantCombo.selectedItem.db + 
+				 		"&scale_multiplier=" + pollutantCombo.selectedItem.multiplier
+			}
+			
 			
 			public var onLoadClick:Function;
 			public var onCancelClick:Function;

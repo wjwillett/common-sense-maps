@@ -16,6 +16,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import events.CSEvent;
 			import events.DataPointEvent;
 			import components.AirQualityScatterPlot;
 			import mx.managers.PopUpManager;
@@ -25,7 +26,6 @@
 			import mx.messaging.AbstractConsumer;
 			import mx.effects.Zoom;
 			import com.modestmaps.mapproviders.microsoft.MicrosoftHybridMapProvider;
-			import components.DataPointTooltip;
 			import com.modestmaps.events.MarkerEvent;
 			import components.MarkerManager;
 			import com.modestmaps.TweenMap;
@@ -55,7 +55,7 @@
 			/******** Source Data **********************************************************/
 			//[Embed(source = "assets/2009-05-14 (West Oakland PM + GPS).csv", mimeType="application/octet-stream")]
 			//protected const Embedded20090514PMData:Class;
-			protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv";
+			protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv?";
 
 			
 			/******** Constants **********************************************************/
@@ -119,10 +119,6 @@
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),14);
 				
-				//Listeners for datapoint tips
-				//map.addEventListener(MarkerEvent.MARKER_ROLL_OVER, handleMarkerOver);
-				//map.addEventListener(MarkerEvent.MARKER_ROLL_OUT, handleMarkerOut);
-								
 				//Listeners for triggering menus
 				map.addEventListener(MouseEvent.MOUSE_DOWN, handleMouseDown);
 				map.addEventListener(MouseEvent.MOUSE_UP, handleClick);
@@ -140,39 +136,50 @@
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
 					
 				//Plot data and existing markers
-				loadFileData(dataSource,function():void{
+				//loadFileData(dataSource,AirQualityColors.PM_25_24HR,function():void{
 						//plot any flag markers
 						plotExistingMarkers();	
 						//let commentspace know we're loaded				
 						dispatchComplete();
-					});
-				
+				//	});
 			}
 			
 			
-			protected function loadFileData(source:Object,onComplete:Function=null):void{
+			protected function loadFileData(source:Object,pollutant:String,onComplete:Function=null):void{
 			
 				var dataURI:String = source.toString(); 
 			
 				//Add a scatterplot to represent the datafile
 				var scatterPlot:AirQualityScatterPlot = addScatterPlot(dataURI,dataURI);
+				scatterPlot.pollutant = pollutant;
+				_plotLayer.pollutant = pollutant;
 				
 				//helper method for processing loaded CSV data.
 				var processLoaded:Function = function(data:String):void{
 						var entries:Array = data.split(/\r|\n/gi);
 						
 						_dataSets[dataURI] = new Vector.<Object>();
-					
-						for(var i:int = 1; i < entries.length; i++){
-							var entry:Array = (entries[i] as String).split(',');
-							var pointData:Object = {time:entry[0],lat:entry[1],lon:entry[2],value:entry[3],level:entry[4]};
-							_dataSets[dataURI].push(pointData);
+						if(entries.length > 1){
+							var headers:Array = (entries[0] as String).split(',');
+							
+							for(var i:int = 1; i < entries.length; i++){
+								var entry:Array = (entries[i] as String).split(',');
+								if(headers.length != entry.length && i < entries.length - 1){
+									throw new Error("Row " + i + ":(" + entries[i] + ") from data source \"" + 
+										dataURI + "\" has a different number of elements than the header row:(" +
+										entries[0] + ").");  
+								}  
+								var pointData:Object = {}
+								for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h]; 
+								_dataSets[dataURI].push(pointData);
+							}
+							
+							//add a new scatterplot if necessary
+							scatterPlot.data = _dataSets[dataURI];
+							_plotLayer.data = _dataSets;
+							_plotLayer.refresh(true);
+							
 						}
-						
-						//add a new scatterplot if necessary
-						scatterPlot.data = _dataSets[dataURI];
-						_plotLayer.data = _dataSets;
-						
 						if(onComplete != null)onComplete();
 					}
 					
@@ -210,18 +217,41 @@
 				plots.addChild(newPlot);
 				
 				//add listeners to handle linking
-				newPlot.addEventListener(DataPointEvent.HOVER,function(de:DataPointEvent):void{
+				var clickPlot:Function = function(de:DataPointEvent):void{
+						if(de.dataPoint){
+							var loc:Location = new Location(de.dataPoint.lat,de.dataPoint.lon); 
+							panAndZoomTo(loc,map.getZoom());
+						}
+					};
+				var drawLayerTip:Function = function(de:DataPointEvent):void{
 						_plotLayer.drawDataTip(de.dataPoint);
-					});
-				_plotLayer.addEventListener(DataPointEvent.HOVER,function(de:DataPointEvent):void{
+					};
+				var drawPlotTip:Function = function(de:DataPointEvent):void{
 						newPlot.drawDataTip(de.dataPoint);
-					});
-				newPlot.addEventListener(DataPointEvent.UNHOVER,function(de:DataPointEvent):void{
+					};
+				var discardLayerTip:Function = function(de:DataPointEvent):void{
 						_plotLayer.discardActiveDataTip();
-					});
-				_plotLayer.addEventListener(DataPointEvent.UNHOVER,function(de:DataPointEvent):void{
+					};
+				var discardPlotTip:Function = function(de:DataPointEvent):void{
 						newPlot.discardActiveDataTip();
-					});				
+					};
+				newPlot.addEventListener(DataPointEvent.CLICK,clickPlot);
+				newPlot.addEventListener(DataPointEvent.HOVER,drawLayerTip);
+				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
+				newPlot.addEventListener(DataPointEvent.UNHOVER,discardLayerTip);
+				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardPlotTip);
+				
+				//Handle removal when necessary						
+				newPlot.addEventListener(CSEvent.REMOVE_CLICKED,function(ce:CSEvent):void{			
+						newPlot.removeEventListener(DataPointEvent.HOVER,drawLayerTip);
+						_plotLayer.removeEventListener(DataPointEvent.HOVER,drawPlotTip);
+						newPlot.removeEventListener(DataPointEvent.UNHOVER,discardLayerTip);
+						_plotLayer.removeEventListener(DataPointEvent.UNHOVER,discardPlotTip);
+						
+						plots.removeChild(newPlot);
+						delete _dataSets[dataURI];
+						_plotLayer.refresh(true);
+					});
 				
 				return newPlot;
 			}
@@ -383,23 +413,6 @@
 				map.panTo(loc);
 			}
 			
-			/**Data Point Tooltipping*/
-			/*protected var dpTip:DataPointTooltip = new DataPointTooltip();
-			protected function handleMarkerOver(me:MarkerEvent):void{
-				if(me.marker is DataPointMarker){
-					if(!dpTip.parent) this.addChild(dpTip);
-					dpTip.marker = (me.marker as DataPointMarker);
-					dpTip.visible = true;
-					dpTip.x = dpXY.x;
-					dpTip.y = dpXY.y;
-				}
-			}
-			protected function handleMarkerOut(me:MarkerEvent):void{
-				if(me.marker is DataPointMarker){
-					dpTip.visible = false;
-				}
-			}*/
-			
 			
 			/******** Implements IStatefulVis *************************************************/	
 				
@@ -499,7 +512,8 @@
 				//when the okay button is clicked
 				dataPanel.onLoadClick = function(e:Event=null):void{
 						var url:String = dataPanel.selectedURL;
-						if(url) loadFileData(url);
+						var pollutant:String = dataPanel.selectedItem.reading;
+						if(url) loadFileData(url,pollutant);
 						PopUpManager.removePopUp(dataPanel);
 					};
 					//when the cancel button is clicked

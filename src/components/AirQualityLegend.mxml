@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" >
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="0xCCCCCC" backgroundAlpha="0.80" >
 	<mx:Script>
 		<![CDATA[
 			import etc.AirQualityColors;
+			
+			[Bindable]
+			public var pollutant:String = AirQualityColors.PM_25_24HR;
 		]]>
 	</mx:Script>
-	<mx:Legend backgroundColor="0xCCCCCC" backgroundAlpha="0.80" height="100%" width="100%">
+
+	<mx:Legend height="100%" width="100%" >
 				<mx:LegendItem label="Good" fontWeight="bold">
 		           <mx:fill>
 		            <mx:SolidColor color="{AirQualityColors.GOOD_COLOR}"/>

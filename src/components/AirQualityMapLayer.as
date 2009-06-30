@@ -44,6 +44,7 @@ package components
 		
 		protected function get map():Map{ return _map;}
 		
+		public var pollutant:String = AirQualityColors.PM_25_24HR;
 		public var pointOverlapTolerance:Number = 11;
 		public var zoomTolerance:Number = 5; 
 		public var pointDiameter:Number = 12;
@@ -66,7 +67,6 @@ package components
 		public function get data():Object{
 			return _data;
 		}
-		
 		
 		public function AirQualityMapLayer(map:Map,data:Vector.<Object> = null)
 		{
@@ -93,6 +93,15 @@ package components
 	        map.addEventListener(MouseEvent.MOUSE_OUT, handleMouseOut);
 		}
 		
+		public function refresh(force:Boolean=false):void{
+			if(force){
+				 _cachedBitmapData = {};
+				 _quadTree.clearItems();
+				 for each(var ds:Vector.<Object> in _data) addToQuadTree(ds);
+				 _dirty = true;
+			}
+			plotData();
+		}
 		
 		
 		protected function addToQuadTree(dataSet:Vector.<Object>):void{
@@ -139,7 +148,7 @@ package components
 	            plotBitmapData.fillRect(new Rectangle(0,0,plotBitmapData.width,plotBitmapData.height),0x00000000);
 	        }
 			
-			//If we've already drawn this zoom level, just reuse it
+			//If we've already drawn this zoom , just reuse it
 			//FIXME: This will probably no longer work once we start using multiple datasets, etc.
 			if(_cachedBitmapData[drawCoord.zoom]){
 				var cachedBMD:BitmapData = _cachedBitmapData[drawCoord.zoom].bitmap;
@@ -173,27 +182,26 @@ package components
 				//iterate through recorded points
 				for(var i:int=0; i < pSet.length; i++){
 					var point:Object = pSet[i]; 
+					if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
 				
 					//determine location
 					var dLoc:Location = new Location(point.lat,point.lon);
 					var dPt:Point = _map.locationPoint(dLoc);
 		
-					//skip if position, level not different from last
-					if(prevPoint && prevPoint.level == point.level 
+					//skip if position, AQI category not different from last
+					if(prevPoint && prevPoint.cat == point.cat 
 							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
 							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
 						continue;
 					}  
 									
 					//draw the point
-					if(!prevPoint || prevPoint.level != point.level){
-						var color:uint = AirQualityColors.getColorForLevel(point.level);
-						plotShape.graphics.clear();
-						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
-						plotShape.graphics.beginFill(color,0.6);
-						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
-	        			plotShape.graphics.endFill();
-	    			}
+ 					var color:uint = AirQualityColors.getColorForAQICategory(point.cat);
+					plotShape.graphics.clear();
+					plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+					plotShape.graphics.beginFill(color,0.6);
+					plotShape.graphics.drawCircle(0,0,pointDiameter/2);
+        			plotShape.graphics.endFill();
 					translationMatrix.tx = dPt.x + (w - map.getWidth()) / 2;
 					translationMatrix.ty = dPt.y + (h - map.getHeight()) / 2;
 					
@@ -309,24 +317,27 @@ package components
 			if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,overPos.x,overPos.y) as ToolTip;
 		
 			//color the tip and add additional text if possible
-			if(dataPoint.level){
-				_plotTip.setStyle("backgroundColor",AirQualityColors.getColorForLevel(dataPoint.level));
+			if(dataPoint.value){
+				var cat:String = AirQualityColors.getAQICategoryForValue(pollutant,dataPoint.value);
+				var color:uint = AirQualityColors.getColorForAQICategory(cat);
+				_plotTip.setStyle("backgroundColor",color);
 				_plotTip.setStyle("backgroundAlpha",0.7);
-				_plotTip.text = dataPoint.time + "\n" + dataPoint.value + " (" + dataPoint.level + ")";
+				var time:Number = Number(dataPoint.time * 1000);
+				var date:Date = new Date(time);
+				_plotTip.text = date + "\n" + dataPoint.value + " (" + cat + ")";
 				_plotTip.x = overPos.x;
 				_plotTip.y = overPos.y;
 				
 				//Plot an accentuated version of the point as part of the tooltip
 				_plotTip.graphics.lineStyle(2,0xffffff,0.7);
-				_plotTip.graphics.beginFill(AirQualityColors.getColorForLevel(dataPoint.level),1);
+				_plotTip.graphics.beginFill(color,1);
 				_plotTip.graphics.drawCircle(0,0,(2/3)*pointDiameter);
     			_plotTip.graphics.endFill();
     			_plotTip.graphics.beginFill(0xffffff,1);
     			_plotTip.graphics.drawCircle(0,0,pointDiameter/3);
     			_plotTip.graphics.endFill();
-				
 			}
-			else _plotTip.text = dataPoint.value;
+			else _plotTip.text = "No Data"
 		}	
 			
 		public function discardActiveDataTip():void{

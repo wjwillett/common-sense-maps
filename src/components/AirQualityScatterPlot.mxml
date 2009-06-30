@@ -1,24 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:display="flash.display.*"  height="100"
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:display="flash.display.*"  height="70"
 	backgroundColor="0xDDCCCCCC" backgroundAlpha="0.8" 
 	horizontalScrollPolicy="off" verticalScrollPolicy="off">
 	
 	<mx:VRule id="tipLine" top="{margin}" bottom="{margin}" visible="false"/>
 	
 	<mx:Canvas id="container" width="100%" height="100%" resize="{refresh()}" 
-		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" mouseMove="{handleMouseMove(event)}" 
+		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
+		mouseMove="{handleMouseMove(event)}" click="{handleMouseClick(event)}" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" 
 		alpha="{plotCheck.selected ? 1 : 0.4}" enabled="{plotCheck.selected}"/>
-	<mx:ProgressBar id="progressBar" mode="manual" minimum="0" verticalCenter="10" left="{margin + 40}" right="{2 * margin}"/>
-	<mx:CheckBox id="plotCheck" x="15" y="5" selected="true"/>
-	<mx:LinkButton id="zIn" click="{zoomIn()}" label="+" x="8" y="28" 
-		enabled="{plotCheck.selected}" toolTip="zoom in"/>
-	<mx:LinkButton id="zOut" click="{zoomOut()}" label="-" left="10" top="55" 
+	<mx:ProgressBar id="progressBar" mode="manual" minimum="0" verticalCenter="10" left="{margin}" right="{2 * margin}"/>
+	
+	<mx:CheckBox id="plotCheck" x="15" y="5" selected="true" visible="false"/>
+	<mx:LinkButton id="remove" click="{dispatchEvent(new CSEvent(CSEvent.REMOVE_CLICKED))}" label="x" x="8" y="5" 
+		enabled="{plotCheck.selected}" toolTip="remove track" />
+	<mx:LinkButton id="zIn" click="{zoomIn()}" label="+" x="28" y="5" 
+		enabled="{plotCheck.selected}" toolTip="zoom in" />
+	<mx:LinkButton id="zOut" click="{zoomOut()}" label="-" left="50" top="5" 
 		enabled="{plotCheck.selected}" toolTip="zoom out"/>
-	<mx:Label text="{displayName}" left="37" fontFamily="Helvetica" color="#898989" fontSize="15" fontWeight="normal" top="5"/>
+	<mx:Label text="{displayName}" left="75" fontFamily="Helvetica" color="#898989" fontSize="15" fontWeight="normal" top="5"/>
 	
 	<mx:Script>
 		<![CDATA[
+			import events.CSEvent;
 			import etc.AirQualityColors;
 			import events.DataPointEvent;
 			import mx.controls.ToolTip;
@@ -67,7 +72,8 @@
 			[Bindable]
 			public var displayName:String;
 			public var dataField:String = 'value';
-			public var margin:Number = 20;
+			public var pollutant:String = AirQualityColors.PM_25_24HR;
+			public var margin:Number = 15;
 			public var pointDiameter:Number = 6;
 			public var pointOverlapTolerance:Number = 8;
 			public var zoomPercentage:Number = 0.7;
@@ -109,26 +115,25 @@
 				
 				for(var i:int=fdPoint; i < ldPoint; i++){
 					var point:Object = data[i]; 
+					if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
 				
 					//determine location
 					var dPt:Point = dataToPoint(data[i],i);
 		
-					//skip if position, level not different from last
-					if(prevPoint && prevPoint.level == point.level 
+					//skip if position, category not different from last
+					if(prevPoint && prevPoint.cat == point.cat 
 							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
 							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
 						continue;
 					}  
 									
 					//draw the point
-					if(!prevPoint || prevPoint.level != point.level){
-						var color:uint = AirQualityColors.getColorForLevel(point.level);
-						plotShape.graphics.clear();
-						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
-						plotShape.graphics.beginFill(color,0.6);
-						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
-	        			plotShape.graphics.endFill();
-	    			}
+					var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
+					plotShape.graphics.clear();
+					plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+					plotShape.graphics.beginFill(color,0.6);
+					plotShape.graphics.drawCircle(0,0,pointDiameter/2);
+        			plotShape.graphics.endFill();
 					translationMatrix.tx = dPt.x;
 					translationMatrix.ty = dPt.y;
 					
@@ -230,7 +235,7 @@
 			protected function dataToPoint(pointData:Object,pointNum:int=-1):Point{
 				if(pointNum == -1) pointNum = (_data as Vector.<Object>).lastIndexOf(pointData);
 				return new Point((pointNum - fPoint) / (lPoint - fPoint) * (container.width - 2 * margin) + container.width / 2 + margin,
-						 (container.height - 2 * margin - 10) * (1 - pointData[dataField] / maxVal - minVal) + margin); 
+						 (container.height - 2 * margin - 10) * (1 - (pointData[dataField] - minVal) / (maxVal - minVal)) + margin); 
 			}
 			
 			
@@ -247,23 +252,27 @@
 				if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
 			
 				//color the tip and add additional text if possible
-				if(dataPoint.level){
-					_plotTip.setStyle("backgroundColor",AirQualityColors.getColorForLevel(dataPoint.level));
+				if(dataPoint.value){
+					var cat:String = AirQualityColors.getAQICategoryForValue(pollutant,dataPoint.value);
+					var color:uint = AirQualityColors.getColorForAQICategory(cat);
+					_plotTip.setStyle("backgroundColor",color);
 					_plotTip.setStyle("backgroundAlpha",0.7);
-					_plotTip.text = dataPoint.time + "\n" + dataPoint.value + " (" + dataPoint.level + ")";
+					var time:Number = Number(dataPoint.time * 1000);
+					var date:Date = new Date(time);
+					_plotTip.text = date + "\n" + dataPoint.value + " (" + cat + ")";
 					_plotTip.x = ptPosition.x + _bitmap.x;
 					_plotTip.y = ptPosition.y;
 					
 					//Plot an accentuated version of the point as part of the tooltip
 					_plotTip.graphics.lineStyle(2,0xffffff,0.7);
-					_plotTip.graphics.beginFill(AirQualityColors.getColorForLevel(dataPoint.level),1);
+					_plotTip.graphics.beginFill(color,1);
 					_plotTip.graphics.drawCircle(0,0,(2/3)*pointDiameter);
 	    			_plotTip.graphics.endFill();
 	    			_plotTip.graphics.beginFill(0xffffff,1);
 	    			_plotTip.graphics.drawCircle(0,0,pointDiameter/3);
 	    			_plotTip.graphics.endFill();
 				}
-				else _plotTip.text = dataPoint.value;
+				else _plotTip.text = "No Data";
 			}	
 				
 				
@@ -275,6 +284,19 @@
 				}
 			}
 			
+			protected function handleMouseClick(me:MouseEvent):void{
+				//if we've clicked on some other child (like the scrollbar) do nothing
+				if(me.target != container) return;
+				
+				//calculate the location of the click and locate the nearest matching point
+				var position:Number = me.localX - margin;
+				var overPtNum:int = fPoint + Math.floor(position * (lPoint - fPoint)/(container.width - 2 * margin));
+				overPtNum = Math.max(Math.min(overPtNum,_data.length - 1),0);
+				var overPt:Object = data[overPtNum];
+							
+				//If we have a point, fire an event
+				if(overPt) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPt));
+			}
 			
 			protected function handleMouseMove(me:MouseEvent):void{
 				
@@ -283,8 +305,8 @@
 				
 				//calculate the location we're currently mousing over and locate the nearest matching point
 				var position:Number = me.localX - margin;
-				var overPtNum:int = fPoint + int(position * (lPoint - fPoint)/(container.width - 2 * margin));
-				overPtNum = Math.max(Math.min(overPtNum,_data.length),0);
+				var overPtNum:int = fPoint + Math.floor(position * (lPoint - fPoint)/(container.width - 2 * margin));
+				overPtNum = Math.max(Math.min(overPtNum,_data.length - 1),0);
 				var overPt:Object = data[overPtNum];
 				
 				

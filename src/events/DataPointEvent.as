@@ -4,8 +4,9 @@ package events
 
 	public class DataPointEvent extends Event
 	{
-		public static const HOVER:String = "hover";
-		public static const UNHOVER:String = "unHover";
+		public static const CLICK:String = "clickDataPoint";
+		public static const HOVER:String = "hoverDataPoint";
+		public static const UNHOVER:String = "unHoverDataPoint";
 		
 		public var dataPoint:Object;
 		
