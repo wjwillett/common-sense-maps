@@ -55,7 +55,7 @@
 			/******** Source Data **********************************************************/
 			//[Embed(source = "assets/2009-05-14 (West Oakland PM + GPS).csv", mimeType="application/octet-stream")]
 			//protected const Embedded20090514PMData:Class;
-			protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv?";
+			//protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv?";
 
 			
 			/******** Constants **********************************************************/
@@ -85,7 +85,7 @@
 			
 			
 			//protected var dataSource:Object = Embedded20090514PMData;
-			protected var dataSource:Object = outside20090514PMData;
+			//protected var dataSource:Object = outside20090514PMData;
 			
 			//flag to prevent updated events from being dispatched during panAndZoomTo runs
 			protected var _isPanningAndZooming:Boolean = false; 
@@ -180,6 +180,8 @@
 							_plotLayer.refresh(true);
 							
 						}
+						
+						dispatchUpdated();
 						if(onComplete != null)onComplete();
 					}
 					
@@ -212,7 +214,6 @@
 				var newPlot:AirQualityScatterPlot = new AirQualityScatterPlot();
 				newPlot.percentWidth = 100;
 				newPlot.displayName = plotName;
-				newPlot.dataField = "value";
 				newPlot.data = _dataSets[dataURI];
 				plots.addChild(newPlot);
 				
@@ -430,6 +431,10 @@
 			}
 			
 			public function set state(o:Object):void{
+				if(o.dataSource is String){
+					var ds:Array = (o.dataSource as String).split(',');
+					for each(var d:String in ds) loadFileData(d,AirQualityColors.CO_8HR);					
+				}
 				panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 			}
 			
@@ -511,9 +516,12 @@
 				
 				//when the okay button is clicked
 				dataPanel.onLoadClick = function(e:Event=null):void{
-						var url:String = dataPanel.selectedURL;
+						var urls:Array = dataPanel.selectedURLs;
+						//var url:String = dataPanel.selectedURL;
 						var pollutant:String = dataPanel.selectedItem.reading;
-						if(url) loadFileData(url,pollutant);
+						if(urls){
+							for each (var u:String in urls) loadFileData(u,pollutant);
+						} 
 						PopUpManager.removePopUp(dataPanel);
 					};
 					//when the cancel button is clicked

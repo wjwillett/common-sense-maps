@@ -19,7 +19,7 @@
 		enabled="{plotCheck.selected}" toolTip="zoom in" />
 	<mx:LinkButton id="zOut" click="{zoomOut()}" label="-" left="50" top="5" 
 		enabled="{plotCheck.selected}" toolTip="zoom out"/>
-	<mx:Label text="{displayName}" left="75" fontFamily="Helvetica" color="#898989" fontSize="15" fontWeight="normal" top="5"/>
+	<mx:Label text="{displayName}" left="75" fontFamily="Helvetica" color="#898989" fontSize="15" fontWeight="normal" top="5" selectable="true"/>
 	
 	<mx:Script>
 		<![CDATA[
@@ -34,33 +34,33 @@
 			import fl.controls.ScrollBar;
 			import __AS3__.vec.Vector;
 			
+			//------------- Public variables -----------------------------------------------
+			[Bindable]
+			public var displayName:String;
+			public var xDataField:String = 'time';
+			public var yDataField:String = 'value';
+			public var pollutant:String = AirQualityColors.PM_25_24HR;
+			public var margin:Number = 15;
+			public var pointDiameter:Number = 6;
+			public var pointOverlapTolerance:Number = 6;
+			public var zoomPercentage:Number = 0.6;
+			public var minPoints:uint = 100;
 			
-			//Data Management variables
-			protected var _data:Vector.<Object>;
-			protected var fPoint:uint; 		//the index in _data of the lowest point currently displayed
-			protected var lPoint:uint;		//the index in _data of the highest point currently displayed
-			protected var minVal:Number;	//the lowest data value
-			protected var maxVal:Number; 	//the highest data value
-			
-			protected var _bitmap:Bitmap;
-			protected var _mask:Sprite = new Sprite();
-			protected var _hScroll:ScrollBar = new ScrollBar();
-						
 			override public function get data():Object{return _data;}
 			override public function set data(d:Object):void{
 				if(d is Vector.<Object>){ 
 					_data = d as Vector.<Object>; plotData();
 					
 					fPoint = 0;
-					lPoint = _data.length;
+					lPoint = _data.length - 1;
 					
 					//Find min and max
 					for each(var o:Object in data){
-						var val:Number = Number(o[dataField]);
-						if(isNaN(minVal) || val < minVal) minVal = val;
-						if(isNaN(maxVal) || val > maxVal) maxVal = val;
+						var val:Number = Number(o[yDataField]);
+						if(isNaN(yMin) || val < yMin) yMin = val;
+						if(isNaN(yMax) || val > yMax) yMax = val;
 					}
-					if(isNaN(minVal) || isNaN(maxVal)) return;
+					if(isNaN(yMin) || isNaN(yMax)) return;
 					
 					refresh();
 				}
@@ -68,22 +68,32 @@
 				else throw new ArgumentError("CommonSenseAirQualityPlot currently expects " + 
 						"its data object to be of type Vector.<Object>");
 			}
+			
+			//------------- Data Management variables -----------------------------------------------
+			protected var _data:Vector.<Object>;
+			protected var fPoint:uint; 		//the index in _data of the lowest point currently displayed
+			protected var lPoint:uint;		//the index in _data of the highest point currently displayed
+			protected var yMin:Number;		//the lowest data value on the y axis
+			protected var yMax:Number; 		//the highest data value on the y axis
+			protected function get xMin():Number { return _data[fPoint][xDataField];}	//lowest value on the x axis
+			protected function get xMax():Number { return _data[lPoint][xDataField];}	//highest value on the x axis
+			
+			protected var _bitmap:Bitmap;
+			protected var _mask:Sprite = new Sprite();
+			protected var _hScroll:ScrollBar = new ScrollBar();
+						
+			
 
-			[Bindable]
-			public var displayName:String;
-			public var dataField:String = 'value';
-			public var pollutant:String = AirQualityColors.PM_25_24HR;
-			public var margin:Number = 15;
-			public var pointDiameter:Number = 6;
-			public var pointOverlapTolerance:Number = 8;
-			public var zoomPercentage:Number = 0.7;
-			public var minPoints:uint = 100;
+
+		
+			//-------------Public Methods -----------------------------------------------------
 
 			public function refresh():void{
 				plotData();
 			}
 			
 			
+			//------------- Protected Methods -----------------------------------------------------
 				
 			protected function plotData(e:Event=null):void{
 				
@@ -95,23 +105,22 @@
 				//If no data do nothing
 				if(!data || data.length == 0) return;
 				
-				var pointRange:Number = lPoint - fPoint;
-				var dataRange:Number = maxVal - minVal;
 				
 				//prep the shape object and bitmap data we'll use to draw the points
 				var plotShape:Shape = new Shape();
 				var translationMatrix:Matrix = new Matrix();
 				var plotBitmapData:BitmapData = new BitmapData(container.width * 2,container.height,true,0x00FFFFFF);
-				
-				plotBitmapData.lock();
-				
+											
 				var prevPoint:Object;
 				var prevPt:Point;
 				
 				//draw outside the current range so that scrolling 
 				// cuts less abruptly
+				var pointRange:Number = lPoint - fPoint;
 				var fdPoint:int = Math.max(0,fPoint - pointRange);
 				var ldPoint:int = Math.min(_data.length - 1, lPoint + pointRange);
+				
+				plotBitmapData.lock();
 				
 				for(var i:int=fdPoint; i < ldPoint; i++){
 					var point:Object = data[i]; 
@@ -170,6 +179,7 @@
 				
 				if(container.mask != _mask)container.mask = _mask;
 			}
+			
 			
 			/**
 			 * Set up and place the scroll bar
@@ -234,10 +244,21 @@
 			
 			protected function dataToPoint(pointData:Object,pointNum:int=-1):Point{
 				if(pointNum == -1) pointNum = (_data as Vector.<Object>).lastIndexOf(pointData);
-				return new Point((pointNum - fPoint) / (lPoint - fPoint) * (container.width - 2 * margin) + container.width / 2 + margin,
-						 (container.height - 2 * margin - 10) * (1 - (pointData[dataField] - minVal) / (maxVal - minVal)) + margin); 
+				if(pointNum == -1) return null;
+				else return new Point((pointData[xDataField] - xMin) / (xMax - xMin) * (container.width - 2 * margin) + container.width / 2 + margin,
+						 (container.height - 2 * margin - 10) * (1 - (pointData[yDataField] - yMin) / (yMax - yMin)) + margin); 
 			}
 			
+			protected function xToData(x:Number):Object{
+				var position:Number = x - margin;
+				var overXPos:int = xMin + Math.floor(position * (xMax - xMin)/(container.width - 2 * margin));
+				overXPos = Math.max(Math.min(overXPos,xMax),xMin);
+				
+				for each(var o:Object in _data){
+					if(Math.abs(o[xDataField] - overXPos) < 10) return o;
+				}
+				return null;
+			}
 			
 			/****************************** Tooltipping Methods ************************************/
 			protected var _plotTip:ToolTip;
@@ -248,6 +269,7 @@
 			public function drawDataTip(dataPoint:Object):void{
 				
 				var ptPosition:Point = dataToPoint(dataPoint);
+				if(!ptPosition) return;
 				ptPosition = container.localToGlobal(ptPosition);
 				if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
 			
@@ -260,16 +282,19 @@
 					var time:Number = Number(dataPoint.time * 1000);
 					var date:Date = new Date(time);
 					_plotTip.text = date + "\n" + dataPoint.value + " (" + cat + ")";
-					_plotTip.x = ptPosition.x + _bitmap.x;
+					var rightInset:Number = Math.max(0, ptPosition.x + _bitmap.x -
+						 container.localToGlobal(new Point(container.width - _plotTip.width)).x);
+					_plotTip.x = ptPosition.x + _bitmap.x - rightInset;
 					_plotTip.y = ptPosition.y;
 					
 					//Plot an accentuated version of the point as part of the tooltip
+					_plotTip.graphics.clear();
 					_plotTip.graphics.lineStyle(2,0xffffff,0.7);
 					_plotTip.graphics.beginFill(color,1);
-					_plotTip.graphics.drawCircle(0,0,(2/3)*pointDiameter);
+					_plotTip.graphics.drawCircle(rightInset,0,(2/3)*pointDiameter);
 	    			_plotTip.graphics.endFill();
 	    			_plotTip.graphics.beginFill(0xffffff,1);
-	    			_plotTip.graphics.drawCircle(0,0,pointDiameter/3);
+	    			_plotTip.graphics.drawCircle(rightInset,0,pointDiameter/3);
 	    			_plotTip.graphics.endFill();
 				}
 				else _plotTip.text = "No Data";
@@ -289,10 +314,7 @@
 				if(me.target != container) return;
 				
 				//calculate the location of the click and locate the nearest matching point
-				var position:Number = me.localX - margin;
-				var overPtNum:int = fPoint + Math.floor(position * (lPoint - fPoint)/(container.width - 2 * margin));
-				overPtNum = Math.max(Math.min(overPtNum,_data.length - 1),0);
-				var overPt:Object = data[overPtNum];
+				var overPt:Object = xToData(me.localX);
 							
 				//If we have a point, fire an event
 				if(overPt) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPt));
@@ -304,10 +326,7 @@
 				if(me.target != container) return;
 				
 				//calculate the location we're currently mousing over and locate the nearest matching point
-				var position:Number = me.localX - margin;
-				var overPtNum:int = fPoint + Math.floor(position * (lPoint - fPoint)/(container.width - 2 * margin));
-				overPtNum = Math.max(Math.min(overPtNum,_data.length - 1),0);
-				var overPt:Object = data[overPtNum];
+				var overPt:Object = xToData(me.localX);
 				
 				
 				//If we have a point, mark it

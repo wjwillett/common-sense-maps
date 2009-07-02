@@ -1,26 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="700" height="400">
-	<mx:DataGrid id="grid" width="100%" height="50%" initialize="{setupGrid()}"
-		enabled="{radioGroup.selectedValue=='grid'}" visible="false">
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="700" backgroundColor="#FFFFFF" borderStyle="solid" cornerRadius="10" borderColor="#FFFFFF" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+	<mx:RadioButtonGroup id="radioGroup"/>
+	<mx:RadioButton label="Recommended Datasets" id="recommendedRadio" 
+		group="{radioGroup}" value='grid'  fontSize="16" selected="true"/>
+	<mx:DataGrid id="grid" width="100%" height="160" initialize="{setupGrid()}"
+		enabled="{recommendedRadio.selected}">
 		<mx:columns>
-                <mx:DataGridColumn dataField="item_name" headerText="Name"/>
-                <mx:DataGridColumn dataField="date_time" headerText="Date"/>
-                <mx:DataGridColumn dataField="source_name" headerText="Source"/>
+                <mx:DataGridColumn dataField="item_name" headerText="Dataset"/>
+                <!--<mx:DataGridColumn dataField="date_time" headerText="Date"/>-->
+                <!--<mx:DataGridColumn dataField="source_name" headerText="Source"/>-->
             </mx:columns>
 	</mx:DataGrid>
-	<mx:Label text="Load Additional Data:" fontSize="18" fontFamily="Helvetica"/>
-	<mx:HBox width="100%">
-		<mx:RadioButtonGroup id="radioGroup"/>
-		<mx:RadioButton label="List" id="gridRadio" group="{radioGroup}" value='grid' visible="false"/>
-		<mx:RadioButton id="otherRadio" group="{radioGroup}" value="other" selected="true" visible="false"/>
-		<mx:HBox id="loadControls" enabled="{radioGroup.selectedValue=='other'}">
-			<mx:ComboBox id="badgeIdCombo" dataProvider="{BADGES}" labelField="name"></mx:ComboBox>
-			<mx:ComboBox id="pollutantCombo" dataProvider="{POLLUTANTS}" 
-				labelField="pollutant" enabled="false"/>	
-		</mx:HBox>
+	<mx:RadioButton id="customRadio" group="{radioGroup}" value="custom" 
+		selected="true"  label="Load a Custom Dataset" fontSize="16"/>
+	<mx:HBox width="100%" enabled="{customRadio.selected}">
+		<mx:List dataProvider="{BADGES}" id="badgeIdList" 
+			labelField="name" width="82" height="100%" allowMultipleSelection="true"/>
+		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList" 
+			labelField="pollutant" height="100%" selectedIndex="0"></mx:List>
+		<mx:VBox height="100%" width="180">
+			<mx:DateChooser id="dateChooser" borderColor="#FFFFFF" selectedDate="{new Date()}"
+				allowMultipleSelection="true" allowDisjointSelection="false" showToday="false" width="180"/>
+			<mx:Text text="{(dateChooser.selectedRanges[0].rangeStart as Date).toLocaleDateString()
+			       } - {(dateChooser.selectedRanges[0].rangeEnd as Date).toLocaleDateString()}" width="177"/>
+		</mx:VBox>
 	</mx:HBox>
+	<mx:RadioButton id="queryRadio" group="{radioGroup}" value="query" selected="false"  
+		label="Specify a Custom Query (Advanced)" fontSize="16"/>
+	<mx:TextInput width="100%" id="queryInput" text="{BASE_DB_QUERY_URL}" 
+		visible="{queryRadio.selected}" includeInLayout="{queryRadio.selected}"/>
 	<mx:HBox width="100%" horizontalAlign="right">
-		<mx:Button id="loadButton" label="Load" click="{onLoadClick()}"/>
+		<mx:Button id="loadButton" label="Load" click="{onLoadClick()}" enabled="{!customRadio.selected || badgeIdList.selectedIndex &gt; -1 &amp;&amp;  pollutantList.selectedIndex &gt; -1}"/>
 		<mx:Button id="cancelButton" label="Cancel" click="{onCancelClick()}"/>
 	</mx:HBox>
 	
@@ -51,22 +61,33 @@
 				{name:"Badge 15",id:'00000000000F'}];
 				
 			protected const POLLUTANTS:Array = [
-				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'co',multiplier:0.001},
-				{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'o3',multiplier:0.001},
-				{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
+				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
+				{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
+				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
 				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:,multiplier:},
 				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:,multiplier:},
-				{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}];
+				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
+				];
 				
-			
-			public function get selectedURL():String{
+					
+			public function get selectedURLs():Array{
+				var urls:Array = [];
 				if(radioGroup.selectedValue=='grid'){
-				 	return grid.selectedItem ? grid.selectedItem.url : null;
+					if(grid.selectedItems){
+						for each(var o:Object in grid.selectedItems){
+							if(o.url) urls.push(o.url);
+						} 		
+					}
 				}
-				else if(radioGroup.selectedValue=='other'){
-				 	return buildURL();
+				else if(radioGroup.selectedValue=='custom'){
+					for each(var o:Object in badgeIdList.selectedItems){
+						urls.push(buildURL(o.id));
+					}
 				}
-				else return null; 
+				else if(radioGroup.selectedValue=='query'){
+					urls.push(queryInput.text);
+				}
+				return urls; 
 			}
 			
 			public function get selectedItem():Object{
@@ -74,14 +95,18 @@
 				 	return grid.selectedItem;
 				}
 				else{
-					return {reading:pollutantCombo.selectedItem.abbreviation,url:buildURL()};
+					return {reading:pollutantList.selectedItem.abbreviation,url:buildURL()};
 				}
 			}
 			
-			protected function buildURL():String{
-				return BASE_DB_QUERY_URL + "?badge_id=" + badgeIdCombo.selectedItem.id + 
-				 		"&reading=" + pollutantCombo.selectedItem.db + 
-				 		"&scale_multiplier=" + pollutantCombo.selectedItem.multiplier
+			protected function buildURL(badgeId:String=null):String{
+				var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : badgeIdList.selectedItem.id) + 
+				 		"&reading=" + pollutantList.selectedItem.db; 
+				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
+					url += "&start_time=" + (dateChooser.selectedRanges[0].rangeStart as Date).time / 1000 +
+						"&end_time=" + (dateChooser.selectedRanges[0].rangeEnd as Date).time / 1000 + 3600 * 24;
+				}				 		
+				return url;
 			}
 			
 			
