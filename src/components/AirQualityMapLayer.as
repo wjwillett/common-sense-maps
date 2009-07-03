@@ -234,6 +234,10 @@ package components
 	    {
 	    	if (drawCoord) {
 		        var p:Point = map.grid.coordinatePoint(drawCoord);
+		        if(_plotTip){
+		        	_plotTip.x -= (this.x - p.x);
+		        	_plotTip.y -= (this.y - p.y);
+		        }
 		        this.x = p.x;
 	    	    this.y = p.y;
 	    	}

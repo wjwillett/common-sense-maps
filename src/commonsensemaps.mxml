@@ -138,19 +138,20 @@
 				//Plot data and existing markers
 				//loadFileData(dataSource,AirQualityColors.PM_25_24HR,function():void{
 						//plot any flag markers
-						plotExistingMarkers();	
-						//let commentspace know we're loaded				
+						//plotExistingMarkers();	
+						//let commentspace know we're loaded
+						triggerLoadingPopup();				
 						dispatchComplete();
 				//	});
 			}
 			
 			
-			protected function loadFileData(source:Object,pollutant:String,onComplete:Function=null):void{
+			protected function loadFileData(source:Object,pollutant:String,name:String=null,onComplete:Function=null):void{
 			
 				var dataURI:String = source.toString(); 
 			
 				//Add a scatterplot to represent the datafile
-				var scatterPlot:AirQualityScatterPlot = addScatterPlot(dataURI,dataURI);
+				var scatterPlot:AirQualityScatterPlot = addScatterPlot(dataURI,name?name:"");
 				scatterPlot.pollutant = pollutant;
 				_plotLayer.pollutant = pollutant;
 				
@@ -289,7 +290,7 @@
 				
 				var mouseXY:Point = new Point(me.stageX, me.stageY);
 				var loc:Location = map.pointLocation(_mouseDownXY);
-				createMenu(mouseXY,loc);
+				//createMenu(mouseXY,loc);
 			}
 			
 			
@@ -516,11 +517,10 @@
 				
 				//when the okay button is clicked
 				dataPanel.onLoadClick = function(e:Event=null):void{
-						var urls:Array = dataPanel.selectedURLs;
-						//var url:String = dataPanel.selectedURL;
-						var pollutant:String = dataPanel.selectedItem.reading;
-						if(urls){
-							for each (var u:String in urls) loadFileData(u,pollutant);
+						var info:Array = dataPanel.getSelectedInfo();
+						if(info && info.length > 0){
+							var pollutant:String = info[0].reading;
+							for each (var i:Object in info) loadFileData(i.url,pollutant,i.name);
 						} 
 						PopUpManager.removePopUp(dataPanel);
 					};

@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="700" backgroundColor="#FFFFFF" borderStyle="solid" cornerRadius="10" borderColor="#FFFFFF" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#FFFFFF" borderStyle="solid" cornerRadius="10" borderColor="#FFFFFF" paddingBottom="25" paddingLeft="25" paddingRight="25" paddingTop="25" width="700">
 	<mx:RadioButtonGroup id="radioGroup"/>
-	<mx:RadioButton label="Recommended Datasets" id="recommendedRadio" 
-		group="{radioGroup}" value='grid'  fontSize="16" selected="true"/>
-	<mx:DataGrid id="grid" width="100%" height="160" initialize="{setupGrid()}"
-		enabled="{recommendedRadio.selected}">
+	<mx:Label text="load additional data" color="#62D000" fontFamily="Helvetica" fontSize="30"/>
+	
+	<mx:RadioButton label="Recommended Datasets" id="recommendedRadio" selected="true"  
+		group="{radioGroup}" value='recommended'  fontSize="16" />
+	<mx:DataGrid id="grid" width="100%" height="160" initialize="{setupGrid()}" showHeaders="false"
+ 		includeInLayout="{recommendedRadio.selected}" visible="{recommendedRadio.selected}">
 		<mx:columns>
-                <mx:DataGridColumn dataField="item_name" headerText="Dataset"/>
+                <mx:DataGridColumn dataField="name" headerText="Dataset"/>
                 <!--<mx:DataGridColumn dataField="date_time" headerText="Date"/>-->
                 <!--<mx:DataGridColumn dataField="source_name" headerText="Source"/>-->
             </mx:columns>
 	</mx:DataGrid>
+	
 	<mx:RadioButton id="customRadio" group="{radioGroup}" value="custom" 
-		selected="true"  label="Load a Custom Dataset" fontSize="16"/>
-	<mx:HBox width="100%" enabled="{customRadio.selected}">
+		label="Load a Custom Dataset" fontSize="16"/>
+	<mx:HBox width="100%" includeInLayout="{customRadio.selected}" visible="{customRadio.selected}">
 		<mx:List dataProvider="{BADGES}" id="badgeIdList" 
 			labelField="name" width="82" height="100%" allowMultipleSelection="true"/>
 		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList" 
@@ -25,9 +28,11 @@
 			       } - {(dateChooser.selectedRanges[0].rangeEnd as Date).toLocaleDateString()}" width="177"/>
 		</mx:VBox>
 	</mx:HBox>
+	
 	<mx:RadioButton id="queryRadio" group="{radioGroup}" value="query" selected="false"  
 		label="Specify a Custom Query (Advanced)" fontSize="16"/>
-	<mx:TextInput width="100%" id="queryInput" text="{BASE_DB_QUERY_URL}" 
+	<mx:TextInput width="100%" id="queryInput" text="{BASE_DB_QUERY_URL +
+		'?badge_id=00000000000A&amp;reading=mco&amp;start_time=' + '&amp;end_time='}" 
 		visible="{queryRadio.selected}" includeInLayout="{queryRadio.selected}"/>
 	<mx:HBox width="100%" horizontalAlign="right">
 		<mx:Button id="loadButton" label="Load" click="{onLoadClick()}" enabled="{!customRadio.selected || badgeIdList.selectedIndex &gt; -1 &amp;&amp;  pollutantList.selectedIndex &gt; -1}"/>
@@ -36,12 +41,38 @@
 	
 	<mx:Script>
 		<![CDATA[
+			import etc.AirQualityColors;
 			import mx.collections.ArrayCollection;
 		
 			protected const DATA_INDEX_XML_URL:String = "http://www.eecs.berkeley.edu/~willettw//temp/CommonSenseDataIndex.xml";
 			
-			protected const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgeapi/";
-			//protected const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgeapi/";
+			protected const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
+			//protected const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
+			
+			
+			protected const recommendedQueries:Array = [
+				{name:"All Badges CO (past 24 hours)",
+					url:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
+						int((new Date().time) / 1000 - 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
+				{name:"All Badges CO (past week)",
+					url:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
+						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
+				{name:"Badge 4 CO (past week)",
+					url:BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=" + 
+						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
+				{name:"Badge 10 CO (past week)",
+					url:BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=" + 
+						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
+				{name:"West Oakland PM (15 May 2009)",
+					url:"http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv",
+					reading:"pm25"}
+				];					
+					
+			
 			
 			protected const BADGES:Array = [
 				{name:"Badge 1",id:'000000000001'},
@@ -69,35 +100,44 @@
 				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
 				];
 				
-					
-			public function get selectedURLs():Array{
-				var urls:Array = [];
-				if(radioGroup.selectedValue=='grid'){
+				
+			public var onLoadClick:Function;
+			public var onCancelClick:Function;
+		
+		
+			public function getSelectedInfo():Array{
+				var info:Array = []
+				if(radioGroup.selectedValue=='recommended'){
 					if(grid.selectedItems){
-						for each(var o:Object in grid.selectedItems){
-							if(o.url) urls.push(o.url);
+						for each(var g:Object in grid.selectedItems){
+							info.push(g);
 						} 		
 					}
 				}
 				else if(radioGroup.selectedValue=='custom'){
-					for each(var o:Object in badgeIdList.selectedItems){
-						urls.push(buildURL(o.id));
+					for each(var b:Object in badgeIdList.selectedItems){
+						info.push({name:buildName(b.name),
+							url:buildURL(b.id),
+							reading:pollutantList.selectedItem.abbreviation});
 					}
 				}
 				else if(radioGroup.selectedValue=='query'){
-					urls.push(queryInput.text);
+					info.push({name:queryInput.text});
 				}
-				return urls; 
+				return info; 
+			}	
+					
+			
+			
+			protected function buildName(badgeName:String):String{
+				var name:String = badgeName + " " + pollutantList.selectedItem.pollutant;
+				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
+					name += (" (" + (dateChooser.selectedRanges[0].rangeStart as Date).toLocaleDateString() + " - " + 
+			       			(dateChooser.selectedRanges[0].rangeEnd as Date).toLocaleDateString() + ")");
+				}				 		
+				return name;
 			}
 			
-			public function get selectedItem():Object{
-				if(radioGroup.selectedValue=='grid'){
-				 	return grid.selectedItem;
-				}
-				else{
-					return {reading:pollutantList.selectedItem.abbreviation,url:buildURL()};
-				}
-			}
 			
 			protected function buildURL(badgeId:String=null):String{
 				var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : badgeIdList.selectedItem.id) + 
@@ -110,21 +150,25 @@
 			}
 			
 			
-			public var onLoadClick:Function;
-			public var onCancelClick:Function;
+
 			
 			protected function setupGrid():void{
-				
-				var request:URLRequest = new URLRequest(DATA_INDEX_XML_URL);
+				grid.dataProvider = recommendedQueries;
+				/*var req
+				uest:URLRequest = new URLRequest(DATA_INDEX_XML_URL);
 				var loader:URLLoader = new URLLoader(request);
 				
 				loader.addEventListener(Event.COMPLETE,function(e:Event):void{
 						var gridXML:XMLList = XMLList(loader.data);
 						grid.dataProvider = gridXML..item;
-					});
+					});*/
 			}
+			
+			
 			
 			
 		]]>
 	</mx:Script>
+	
+	
 </mx:VBox>

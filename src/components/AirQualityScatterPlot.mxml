@@ -8,7 +8,9 @@
 	<mx:Canvas id="container" width="100%" height="100%" resize="{refresh()}" 
 		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
 		mouseMove="{handleMouseMove(event)}" click="{handleMouseClick(event)}" 
-		horizontalScrollPolicy="off" verticalScrollPolicy="off" 
+		doubleClick="{handleDoubleClick}"
+		horizontalScrollPolicy="off" verticalScrollPolicy="off"
+		doubleClickEnabled="true" 
 		alpha="{plotCheck.selected ? 1 : 0.4}" enabled="{plotCheck.selected}"/>
 	<mx:ProgressBar id="progressBar" mode="manual" minimum="0" verticalCenter="10" left="{margin}" right="{2 * margin}"/>
 	
@@ -51,15 +53,21 @@
 				if(d is Vector.<Object>){ 
 					_data = d as Vector.<Object>; plotData();
 					
-					fPoint = 0;
-					lPoint = _data.length - 1;
-					
-					//Find min and max
+					//Find mins and maxes
 					for each(var o:Object in data){
-						var val:Number = Number(o[yDataField]);
-						if(isNaN(yMin) || val < yMin) yMin = val;
-						if(isNaN(yMax) || val > yMax) yMax = val;
+
+						var xVal:Number = Number(o[xDataField]);
+						if(isNaN(xMin) || xVal < xMin) xMin = xVal;
+						if(isNaN(xMax) || xVal > xMax) xMax = xVal;
+
+						var yVal:Number = Number(o[yDataField]);
+						if(isNaN(yMin) || yVal < yMin) yMin = yVal;
+						if(isNaN(yMax) || yVal > yMax) yMax = yVal;
 					}
+					
+					xBottom = xMin;
+					xTop = xMax;
+					
 					if(isNaN(yMin) || isNaN(yMax)) return;
 					
 					refresh();
@@ -71,12 +79,17 @@
 			
 			//------------- Data Management variables -----------------------------------------------
 			protected var _data:Vector.<Object>;
-			protected var fPoint:uint; 		//the index in _data of the lowest point currently displayed
-			protected var lPoint:uint;		//the index in _data of the highest point currently displayed
+			//protected var fPoint:uint; 		//the index in _data of the lowest point currently displayed
+			//protected var lPoint:uint;		//the index in _data of the highest point currently displayed
 			protected var yMin:Number;		//the lowest data value on the y axis
 			protected var yMax:Number; 		//the highest data value on the y axis
-			protected function get xMin():Number { return _data[fPoint][xDataField];}	//lowest value on the x axis
-			protected function get xMax():Number { return _data[lPoint][xDataField];}	//highest value on the x axis
+			protected var xMin:Number;		//the lowest data value on the x axis
+			protected var xMax:Number;		//the lowest data value on the x axis
+			
+			protected var xBottom:Number;	//the bottom end of the current display x-axis
+			protected var xTop:Number;		//the top end of the current display x-axis
+			//protected function get xMin():Number { return _data[fPoint][xDataField];}	//lowest value on the x axis
+			//protected function get xMax():Number { return _data[lPoint][xDataField];}	//highest value on the x axis
 			
 			protected var _bitmap:Bitmap;
 			protected var _mask:Sprite = new Sprite();
@@ -116,14 +129,15 @@
 				
 				//draw outside the current range so that scrolling 
 				// cuts less abruptly
-				var pointRange:Number = lPoint - fPoint;
-				var fdPoint:int = Math.max(0,fPoint - pointRange);
-				var ldPoint:int = Math.min(_data.length - 1, lPoint + pointRange);
+				var curRange:Number = xTop - xBottom;
+				var xbd:Number = Math.max(xMin,xBottom - curRange);
+				var xtd:Number = Math.min(xMax,xTop + curRange);
 				
 				plotBitmapData.lock();
 				
-				for(var i:int=fdPoint; i < ldPoint; i++){
+				for(var i:int=0; i < data.length; i++){
 					var point:Object = data[i]; 
+					if(point.time < xbd || point.time > xtd) continue;
 					if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
 				
 					//determine location
@@ -190,10 +204,10 @@
 				_hScroll.y = container.height - _hScroll.height - margin + 10;
 				_hScroll.width = container.width - 2 * margin + pointDiameter;
 				
-				var range:Number = lPoint - fPoint; 
+				var range:Number = xTop - xBottom;
 				
-				_hScroll.setScrollProperties(range,0,_data.length - 1 - range,range / 10);
-				_hScroll.scrollPosition = fPoint;
+				_hScroll.setScrollProperties(range,xMin,xMax-range,range / 10);
+				_hScroll.scrollPosition = xBottom;
 				
 				if(!_hScroll.hasEventListener(ScrollEvent.SCROLL)){
 					_hScroll.addEventListener(ScrollEvent.SCROLL, handleScroll);
@@ -206,10 +220,11 @@
 			
 			
 			protected function handleScroll(se:ScrollEvent):void{	
-				var range:Number = lPoint - fPoint;
-				_bitmap.x -= ((se.position - fPoint) * (container.width - 2 * margin) / range);  
-				fPoint = Math.max(_hScroll.scrollPosition,0);
-				lPoint = Math.min(fPoint + range,_data.length - 1);
+				var range:Number = xTop - xBottom;
+				_bitmap.x -= ((se.position - xBottom) * (container.width - 2 * margin) / range);  
+				
+				xBottom = Math.max(_hScroll.scrollPosition,xMin);
+				xTop = Math.min(xBottom + range,xMax);
 				
 				if(_scrollTimer && _scrollTimer.running){
 					_scrollTimer.reset();
@@ -218,7 +233,7 @@
 				else{
 					_scrollTimer = new Timer(300);
 					_scrollTimer.addEventListener(TimerEvent.TIMER,function(e:Event):void{
-						_scrollTimer.stop();
+							_scrollTimer.stop();
 							refresh();
 						});
 					_scrollTimer.start();
@@ -227,37 +242,46 @@
 			}
 			
 			protected function zoomIn():void{
-				var numPoints:int = int(Math.max((lPoint - fPoint) * zoomPercentage,minPoints));
-				var midPoint:int = int(Math.round(fPoint + (lPoint - fPoint) / 2));
-				fPoint = int(Math.max(0,midPoint - numPoints / 2));
-				lPoint = int(Math.min(_data.length - 1,midPoint + numPoints / 2 - 1));
+				var zoomRange:Number = (xTop - xBottom) * zoomPercentage;
+				var midPoint:Number = xBottom + (xTop - xBottom) / 2;
+				xBottom = Math.max(xMin,int(midPoint - zoomRange / 2));
+				xTop = Math.min(xMax,int(midPoint + zoomRange / 2));
 				refresh();
 			}
 			
 			protected function zoomOut():void{
-				var numPoints:int = int(Math.max((lPoint - fPoint) / zoomPercentage,minPoints));
-				var midPoint:int = int(Math.round(fPoint + (lPoint - fPoint) / 2));
-				fPoint = int(Math.max(0,midPoint - numPoints / 2));
-				lPoint = int(Math.min(_data.length - 1,midPoint + numPoints / 2 - 1));
+				var zoomRange:Number = (xTop - xBottom) / zoomPercentage;
+				var midPoint:Number = xBottom + (xTop - xBottom) / 2;
+				xBottom = Math.max(xMin,midPoint - zoomRange / 2);
+				xTop = Math.min(xMax,midPoint + zoomRange / 2);
 				refresh();
 			}
 			
 			protected function dataToPoint(pointData:Object,pointNum:int=-1):Point{
 				if(pointNum == -1) pointNum = (_data as Vector.<Object>).lastIndexOf(pointData);
 				if(pointNum == -1) return null;
-				else return new Point((pointData[xDataField] - xMin) / (xMax - xMin) * (container.width - 2 * margin) + container.width / 2 + margin,
-						 (container.height - 2 * margin - 10) * (1 - (pointData[yDataField] - yMin) / (yMax - yMin)) + margin); 
+				else return new Point((pointData[xDataField] - xBottom) * (container.width - 2 * margin) /
+						 	(xTop - xBottom) + container.width / 2 + margin,
+						 (container.height - 2 * margin - 10) * (1 - (pointData[yDataField] - yMin) /
+						 	(yMax - yMin)) + margin); 
 			}
 			
-			protected function xToData(x:Number):Object{
+			//TODO: Use a smarter (not O(n)) mechanism for these searches
+			protected function xPosToPtNum(x:Number):int{
 				var position:Number = x - margin;
-				var overXPos:int = xMin + Math.floor(position * (xMax - xMin)/(container.width - 2 * margin));
+				var overXPos:int = xBottom + Math.floor(position * (xTop - xBottom)/(container.width - 2 * margin));
 				overXPos = Math.max(Math.min(overXPos,xMax),xMin);
 				
-				for each(var o:Object in _data){
-					if(Math.abs(o[xDataField] - overXPos) < 10) return o;
+				for(var i:int=0;i<_data.length; i++){
+					if(Math.abs(_data[i][xDataField] - overXPos) < 10) return i;
 				}
-				return null;
+				return -1;
+			}
+			
+			protected function xPosToData(x:Number):Object{
+				var ptNum:int = xPosToPtNum(x); 
+				if(ptNum > 0) return _data[ptNum];
+				else return null;
 			}
 			
 			/****************************** Tooltipping Methods ************************************/
@@ -314,11 +338,24 @@
 				if(me.target != container) return;
 				
 				//calculate the location of the click and locate the nearest matching point
-				var overPt:Object = xToData(me.localX);
+				var overPt:Object = xPosToData(me.localX);
 							
 				//If we have a point, fire an event
 				if(overPt) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPt));
 			}
+			
+			protected function handleDoubleClick(me:MouseEvent):void{
+				
+				//if we've clicked on some other child (like the scrollbar) do nothing
+				if(me.target != container) return;
+				
+				//calculate the location of the click and locate the nearest matching point
+				var overPt:Object = xPosToData(me.localX);
+							
+				//If we have a point, fire an event
+				if(overPt) zoomIn();
+			}
+			
 			
 			protected function handleMouseMove(me:MouseEvent):void{
 				
@@ -326,7 +363,7 @@
 				if(me.target != container) return;
 				
 				//calculate the location we're currently mousing over and locate the nearest matching point
-				var overPt:Object = xToData(me.localX);
+				var overPt:Object = xPosToData(me.localX);
 				
 				
 				//If we have a point, mark it
