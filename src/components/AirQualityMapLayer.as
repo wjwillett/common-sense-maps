@@ -48,6 +48,7 @@ package components
 		public var pointOverlapTolerance:Number = 11;
 		public var zoomTolerance:Number = 5; 
 		public var pointDiameter:Number = 12;
+		public var numMouseOverAdjacents:uint = 15;
 		
 		
 		/**
@@ -106,7 +107,7 @@ package components
 		
 		protected function addToQuadTree(dataSet:Vector.<Object>):void{
 			for each(var dp:Object in dataSet){
-				if(!(dp.lat || dp.lon)) continue;
+				if(!(dp.lat || dp.lon) || dp.lat == 'None' || dp.lon == 'None') continue;
 				var dpr:Rectangle = new Rectangle(Number(dp.lon) + 180,Number(dp.lat) + 90,0,0)
 				var dpq:QuadTreeItem = new QuadTreeItem(dp,dpr);
 				_quadTree.insertItem(dpq);
@@ -317,8 +318,14 @@ package components
 		 */
 		public function drawDataTip(dataPoint:Object):void{
 			
-			var overPos:Point = map.locationPoint(new Location(dataPoint.lat,dataPoint.lon),map.stage); 
-			if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,overPos.x,overPos.y) as ToolTip;
+			//Determine position and only plot if we have a real GPS location.
+			var ptPosition:Point = map.locationPoint(new Location(dataPoint.lat,dataPoint.lon),map.stage); 
+			if(ptPosition.x == 0 || ptPosition.y == 0){
+				discardActiveDataTip();
+				return;
+			} 
+			
+			if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
 		
 			//color the tip and add additional text if possible
 			if(dataPoint.value){
@@ -329,8 +336,31 @@ package components
 				var time:Number = Number(dataPoint.time * 1000);
 				var date:Date = new Date(time);
 				_plotTip.text = date + "\n" + dataPoint.value + " (" + cat + ")";
-				_plotTip.x = overPos.x;
-				_plotTip.y = overPos.y;
+				_plotTip.x = ptPosition.x;
+				_plotTip.y = ptPosition.y;
+				
+				_plotTip.graphics.clear();
+					
+				//Overplot nearby points as part of the tooltip
+				for each(var ds:Vector.<Object> in data){
+					var pn:int = dataToPointNum(ds,dataPoint);
+					if(pn != -1){
+						for(var pi:int = pn - numMouseOverAdjacents; pi < pn + numMouseOverAdjacents; pi++){
+							if(pi < 0 || pi >= ds.length) continue;
+							var adjPt:Object = ds[pi];
+							if(adjPt){
+								var aColor:uint = AirQualityColors.getColorForValue(pollutant,adjPt.value);
+								var aPosition:Point = map.locationPoint(new Location(adjPt.lat,adjPt.lon),map.stage)
+								_plotTip.graphics.lineStyle(2,0xffffff,0.7);
+								_plotTip.graphics.beginFill(aColor,1);
+								_plotTip.graphics.drawCircle(aPosition.x - ptPosition.x, aPosition.y - ptPosition.y,(2/3)*pointDiameter -
+									 (pointDiameter/3 * Math.abs(pi - pn)/numMouseOverAdjacents));
+				    			_plotTip.graphics.endFill();								
+							}
+						}
+					}
+				}
+				
 				
 				//Plot an accentuated version of the point as part of the tooltip
 				_plotTip.graphics.lineStyle(2,0xffffff,0.7);
@@ -342,6 +372,9 @@ package components
     			_plotTip.graphics.endFill();
 			}
 			else _plotTip.text = "No Data"
+			
+			
+			bitmap.alpha = 0.7;
 		}	
 			
 		public function discardActiveDataTip():void{
@@ -350,6 +383,7 @@ package components
 				_plotTip = null;
 				dispatchEvent(new DataPointEvent(DataPointEvent.UNHOVER));
 			}
+			bitmap.alpha = 1;
 		}
 			
 		protected function handleMouseMove(me:MouseEvent):void{
@@ -372,6 +406,16 @@ package components
 		
 		protected function handleMouseOut(me:MouseEvent):void{
 			discardActiveDataTip();
+		}
+		
+		
+		/****************************** Tooltipping Methods ************************************/
+		//FIXME: A linear searches here are not efficcient.
+		protected function dataToPointNum(dataSet:Vector.<Object>,pointData:Object):int{
+			for(var i:int = 0; i < dataSet.length; i++){
+				if(dataSet[i] == pointData) return i;
+			}
+			return -1;
 		}
 	}
 }

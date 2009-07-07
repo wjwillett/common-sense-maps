@@ -46,11 +46,19 @@
 		
 			protected const DATA_INDEX_XML_URL:String = "http://www.eecs.berkeley.edu/~willettw//temp/CommonSenseDataIndex.xml";
 			
-			protected const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
-			//protected const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
+			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
+			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
 			
 			
 			protected const recommendedQueries:Array = [
+				{name:"Badge 4 CO (since June 29th)",
+					url:BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800" + 
+						"&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
+				{name:"Badge 10 CO (since June 29th)",
+					url:BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800" + 
+						"&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
 				{name:"All Badges CO (past 24 hours)",
 					url:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
 						int((new Date().time) / 1000 - 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
@@ -59,16 +67,8 @@
 					url:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
 						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
 					reading:"co"},
-				{name:"Badge 4 CO (past week)",
-					url:BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=" + 
-						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
-					reading:"co"},
-				{name:"Badge 10 CO (past week)",
-					url:BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=" + 
-						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
-					reading:"co"},
 				{name:"West Oakland PM (15 May 2009)",
-					url:"http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv",
+					url:"http://www.commonsensecommunity.com/data/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv",
 					reading:"pm25"}
 				];					
 					
@@ -93,7 +93,7 @@
 				
 			protected const POLLUTANTS:Array = [
 				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
-				{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
+				//{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
 				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
 				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:,multiplier:},
 				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:,multiplier:},

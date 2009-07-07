@@ -4,13 +4,15 @@
 	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*">
 	
 	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
-		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setupMap()}"/>
+		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"/>
 	
-	<mx:VBox left="15" top="15" right="15" width="100">
-		<mx:VBox id="plots" width="100%" verticalGap="8">
+	<mx:VBox left="15" top="15" right="15" width="100" height="100%">
+		<mx:VBox id="plots" width="100%" verticalGap="8" height="20%">
+			<ns1:AirQualityTimeLine id="timeline" width="100%" height="100%" creationComplete="{setup()}"/>			
 		</mx:VBox>
-		<mx:LinkButton label="load data" click="{triggerLoadingPopup()}" />
+		<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" mode="manual"/>
 		<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
+		<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"/>
 	</mx:VBox>
 	
 
@@ -90,11 +92,18 @@
 			//flag to prevent updated events from being dispatched during panAndZoomTo runs
 			protected var _isPanningAndZooming:Boolean = false; 
 			
-			
+			protected var firstLoad:Boolean = false;
+			protected function setup():void{
+				if(!firstLoad) firstLoad = true;
+				else{
+					setupMap();
+					setupTimeline();
+				}
+				
+			}
 			
 			/******** Mapping Methods **********************************************************/
 			protected function setupMap():void{
-				
 				
 				map = new TweenMap();
 				map.setMapProvider(new MicrosoftHybridMapProvider(10,19));
@@ -134,15 +143,21 @@
 				map.addEventListener(CSEvent.PAN_AND_ZOOM_COMPLETE,maintainHighlights);
 				
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
+								
+				//FIXME: A Hardwired default query - make this cleaner
+				loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
+					AirQualityColors.CO_8HR,"Badge 4 CO (since June 29th)",
+					function():void{
+						loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
+							AirQualityColors.CO_8HR,"Badge 10 CO (since June 29th)",
+							function():void{ dispatchComplete(); });	
+					});
+				//Alternative startup, just pops up the loader
+				//triggerLoadingPopup();
+				//plotExistingMarkers(); //probably removed forever?				
+				//let commentspace know we're loaded
+				//dispatchComplete();	
 					
-				//Plot data and existing markers
-				//loadFileData(dataSource,AirQualityColors.PM_25_24HR,function():void{
-						//plot any flag markers
-						//plotExistingMarkers();	
-						//let commentspace know we're loaded
-						triggerLoadingPopup();				
-						dispatchComplete();
-				//	});
 			}
 			
 			
@@ -150,9 +165,8 @@
 			
 				var dataURI:String = source.toString(); 
 			
-				//Add a scatterplot to represent the datafile
-				var scatterPlot:AirQualityScatterPlot = addScatterPlot(dataURI,name?name:"");
-				scatterPlot.pollutant = pollutant;
+				//update the pollutant on each of the plots
+				timeline.pollutant = pollutant;
 				_plotLayer.pollutant = pollutant;
 				
 				//helper method for processing loaded CSV data.
@@ -171,14 +185,16 @@
 										entries[0] + ").");  
 								}  
 								var pointData:Object = {}
-								for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h]; 
+								for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
+								//annotate the point with a reference to its source
+								pointData.sourceURI = dataURI;
 								_dataSets[dataURI].push(pointData);
 							}
 							
-							//add a new scatterplot if necessary
-							scatterPlot.data = _dataSets[dataURI];
 							_plotLayer.data = _dataSets;
 							_plotLayer.refresh(true);
+							timeline.data = _dataSets;
+							timeline.refresh(true);
 							
 						}
 						
@@ -187,8 +203,8 @@
 					}
 					
 				var handleProgress:Function = function(pe:ProgressEvent):void{
-						scatterPlot.progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
-						scatterPlot.progressBar.label = (int(pe.bytesLoaded / pe.bytesTotal * 100) + 
+						progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
+						progressBar.label = (int(pe.bytesLoaded / pe.bytesTotal * 100) + 
 							"% (" + pe.bytesLoaded + " of " + pe.bytesTotal + " bytes)");
 					}
 				
@@ -198,8 +214,11 @@
 				else if(source is String){
 					var request:URLRequest = new URLRequest(source as String);
 					var loader:URLLoader = new URLLoader(request);
+					progressBar.visible = true;
+					progressBar.includeInLayout = true;
 					loader.addEventListener(Event.COMPLETE,function(e:Event):void{
-							scatterPlot.progressBar.visible = false;
+							progressBar.visible = false;
+							progressBar.includeInLayout = false;
 							processLoaded(loader.data as String);
 						});
 					loader.addEventListener(ProgressEvent.PROGRESS,handleProgress);
@@ -211,7 +230,44 @@
 			}
 			
 			
-			protected function addScatterPlot(dataURI:String,plotName:String=""):AirQualityScatterPlot{
+			protected function setupTimeline():void{
+				
+				//add listeners to handle linking
+				var clickPlot:Function = function(de:DataPointEvent):void{
+						if(de.dataPoint){
+							var loc:Location = new Location(de.dataPoint.lat,de.dataPoint.lon); 
+							panAndZoomTo(loc,map.getZoom());
+						}
+					};
+				var drawLayerTip:Function = function(de:DataPointEvent):void{
+						_plotLayer.drawDataTip(de.dataPoint);
+					};
+				var drawPlotTip:Function = function(de:DataPointEvent):void{
+						timeline.drawDataTip(de.dataPoint);
+					};
+				var discardLayerTip:Function = function(de:DataPointEvent):void{
+						_plotLayer.discardActiveDataTip();
+					};
+				var discardPlotTip:Function = function(de:DataPointEvent):void{
+						timeline.discardActiveDataTip();
+					};
+				timeline.addEventListener(DataPointEvent.CLICK,clickPlot);
+				timeline.addEventListener(DataPointEvent.HOVER,drawLayerTip);
+				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
+				timeline.addEventListener(DataPointEvent.UNHOVER,discardLayerTip);
+				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardPlotTip);
+				
+				//TODO: Handle removal when necessary						
+				timeline.addEventListener(CSEvent.REMOVE_CLICKED,function(ce:CSEvent):void{			
+						//delete _dataSets[dataURI];
+						_plotLayer.refresh(true);
+						timeline.refresh(true);
+					});
+				
+			}
+			
+			
+			/*protected function addScatterPlot(dataURI:String,plotName:String=""):AirQualityScatterPlot{
 				var newPlot:AirQualityScatterPlot = new AirQualityScatterPlot();
 				newPlot.percentWidth = 100;
 				newPlot.displayName = plotName;
@@ -253,10 +309,11 @@
 						plots.removeChild(newPlot);
 						delete _dataSets[dataURI];
 						_plotLayer.refresh(true);
+						timeline.refresh(true);
 					});
 				
 				return newPlot;
-			}
+			}*/
 			
 			
 			/**
@@ -281,7 +338,7 @@
 			protected function handleClick(me:MouseEvent):void{
 				var newMouseXY:Point = map.globalToLocal(new Point(me.stageX, me.stageY));
 				if(me.target is FlagMarker ||
-					me.target is Button ||
+					me.target is com.modestmaps.extras.ui.Button ||
 					!_mouseDownXY ||
 					newMouseXY.x < _mouseDownXY.x - CLICK_RADIUS ||
 					newMouseXY.x > _mouseDownXY.x + CLICK_RADIUS || 

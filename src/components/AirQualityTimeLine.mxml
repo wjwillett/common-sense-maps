@@ -12,7 +12,6 @@
 		horizontalScrollPolicy="off" verticalScrollPolicy="off"
 		doubleClickEnabled="true" 
 		alpha="{plotCheck.selected ? 1 : 0.4}" enabled="{plotCheck.selected}"/>
-	<mx:ProgressBar id="progressBar" mode="manual" minimum="0" verticalCenter="10" left="{margin}" right="{2 * margin}"/>
 	
 	<mx:CheckBox id="plotCheck" x="15" y="5" selected="true" visible="false"/>
 	<mx:LinkButton id="remove" click="{dispatchEvent(new CSEvent(CSEvent.REMOVE_CLICKED))}" label="x" x="8" y="5" 
@@ -41,47 +40,29 @@
 			public var displayName:String;
 			public var xDataField:String = 'time';
 			public var yDataField:String = 'value';
-			public var pollutant:String = AirQualityColors.PM_25_24HR;
+			public var pollutant:String = AirQualityColors.CO_8HR;
 			public var margin:Number = 15;
 			public var pointDiameter:Number = 6;
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
-			public var minPoints:uint = 100;
 			public var numMouseOverAdjacents:uint = 15;
 			
+			
+			/**
+			 * A data object should be an Object containing
+			 *  sets of points (as Vector.<Object>s) 
+			 *  indexed by the URI of that set of points.  
+			 * @param d
+			 * 
+			 */	
 			override public function get data():Object{return _data;}
 			override public function set data(d:Object):void{
-				if(d is Vector.<Object>){ 
-					_data = d as Vector.<Object>; plotData();
-					
-					//Find mins and maxes
-					for each(var o:Object in data){
-
-						var xVal:Number = Number(o[xDataField]);
-						if(isNaN(xMin) || xVal < xMin) xMin = xVal;
-						if(isNaN(xMax) || xVal > xMax) xMax = xVal;
-
-						var yVal:Number = Number(o[yDataField]);
-						if(isNaN(yMin) || yVal < yMin) yMin = yVal;
-						if(isNaN(yMax) || yVal > yMax) yMax = yVal;
-					}
-					
-					xBottom = xMin;
-					xTop = xMax;
-					
-					if(isNaN(yMin) || isNaN(yMax)) return;
-					
-					refresh();
-				}
-				else if(d == null) return;
-				else throw new ArgumentError("CommonSenseAirQualityPlot currently expects " + 
-						"its data object to be of type Vector.<Object>");
+				_data = d;
+				refresh(true);
 			}
 			
 			//------------- Data Management variables -----------------------------------------------
-			protected var _data:Vector.<Object>;
-			//protected var fPoint:uint; 		//the index in _data of the lowest point currently displayed
-			//protected var lPoint:uint;		//the index in _data of the highest point currently displayed
+			protected var _data:Object;
 			protected var yMin:Number;		//the lowest data value on the y axis
 			protected var yMax:Number; 		//the highest data value on the y axis
 			protected var xMin:Number;		//the lowest data value on the x axis
@@ -89,8 +70,8 @@
 			
 			protected var xBottom:Number;	//the bottom end of the current display x-axis
 			protected var xTop:Number;		//the top end of the current display x-axis
-			//protected function get xMin():Number { return _data[fPoint][xDataField];}	//lowest value on the x axis
-			//protected function get xMax():Number { return _data[lPoint][xDataField];}	//highest value on the x axis
+
+			protected var _pSetBounds:Object = {}
 			
 			protected var _bitmap:Bitmap;
 			protected var _mask:Sprite = new Sprite();
@@ -102,8 +83,10 @@
 		
 			//-------------Public Methods -----------------------------------------------------
 
-			public function refresh():void{
-				plotData();
+			public function refresh(force:Boolean=false):void{
+				if(force)calculateMinMax();
+				if(isNaN(yMin) || isNaN(yMax)) return;
+				else plotData();
 			}
 			
 			
@@ -134,44 +117,61 @@
 				var xbd:Number = Math.max(xMin,xBottom - curRange);
 				var xtd:Number = Math.min(xMax,xTop + curRange);
 				
+				//allocate space for each point set
+				_pSetBounds = {};
+				var numTracks:uint = 0;
+				for(var n:String in data) numTracks++;
+				var psHeight:Number = (container.height)/numTracks;
+				var psBounds:Rectangle = new Rectangle(container.x,container.y,container.width,psHeight);
+
 				plotBitmapData.lock();
 				
-				for(var i:int=0; i < data.length; i++){
-					var point:Object = data[i]; 
-					if(point.time < xbd || point.time > xtd) continue;
-					if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
-				
-					//determine location
-					var dPt:Point = dataToPosition(data[i]);
-		
-					//skip if position, category not different from last
-					if(prevPoint && prevPoint.cat == point.cat 
-							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
-							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
-						continue;
-					}  
-									
-					//draw the point
-					var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
-					plotShape.graphics.clear();
-					plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
-					plotShape.graphics.beginFill(color,0.6);
-					plotShape.graphics.drawCircle(0,0,pointDiameter/2);
-        			plotShape.graphics.endFill();
-        			//grey out the centers of points with no lat/lon
-        			if(!point.lat ||  point.lat == "None"){
-        				plotShape.graphics.lineStyle(0,0,0);
-        				plotShape.graphics.beginFill(0x999999,0.8);
-						plotShape.graphics.drawCircle(0,0,pointDiameter/4);
-        				plotShape.graphics.endFill();
-        			}
-					translationMatrix.tx = dPt.x;
-					translationMatrix.ty = dPt.y;
+				//for each of the sets of points...
+				for(var psName:String in _data){
+					var pSet:Vector.<Object> = _data[psName];
 					
-					plotBitmapData.draw(plotShape,translationMatrix);
+					//set bounds for the set
+					_pSetBounds[psName] = psBounds.clone();
+					plotAxes(plotBitmapData,psBounds);
+					psBounds.y += psHeight;
+					
+					for(var i:int=0; i < pSet.length; i++){
+						var point:Object = pSet[i]; 
+						if(point.time < xbd || point.time > xtd) continue;
+						if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
+					
+						//determine location
+						var dPt:Point = dataToPosition(point);
+			
+						//skip if position, category not different from last
+						if(prevPoint && prevPoint.cat == point.cat 
+								&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
+								&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
+							continue;
+						}  
 										
-					prevPoint = point;
-					prevPt = dPt;
+						//draw the point
+						var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
+						plotShape.graphics.clear();
+						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+						plotShape.graphics.beginFill(color,0.6);
+						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
+	        			plotShape.graphics.endFill();
+	        			//grey out the centers of points with no lat/lon
+	        			if(!point.lat ||  point.lat == "None"){
+	        				plotShape.graphics.lineStyle(0,0,0);
+	        				plotShape.graphics.beginFill(0x777777,0.8);
+							plotShape.graphics.drawCircle(0,0,pointDiameter/5);
+	        				plotShape.graphics.endFill();
+	        			}
+						translationMatrix.tx = dPt.x;
+						translationMatrix.ty = dPt.y;
+						
+						plotBitmapData.draw(plotShape,translationMatrix);
+											
+						prevPoint = point;
+						prevPt = dPt;
+					}
 				}
 				
 				plotBitmapData.unlock();
@@ -184,6 +184,46 @@
 				//draw and position the scrollBar and mask
 				setupMask();
 				setupScrollBar();
+			}
+			
+			
+			protected function plotAxes(bd:BitmapData,bounds:Rectangle):void{
+				var plotShape:Shape = new Shape();
+				
+				//plot x baseline
+				plotShape.graphics.lineStyle(0.5,0x999999);
+				plotShape.graphics.moveTo(0,bounds.bottom - 2 * margin + pointDiameter/2);
+				plotShape.graphics.lineTo(bd.width,bounds.bottom - 2 * margin + pointDiameter/2);
+				
+				var startDate:Date = new Date(xBottom * 1000);
+				startDate.setFullYear(startDate.fullYear,startDate.month,startDate.day + 1);
+				startDate.setHours(0,0,0,0);
+				
+				//plot days
+				var d:Number = startDate.time / 1000;
+				plotShape.graphics.lineStyle(0.5,0x999999,0.5);
+				while(d < xTop){
+					var dx:Number = (d - xBottom) * (bounds.width - 2 * margin) / 
+							(xTop - xBottom) + bounds.width / 2 + margin;
+					plotShape.graphics.moveTo(dx,bounds.bottom - margin);
+					plotShape.graphics.lineTo(dx,bounds.top - margin);
+					d += (24 * 3600);
+				}
+				
+				//plot hours
+				d = startDate.time / 1000;
+				plotShape.graphics.lineStyle(0.5,0x999999,0.2);
+				while(d < xTop){
+					var dx:Number = (d - xBottom) * (bounds.width - 2 * margin) / 
+							(xTop - xBottom) + bounds.width / 2 + margin;
+					plotShape.graphics.moveTo(dx,bounds.bottom - margin);
+					plotShape.graphics.lineTo(dx,bounds.top - margin);
+					d += 3600;
+				}
+				
+				//plot hours
+				bd.draw(plotShape);				
+				
 			}
 		
 
@@ -266,34 +306,37 @@
 			}
 			
 			protected function dataToPosition(pointData:Object):Point{
-				return new Point((pointData[xDataField] - xBottom) * (container.width - 2 * margin) /
-						 	(xTop - xBottom) + container.width / 2 + margin,
-						 (container.height - 2 * margin - 10) * (1 - (pointData[yDataField] - yMin) /
-						 	(yMax - yMin)) + margin); 
+				if(!(_pSetBounds[pointData.sourceURI] is Rectangle)) return null;
+				var sBounds:Rectangle = _pSetBounds[pointData.sourceURI];
+				
+				return new Point((pointData[xDataField] - xBottom) * (sBounds.width - 2 * margin) /
+						 	(xTop - xBottom) + sBounds.width / 2 + margin,
+						 (sBounds.height - 2 * margin - 10) * (1 - (pointData[yDataField] - yMin) /
+						 	(yMax - yMin)) + sBounds.y + margin); 
 			}
 			
 			
-			//TODO: Use a smarter (not O(n)) mechanism for these searches
-			protected function xPosToPtNum(x:Number):int{
+			
+			protected function xPosToDataPts(x:Number):Array{
 				var position:Number = x - margin;
 				var overXPos:int = xBottom + Math.floor(position * (xTop - xBottom)/(container.width - 2 * margin));
-				overXPos = Math.max(Math.min(overXPos,xMax),xMin);
-				
-				for(var i:int=0;i<_data.length; i++){
-					if(Math.abs(_data[i][xDataField] - overXPos) < 10) return i;
+				var pts:Array = []
+				for each(var ps:Vector.<Object> in _data){
+					for(var p:int=0;p<ps.length; p++){
+						if(Math.abs(ps[p][xDataField] - overXPos) < 10){
+							pts.push(ps[p]);
+							break;
+						} 
+					}					
 				}
-				return -1;
+				return pts; 
 			}
 			
-			protected function xPosToData(x:Number):Object{
-				var ptNum:int = xPosToPtNum(x); 
-				if(ptNum > 0) return _data[ptNum];
-				else return null;
-			}
-			
+			//FIXME: O(n) search is not efficient
 			protected function dataToPointNum(pointData:Object):int{
-				for(var i:int = 0; i < data.length; i++){
-					if(data[i] == pointData) return i;
+				var sourceData:Vector.<Object> = data[pointData.sourceURI];
+				for(var i:int = 0; i < sourceData.length; i++){
+					if(sourceData[i] == pointData) return i;
 				}
 				return -1;
 			}
@@ -319,7 +362,9 @@
 					_plotTip.setStyle("backgroundAlpha",0.7);
 					var time:Number = Number(dataPoint.time * 1000);
 					var date:Date = new Date(time);
-					_plotTip.text = date + "\n" + dataPoint.value + " (" + cat + ")";
+					_plotTip.text = (date + "\n" + 
+						dataPoint.value + " (" + cat + ")" +
+						((dataPoint.lat == null || dataPoint.lat == "None") ? "\n!NO GPS DATA" : ""));
 					var rightInset:Number = Math.max(0, ptPosition.x + _bitmap.x -
 						 container.localToGlobal(new Point(container.width - _plotTip.width)).x);
 					_plotTip.x = ptPosition.x + _bitmap.x - rightInset;
@@ -333,7 +378,7 @@
 						for(var pi:int = pn - numMouseOverAdjacents; pi < pn + numMouseOverAdjacents; pi++){
 							if(pi < 0 || pi >= data.length) continue;
 							var adjPt:Object = data[pi];
-							if(adjPt){
+							if(adjPt && adjPt.lat != null && adjPt.lat !="None"){
 								var aColor:uint = AirQualityColors.getColorForValue(pollutant,adjPt.value);
 								var aPosition:Point = container.localToGlobal(dataToPosition(adjPt));
 								_plotTip.graphics.lineStyle(2,0xffffff,0.7);
@@ -374,10 +419,10 @@
 				if(me.target != container) return;
 				
 				//calculate the location of the click and locate the nearest matching point
-				var overPt:Object = xPosToData(me.localX);
+				var overPts:Array = xPosToDataPts(me.localX);
 							
 				//If we have a point, fire an event
-				if(overPt) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPt));
+				if(overPts.length > 0) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPts[0]));
 			}
 			
 			protected function handleDoubleClick(me:MouseEvent):void{
@@ -386,10 +431,10 @@
 				if(me.target != container) return;
 				
 				//calculate the location of the click and locate the nearest matching point
-				var overPt:Object = xPosToData(me.localX);
+				var overPts:Array = xPosToDataPts(me.localX);
 							
-				//If we have a point, fire an event
-				if(overPt) zoomIn();
+				//If we have a point, zoom
+				if(overPts.length > 0) zoomIn();
 			}
 			
 			
@@ -399,11 +444,12 @@
 				if(me.target != container) return;
 				
 				//calculate the location we're currently mousing over and locate the nearest matching point
-				var overPt:Object = xPosToData(me.localX);
+				var overPts:Array = xPosToDataPts(me.localX);
 				
 				
 				//If we have a point, mark it
-				if(overPt){
+				if(overPts.length > 0){
+					var overPt:Object = overPts[0];
 					drawDataTip(overPt);
 					tipLine.x = me.localX;
 					tipLine.visible = true;
@@ -423,7 +469,26 @@
 			}
 			
 			
+			/****************************** Helper Methods ************************************/
 			
+			protected function calculateMinMax():void{
+				
+				for each(var ds:Vector.<Object> in data){
+					//Find mins and maxes
+					for each(var o:Object in ds){
+
+						var xVal:Number = Number(o[xDataField]);
+						if(isNaN(xMin) || xVal < xMin) xMin = xVal;
+						if(isNaN(xMax) || xVal > xMax) xMax = xVal;
+
+						var yVal:Number = Number(o[yDataField]);
+						if(isNaN(yMin) || yVal < yMin) yMin = yVal;
+						if(isNaN(yMax) || yVal > yMax) yMax = yVal;
+					}
+				}
+				xBottom = xMin;
+				xTop = xMax;
+			}
 		]]>
 	</mx:Script>
 	
