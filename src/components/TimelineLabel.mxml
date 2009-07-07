@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" >
+	<mx:Label x="20" text="{labelText}" height="100%" color="#777777" fontFamily="Helvetica" fontSize="12" y="2"/>
+	<mx:LinkButton label="x" width="25" height="17" id="removeButton"
+		toolTip="remove this track" click="{onRemoveClick()}" enabled="false"/>
+	
+	
+	<mx:Script>
+		<![CDATA[
+			
+			[Bindable]
+			public var labelText:String
+			public var onRemoveClick:Function;
+			
+		]]>
+	</mx:Script>
+	
+</mx:Canvas>

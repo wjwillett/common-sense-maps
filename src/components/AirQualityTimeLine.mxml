@@ -5,22 +5,24 @@
 	
 	<mx:VRule id="tipLine" top="{margin}" bottom="{margin}" visible="false"/>
 	
-	<mx:Canvas id="container" width="100%" height="100%" resize="{refresh()}" 
+	<mx:Canvas id="container"  x="{margin + 30}" width="100%" height="100%" resize="{refresh()}" 
 		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
 		mouseMove="{handleMouseMove(event)}" click="{handleMouseClick(event)}" 
 		doubleClick="{handleDoubleClick}"
 		horizontalScrollPolicy="off" verticalScrollPolicy="off"
 		doubleClickEnabled="true" 
 		alpha="{plotCheck.selected ? 1 : 0.4}" enabled="{plotCheck.selected}"/>
-	
+		
+	<mx:Canvas id="labels" mouseEnabled="false" x="{margin + 30}" width="100%" height="100%" />
+	<mx:Button id="zOut" click="{zoomOut()}" label="-" 
+			enabled="{plotCheck.selected}" toolTip="zoom out" 
+			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0" width="25"/>
+	<mx:Button id="zIn" click="{zoomIn()}" label="+" 
+			toolTip="zoom in" width="25" paddingLeft="0" 
+			paddingRight="0" y="{margin}" x="{margin}"/>
 	<mx:CheckBox id="plotCheck" x="15" y="5" selected="true" visible="false"/>
 	<mx:LinkButton id="remove" click="{dispatchEvent(new CSEvent(CSEvent.REMOVE_CLICKED))}" label="x" x="8" y="5" 
-		enabled="{plotCheck.selected}" toolTip="remove track" />
-	<mx:LinkButton id="zIn" click="{zoomIn()}" label="+" x="28" y="5" 
-		enabled="{plotCheck.selected}" toolTip="zoom in" />
-	<mx:LinkButton id="zOut" click="{zoomOut()}" label="-" left="50" top="5" 
-		enabled="{plotCheck.selected}" toolTip="zoom out"/>
-	<mx:Label text="{displayName}" left="75" fontFamily="Helvetica" color="#898989" fontSize="15" fontWeight="normal" top="5" selectable="true"/>
+		enabled="{plotCheck.selected}" toolTip="remove track" visible="false" />
 	
 	<mx:Script>
 		<![CDATA[
@@ -36,12 +38,11 @@
 			import __AS3__.vec.Vector;
 			
 			//------------- Public variables -----------------------------------------------
-			[Bindable]
-			public var displayName:String;
 			public var xDataField:String = 'time';
 			public var yDataField:String = 'value';
 			public var pollutant:String = AirQualityColors.CO_8HR;
 			public var margin:Number = 15;
+			public var spacing:Number = 5;
 			public var pointDiameter:Number = 6;
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
@@ -60,6 +61,8 @@
 				_data = d;
 				refresh(true);
 			}
+			
+			public var info:Object;
 			
 			//------------- Data Management variables -----------------------------------------------
 			protected var _data:Object;
@@ -98,6 +101,8 @@
 
 				//clear previously drawn bitmaps
 				while(container.rawChildren.numChildren > 0)container.rawChildren.removeChildAt(0);
+				//and labels (FIXME: Not necessary in MANY cases)
+				labels.removeAllChildren();	
 
 				//If no data do nothing
 				if(!data || data.length == 0) return;
@@ -121,8 +126,9 @@
 				_pSetBounds = {};
 				var numTracks:uint = 0;
 				for(var n:String in data) numTracks++;
-				var psHeight:Number = (container.height)/numTracks;
-				var psBounds:Rectangle = new Rectangle(container.x,container.y,container.width,psHeight);
+				var psHeight:Number = (container.height - 2 * margin - 
+					(numTracks - 1) * spacing - 10)/numTracks;
+				var psBounds:Rectangle = new Rectangle(container.x,container.y + margin,container.width,psHeight);
 
 				plotBitmapData.lock();
 				
@@ -133,7 +139,10 @@
 					//set bounds for the set
 					_pSetBounds[psName] = psBounds.clone();
 					plotAxes(plotBitmapData,psBounds);
-					psBounds.y += psHeight;
+					psBounds.y += (psHeight + spacing);
+					
+					//set up labels
+					plotLabel(psName,_pSetBounds[psName]);
 					
 					for(var i:int=0; i < pSet.length; i++){
 						var point:Object = pSet[i]; 
@@ -141,7 +150,9 @@
 						if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
 					
 						//determine location
+						var hasGPS:Boolean = !(!point.lat || point.lat == "None");
 						var dPt:Point = dataToPosition(point);
+						
 			
 						//skip if position, category not different from last
 						if(prevPoint && prevPoint.cat == point.cat 
@@ -153,12 +164,12 @@
 						//draw the point
 						var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
 						plotShape.graphics.clear();
-						plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
+						plotShape.graphics.lineStyle(0.5,hasGPS ? 0xffffff : 0x777777,0.6);
 						plotShape.graphics.beginFill(color,0.6);
 						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
 	        			plotShape.graphics.endFill();
-	        			//grey out the centers of points with no lat/lon
-	        			if(!point.lat ||  point.lat == "None"){
+	        			//grey out the outlines and centers of points with no lat/lon
+	        			if(!hasGPS){
 	        				plotShape.graphics.lineStyle(0,0,0);
 	        				plotShape.graphics.beginFill(0x777777,0.8);
 							plotShape.graphics.drawCircle(0,0,pointDiameter/5);
@@ -192,8 +203,8 @@
 				
 				//plot x baseline
 				plotShape.graphics.lineStyle(0.5,0x999999);
-				plotShape.graphics.moveTo(0,bounds.bottom - 2 * margin + pointDiameter/2);
-				plotShape.graphics.lineTo(bd.width,bounds.bottom - 2 * margin + pointDiameter/2);
+				plotShape.graphics.moveTo(0,bounds.bottom);
+				plotShape.graphics.lineTo(bd.width,bounds.bottom);
 				
 				var startDate:Date = new Date(xBottom * 1000);
 				startDate.setFullYear(startDate.fullYear,startDate.month,startDate.day + 1);
@@ -205,8 +216,8 @@
 				while(d < xTop){
 					var dx:Number = (d - xBottom) * (bounds.width - 2 * margin) / 
 							(xTop - xBottom) + bounds.width / 2 + margin;
-					plotShape.graphics.moveTo(dx,bounds.bottom - margin);
-					plotShape.graphics.lineTo(dx,bounds.top - margin);
+					plotShape.graphics.moveTo(dx,bounds.bottom);
+					plotShape.graphics.lineTo(dx,bounds.top);
 					d += (24 * 3600);
 				}
 				
@@ -216,16 +227,22 @@
 				while(d < xTop){
 					var dx:Number = (d - xBottom) * (bounds.width - 2 * margin) / 
 							(xTop - xBottom) + bounds.width / 2 + margin;
-					plotShape.graphics.moveTo(dx,bounds.bottom - margin);
-					plotShape.graphics.lineTo(dx,bounds.top - margin);
+					plotShape.graphics.moveTo(dx,bounds.bottom);
+					plotShape.graphics.lineTo(dx,bounds.top);
 					d += 3600;
 				}
 				
 				//plot hours
 				bd.draw(plotShape);				
-				
 			}
-		
+			
+			protected function plotLabel(uri:String,bounds:Rectangle):void{
+				var l:TimelineLabel = new TimelineLabel();
+				if(info && info[uri] && info[uri].name) l.labelText = info[uri].name;
+				l.y = bounds.top;
+				//l.onRemoveClick = function
+				labels.addChild(l);
+			}
 
 			/**
 			 * Setup and place the mask for the bitmap 
@@ -311,8 +328,8 @@
 				
 				return new Point((pointData[xDataField] - xBottom) * (sBounds.width - 2 * margin) /
 						 	(xTop - xBottom) + sBounds.width / 2 + margin,
-						 (sBounds.height - 2 * margin - 10) * (1 - (pointData[yDataField] - yMin) /
-						 	(yMax - yMin)) + sBounds.y + margin); 
+						 sBounds.height * (1 - (pointData[yDataField] - yMin) /
+						 	(yMax - yMin)) + sBounds.y); 
 			}
 			
 			
@@ -373,7 +390,7 @@
 					_plotTip.graphics.clear();
 					
 					//Overplot nearby points as part of the tooltip
-					var pn:int = dataToPointNum(dataPoint);
+					/*var pn:int = dataToPointNum(dataPoint);
 					if(pn != -1){
 						for(var pi:int = pn - numMouseOverAdjacents; pi < pn + numMouseOverAdjacents; pi++){
 							if(pi < 0 || pi >= data.length) continue;
@@ -387,7 +404,7 @@
 				    			_plotTip.graphics.endFill();								
 							}
 						}
-					}
+					}*/
 					
 					//Plot an accentuated version of the point as part of the tooltip
 					_plotTip.graphics.lineStyle(2,0xffffff,0.7);
@@ -397,9 +414,6 @@
 	    			_plotTip.graphics.beginFill(0xffffff,1);
 	    			_plotTip.graphics.drawCircle(rightInset,0,pointDiameter/2);
 	    			_plotTip.graphics.endFill();
-	    			
-	    			
-	    			
 	    			
 				}
 				else _plotTip.text = "No Data";
@@ -451,7 +465,7 @@
 				if(overPts.length > 0){
 					var overPt:Object = overPts[0];
 					drawDataTip(overPt);
-					tipLine.x = me.localX;
+					tipLine.x = me.localX + container.x;
 					tipLine.visible = true;
 					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,overPt));
 				} 
@@ -472,6 +486,9 @@
 			/****************************** Helper Methods ************************************/
 			
 			protected function calculateMinMax():void{
+				
+				xMin = yMin = xBottom = Number.POSITIVE_INFINITY; 
+				xMax = yMax = xTop = Number.NEGATIVE_INFINITY;
 				
 				for each(var ds:Vector.<Object> in data){
 					//Find mins and maxes

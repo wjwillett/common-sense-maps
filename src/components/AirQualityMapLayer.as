@@ -342,7 +342,7 @@ package components
 				_plotTip.graphics.clear();
 					
 				//Overplot nearby points as part of the tooltip
-				for each(var ds:Vector.<Object> in data){
+				/*for each(var ds:Vector.<Object> in data){
 					var pn:int = dataToPointNum(ds,dataPoint);
 					if(pn != -1){
 						for(var pi:int = pn - numMouseOverAdjacents; pi < pn + numMouseOverAdjacents; pi++){
@@ -359,7 +359,7 @@ package components
 							}
 						}
 					}
-				}
+				}*/
 				
 				
 				//Plot an accentuated version of the point as part of the tooltip
@@ -373,8 +373,7 @@ package components
 			}
 			else _plotTip.text = "No Data"
 			
-			
-			bitmap.alpha = 0.7;
+			//bitmap.alpha = 0.7;
 		}	
 			
 		public function discardActiveDataTip():void{
@@ -383,7 +382,7 @@ package components
 				_plotTip = null;
 				dispatchEvent(new DataPointEvent(DataPointEvent.UNHOVER));
 			}
-			bitmap.alpha = 1;
+			//bitmap.alpha = 1;
 		}
 			
 		protected function handleMouseMove(me:MouseEvent):void{

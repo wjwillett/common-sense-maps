@@ -18,6 +18,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import components.DisclaimerPanel;
 			import events.CSEvent;
 			import events.DataPointEvent;
 			import components.AirQualityScatterPlot;
@@ -85,9 +86,8 @@
 			//An object containing lists of data points (as Vector.<Object>) indexed by the URI they were loaded from
 			protected var _dataSets:Object = {};
 			
-			
-			//protected var dataSource:Object = Embedded20090514PMData;
-			//protected var dataSource:Object = outside20090514PMData;
+			//An object containing additional info about the loaded data objects indexed by the URI they were loaded from
+			protected var _dataInfo:Object = {};
 			
 			//flag to prevent updated events from being dispatched during panAndZoomTo runs
 			protected var _isPanningAndZooming:Boolean = false; 
@@ -145,13 +145,20 @@
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
 								
 				//FIXME: A Hardwired default query - make this cleaner
-				loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
-					AirQualityColors.CO_8HR,"Badge 4 CO (since June 29th)",
-					function():void{
-						loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
-							AirQualityColors.CO_8HR,"Badge 10 CO (since June 29th)",
-							function():void{ dispatchComplete(); });	
-					});
+				var runOnStartup:Function = function():void{
+					loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
+						AirQualityColors.CO_8HR,"Badge 4 CO (since June 29th)",
+						function():void{
+							loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
+								AirQualityColors.CO_8HR,"Badge 10 CO (since June 29th)",
+								function():void{ dispatchComplete(); });	
+						});
+					}
+					
+				//Requires a click-through disclaimer before using the site	
+				triggerDisclaimerPopup(runOnStartup);
+				//Jump straight into a load
+				//runOnStartup()	
 				//Alternative startup, just pops up the loader
 				//triggerLoadingPopup();
 				//plotExistingMarkers(); //probably removed forever?				
@@ -191,9 +198,12 @@
 								_dataSets[dataURI].push(pointData);
 							}
 							
+							_dataInfo[dataURI] = {pollutant:pollutant,name:name};
+							
 							_plotLayer.data = _dataSets;
 							_plotLayer.refresh(true);
 							timeline.data = _dataSets;
+							timeline.info = _dataInfo;
 							timeline.refresh(true);
 							
 						}
@@ -231,7 +241,7 @@
 			
 			
 			protected function setupTimeline():void{
-				
+
 				//add listeners to handle linking
 				var clickPlot:Function = function(de:DataPointEvent):void{
 						if(de.dataPoint){
@@ -565,6 +575,20 @@
 			}
 			
 			
+			
+			/**
+			 * Triggers a disclaimer popup.
+			 */
+			protected function triggerDisclaimerPopup(onOkay:Function=null):void{
+				var disclaimer:DisclaimerPanel = new DisclaimerPanel();
+				disclaimer.onOkay = function():void{
+						if(onOkay != null) onOkay();
+						PopUpManager.removePopUp(disclaimer);
+					};
+				PopUpManager.addPopUp(disclaimer,this,true);
+				PopUpManager.centerPopUp(disclaimer);
+			}
+			
 			/**
 			 * Triggers a popup display that allows data to be loaded from
 			 *  outside.
@@ -576,6 +600,12 @@
 				dataPanel.onLoadClick = function(e:Event=null):void{
 						var info:Array = dataPanel.getSelectedInfo();
 						if(info && info.length > 0){
+							
+							//clear the existing plots
+							for(var ds:String in _dataSets) delete _dataSets[ds];
+							_plotLayer.refresh(true);
+							timeline.refresh(true);
+							
 							var pollutant:String = info[0].reading;
 							for each (var i:Object in info) loadFileData(i.url,pollutant,i.name);
 						} 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#FFFFFF" 
+	borderStyle="solid" cornerRadius="10" borderColor="#FFFFFF" 
+	paddingBottom="25" paddingLeft="25" paddingRight="25" paddingTop="25" width="400">
+
+	<mx:Label text="disclaimer" color="#62D000" fontFamily="Helvetica" fontSize="30"/>
+	<mx:Text x="10" y="10" text="This site is intended for the private use of the community groups and individuals collecting air quality data in this pilot deployment.  Please do not distribute this URL and please do not distribute data or images from this site.  The devices, data, software, and other components in this pilot deployment may not be accurate or correct, and they are not intended for purposes such as medical, scientific, or legal use.&#x9;" width="100%"/>
+	
+	<mx:HBox width="100%" horizontalAlign="right">
+		<mx:Button id="okayButton" label="Okay" click="{onOkay()}" />
+	</mx:HBox>
+	
+	<mx:Script>
+		<![CDATA[
+			
+			public var onOkay:Function;
+			
+		]]>
+	</mx:Script>
+</mx:VBox>
+	
