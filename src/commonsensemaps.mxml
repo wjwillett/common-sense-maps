@@ -1,27 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" 
 	xmlns:flex="com.modestmaps.flex.*" implements="commentspace.IStatefulVis" 
-	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*">
+	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*" 
+	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]">
 	
 	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"/>
 	
-	<mx:VBox left="15" top="15" right="15" width="100" height="100%">
-		<mx:VBox id="plots" width="100%" verticalGap="8" height="20%">
-			<ns1:AirQualityTimeLine id="timeline" width="100%" height="100%" creationComplete="{setup()}"/>			
+	<mx:VDividedBox left="15" top="15" right="15" width="100" height="100%">
+		<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" creationComplete="{setup()}"/>
+		<mx:VBox width="100%">
+			<mx:HBox width="100%">
+				<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  
+					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
+					height="25"/>
+				<mx:Button label="refresh" click="{reloadDataSets()}"  
+					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
+					height="25"/>
+				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" mode="manual"/>	
+			</mx:HBox>
+			<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
 		</mx:VBox>
-		<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" mode="manual"/>
-		<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
-		<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"/>
-	</mx:VBox>
+	</mx:VDividedBox>
 	
 
 	<mx:Script>
 		<![CDATA[
+			import events.DataSetEvent;
+			import data.SelectionSet;
+			import data.AirQualityDataSet;
+			import __AS3__.vec.Vector;
 			import components.DisclaimerPanel;
 			import events.CSEvent;
 			import events.DataPointEvent;
-			import components.AirQualityScatterPlot;
 			import mx.managers.PopUpManager;
 			import components.loading.DataLoadingPanel;
 			import components.AirQualityMapLayer;
@@ -83,11 +94,11 @@
 			//Clip the textures are drawn into
 			protected var _plotLayer:AirQualityMapLayer;
 			
-			//An object containing lists of data points (as Vector.<Object>) indexed by the URI they were loaded from
-			protected var _dataSets:Object = {};
+			//The backing data sets for the visualization
+			protected var _dataSets:Vector.<AirQualityDataSet> = new Vector.<AirQualityDataSet>();
 			
-			//An object containing additional info about the loaded data objects indexed by the URI they were loaded from
-			protected var _dataInfo:Object = {};
+			//An object containing a list of selections 
+			protected var _selections:SelectionSet = new SelectionSet();
 			
 			//flag to prevent updated events from being dispatched during panAndZoomTo runs
 			protected var _isPanningAndZooming:Boolean = false; 
@@ -119,9 +130,11 @@
 				map.panAndZoomDuration = 0.6;
 				
 				_plotLayer = new AirQualityMapLayer(map);
-				_flagsClip = new MarkerClip(map);
+				_plotLayer.dataSets = _dataSets;
+				_plotLayer.selections = _selections;
+				
 				map.addChild(_plotLayer);
-				map.addChild(_flagsClip);
+				//map.addChild(_flagsClip);
 				
 				map.addChild(new MapControls(map));
 
@@ -129,8 +142,8 @@
 				map.setCenterZoom(new Location(37.803,-122.298),14);
 				
 				//Listeners for triggering menus
-				map.addEventListener(MouseEvent.MOUSE_DOWN, handleMouseDown);
-				map.addEventListener(MouseEvent.MOUSE_UP, handleClick);
+				//map.addEventListener(MouseEvent.MOUSE_DOWN, handleMouseDown);
+				//map.addEventListener(MouseEvent.MOUSE_UP, handleClick);
 
 				//Listeners for updating state 
 				map.addEventListener(MapEvent.STOP_PANNING, dispatchUpdated);
@@ -138,113 +151,43 @@
 				map.addEventListener(CSEvent.PAN_AND_ZOOM_COMPLETE, dispatchUpdated);
 				
 				//Listeners for handling marker highlighting				
-				map.addEventListener(MapEvent.STOP_PANNING,maintainHighlights);
-				map.addEventListener(MapEvent.STOP_ZOOMING,maintainHighlights);
-				map.addEventListener(CSEvent.PAN_AND_ZOOM_COMPLETE,maintainHighlights);
+				//map.addEventListener(MapEvent.STOP_PANNING,maintainHighlights);
+				//map.addEventListener(MapEvent.STOP_ZOOMING,maintainHighlights);
+				//map.addEventListener(CSEvent.PAN_AND_ZOOM_COMPLETE,maintainHighlights);
 				
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
 								
 				//FIXME: A Hardwired default query - make this cleaner
 				var runOnStartup:Function = function():void{
-					loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
-						AirQualityColors.CO_8HR,"Badge 4 CO (since June 29th)",
+					loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
+						AirQualityColors.CO_8HR,"Badge 6 Carbon Monoxide (8-hour thresholds) (since July 10th",
 						function():void{
-							loadFileData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800&end_time=" + int(new Date().time / 1000),
-								AirQualityColors.CO_8HR,"Badge 10 CO (since June 29th)",
+							loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
+								AirQualityColors.CO_8HR,"Badge 9 Carbon Monoxide (8-hour thresholds) since July 10th",
 								function():void{ dispatchComplete(); });	
 						});
 					}
 					
 				//Requires a click-through disclaimer before using the site	
-				triggerDisclaimerPopup(runOnStartup);
+				//triggerDisclaimerPopup(runOnStartup);
 				//Jump straight into a load
 				//runOnStartup()	
 				//Alternative startup, just pops up the loader
-				//triggerLoadingPopup();
+				triggerLoadingPopup();
 				//plotExistingMarkers(); //probably removed forever?				
 				//let commentspace know we're loaded
-				//dispatchComplete();	
+				dispatchComplete();	
 					
 			}
-			
-			
-			protected function loadFileData(source:Object,pollutant:String,name:String=null,onComplete:Function=null):void{
-			
-				var dataURI:String = source.toString(); 
-			
-				//update the pollutant on each of the plots
-				timeline.pollutant = pollutant;
-				_plotLayer.pollutant = pollutant;
-				
-				//helper method for processing loaded CSV data.
-				var processLoaded:Function = function(data:String):void{
-						var entries:Array = data.split(/\r|\n/gi);
-						
-						_dataSets[dataURI] = new Vector.<Object>();
-						if(entries.length > 1){
-							var headers:Array = (entries[0] as String).split(',');
-							
-							for(var i:int = 1; i < entries.length; i++){
-								var entry:Array = (entries[i] as String).split(',');
-								if(headers.length != entry.length && i < entries.length - 1){
-									throw new Error("Row " + i + ":(" + entries[i] + ") from data source \"" + 
-										dataURI + "\" has a different number of elements than the header row:(" +
-										entries[0] + ").");  
-								}  
-								var pointData:Object = {}
-								for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
-								//annotate the point with a reference to its source
-								pointData.sourceURI = dataURI;
-								_dataSets[dataURI].push(pointData);
-							}
-							
-							_dataInfo[dataURI] = {pollutant:pollutant,name:name};
-							
-							_plotLayer.data = _dataSets;
-							_plotLayer.refresh(true);
-							timeline.data = _dataSets;
-							timeline.info = _dataInfo;
-							timeline.refresh(true);
-							
-						}
-						
-						dispatchUpdated();
-						if(onComplete != null)onComplete();
-					}
-					
-				var handleProgress:Function = function(pe:ProgressEvent):void{
-						progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
-						progressBar.label = (int(pe.bytesLoaded / pe.bytesTotal * 100) + 
-							"% (" + pe.bytesLoaded + " of " + pe.bytesTotal + " bytes)");
-					}
-				
-				//Handle embedded data		
-				if(source is Class) processLoaded(new (source as Class)());
-				//Load data from the web
-				else if(source is String){
-					var request:URLRequest = new URLRequest(source as String);
-					var loader:URLLoader = new URLLoader(request);
-					progressBar.visible = true;
-					progressBar.includeInLayout = true;
-					loader.addEventListener(Event.COMPLETE,function(e:Event):void{
-							progressBar.visible = false;
-							progressBar.includeInLayout = false;
-							processLoaded(loader.data as String);
-						});
-					loader.addEventListener(ProgressEvent.PROGRESS,handleProgress);
-						
-				}
-				else throw new ArgumentError("Invalid data source. Source should either " + 
-						"be the URI of a text file containing data or a Class containing " + 
-						"an embedded text file.");
-			}
-			
 			
 			protected function setupTimeline():void{
 
+				timeline.dataSets = _dataSets;
+				timeline.selections = _selections;
+
 				//add listeners to handle linking
 				var clickPlot:Function = function(de:DataPointEvent):void{
-						if(de.dataPoint){
+						if(de.dataPoint && de.dataPoint.lat && de.dataPoint.lat != "None"){
 							var loc:Location = new Location(de.dataPoint.lat,de.dataPoint.lon); 
 							panAndZoomTo(loc,map.getZoom());
 						}
@@ -263,77 +206,81 @@
 					};
 				timeline.addEventListener(DataPointEvent.CLICK,clickPlot);
 				timeline.addEventListener(DataPointEvent.HOVER,drawLayerTip);
-				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
 				timeline.addEventListener(DataPointEvent.UNHOVER,discardLayerTip);
+				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
 				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardPlotTip);
 				
-				//TODO: Handle removal when necessary						
-				timeline.addEventListener(CSEvent.REMOVE_CLICKED,function(ce:CSEvent):void{			
-						//delete _dataSets[dataURI];
+				timeline.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
+						//if(_selections.isSelected(de.dataPoint))_selections.removeSelection(de.dataPoint[_selections.indexByField]);
+						//else _selections.addSelection(de.dataPoint[_selections.indexByField]);	
+						createMenu(de.mousePosition,de.dataPoint);
+						
+					});
+					
+				_plotLayer.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
+						//if(_selections.isSelected(de.dataPoint))_selections.removeSelection(de.dataPoint[_selections.indexByField]);
+						//else _selections.addSelection(de.dataPoint[_selections.indexByField]);
+						createMenu(de.mousePosition,de.dataPoint);
+					});
+				
+				
+				timeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
 						_plotLayer.refresh(true);
 						timeline.refresh(true);
 					});
 				
 			}
 			
+			/**
+			 * Loads data from a source and passes it to the timeline and map when complete.
+			 *  Manages the progress bar while loading. 
+			 */
+			protected function loadData(source:Object,pollutant:String,name:String=null,onComplete:Function=null):void{
 			
-			/*protected function addScatterPlot(dataURI:String,plotName:String=""):AirQualityScatterPlot{
-				var newPlot:AirQualityScatterPlot = new AirQualityScatterPlot();
-				newPlot.percentWidth = 100;
-				newPlot.displayName = plotName;
-				newPlot.data = _dataSets[dataURI];
-				plots.addChild(newPlot);
+				progressBar.visible = true;
+				progressBar.includeInLayout = true;
 				
-				//add listeners to handle linking
-				var clickPlot:Function = function(de:DataPointEvent):void{
-						if(de.dataPoint){
-							var loc:Location = new Location(de.dataPoint.lat,de.dataPoint.lon); 
-							panAndZoomTo(loc,map.getZoom());
-						}
-					};
-				var drawLayerTip:Function = function(de:DataPointEvent):void{
-						_plotLayer.drawDataTip(de.dataPoint);
-					};
-				var drawPlotTip:Function = function(de:DataPointEvent):void{
-						newPlot.drawDataTip(de.dataPoint);
-					};
-				var discardLayerTip:Function = function(de:DataPointEvent):void{
-						_plotLayer.discardActiveDataTip();
-					};
-				var discardPlotTip:Function = function(de:DataPointEvent):void{
-						newPlot.discardActiveDataTip();
-					};
-				newPlot.addEventListener(DataPointEvent.CLICK,clickPlot);
-				newPlot.addEventListener(DataPointEvent.HOVER,drawLayerTip);
-				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
-				newPlot.addEventListener(DataPointEvent.UNHOVER,discardLayerTip);
-				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardPlotTip);
+				var handleProgress:Function = function(pe:ProgressEvent):void{
+					progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
+					progressBar.label = (int(pe.bytesLoaded / pe.bytesTotal * 100) + 
+						"% (" + pe.bytesLoaded + " of " + pe.bytesTotal + " bytes)");
+				}
 				
-				//Handle removal when necessary						
-				newPlot.addEventListener(CSEvent.REMOVE_CLICKED,function(ce:CSEvent):void{			
-						newPlot.removeEventListener(DataPointEvent.HOVER,drawLayerTip);
-						_plotLayer.removeEventListener(DataPointEvent.HOVER,drawPlotTip);
-						newPlot.removeEventListener(DataPointEvent.UNHOVER,discardLayerTip);
-						_plotLayer.removeEventListener(DataPointEvent.UNHOVER,discardPlotTip);
-						
-						plots.removeChild(newPlot);
-						delete _dataSets[dataURI];
-						_plotLayer.refresh(true);
+				var ds:AirQualityDataSet = new AirQualityDataSet(source,pollutant,name) 
+				ds.addEventListener(ProgressEvent.PROGRESS, handleProgress);
+				ds.addEventListener(Event.COMPLETE, function(e:Event):void{
+						progressBar.visible = false;
+						progressBar.setProgress(0,1);
+						progressBar.includeInLayout = false;
+						_dataSets.push(ds);
 						timeline.refresh(true);
-					});
-				
-				return newPlot;
-			}*/
+						_plotLayer.refresh(true);
+						if(onComplete != null) onComplete();
+				});
+			}
+			
+			
+			/**
+			 * Forces all of the loaded datasets to reload from scratch.
+			 */
+			protected function reloadDataSets():void{
+				var oldDataSets:Vector.<AirQualityDataSet> = new Vector.<AirQualityDataSet>();
+				while(_dataSets.length > 0) oldDataSets.push(_dataSets.pop());
+				for each(var d:AirQualityDataSet in oldDataSets){
+					loadData(d.dataURI,d.pollutant,d.name);					
+				}
+			}
+			
 			
 			
 			/**
 			 * Plots and persisted markers from the MarkerManager
 			 * 
 			 */
-			protected function plotExistingMarkers():void{
+			/*protected function plotExistingMarkers():void{
 				var markers:Array = MarkerManager.getMarkers();
 				for each(var m:FlagMarker in markers) attachMarker(m);
-			}
+			}*/
 			
 
 
@@ -341,7 +288,7 @@
 			 * Click handlers for the marker menu - ensures the
 			 *  menu isn't popped up on drags
 			 */ 
-			protected var _mouseDownXY:Point;
+			/*protected var _mouseDownXY:Point;
 			protected function handleMouseDown(me:MouseEvent):void{
 				_mouseDownXY = map.globalToLocal(new Point(me.stageX, me.stageY));
 			}
@@ -358,17 +305,17 @@
 				var mouseXY:Point = new Point(me.stageX, me.stageY);
 				var loc:Location = map.pointLocation(_mouseDownXY);
 				//createMenu(mouseXY,loc);
-			}
+			}*/
 			
 			
 			/** Pops up a menu that allows markers to be
 			 *   added to the display.
 			 */
-			protected function createMenu(mousePt:Point,location:Location):void{
+			protected function createMenu(mousePt:Point,dataPoint:Object):void{
 				//set up menu XML
 				var menuXML:XML = XML(<root/>);
 				var addXML:XML = XML(<item/>);
-				addXML.@label = 'Comment on this Location';	
+				addXML.@label = 'Comment on this data point';	
 				addXML.@icon = 'CommentIcon';
 				addXML.@event = 'add';
 				menuXML.appendChild(addXML);
@@ -385,15 +332,13 @@
 				menu.addEventListener(MenuEvent.ITEM_CLICK,function(me:MenuEvent):void{
 						//when Add is clicked - add a marker
 						if(me.item.@event == 'add'){
-							var m:FlagMarker = new FlagMarker(location,map.getZoom());
-							attachMarker(m);
-							MarkerManager.saveMarker(m);
+							_selections.addSelection(dataPoint.id);
 							//once the pan is completed, dispatch an event
-							map.addEventListener(MapEvent.STOP_PANNING,function(e:Event):void{
+							/*map.addEventListener(MapEvent.STOP_PANNING,function(e:Event):void{
 									map.removeEventListener(MapEvent.STOP_PANNING,arguments.callee);
 									map.dispatchEvent(new CSEvent(CSEvent.COMMENT_MARKER_ADDED,m,true));
 								});
-							map.panTo(location);
+							map.panTo(location);*/
 						}
 						//otherwise, hide the menu
 						else menu.hide();
@@ -407,7 +352,7 @@
 			 * Attaches a flag marker to the visualiation using 
 			 *  the location specified on it.
 			 */
-			protected function attachMarker(marker:FlagMarker):void{
+			/*protected function attachMarker(marker:FlagMarker):void{
 				_flagsClip.attachMarker(marker,marker.location);
 				marker.addEventListener(MouseEvent.CLICK, function(me:MouseEvent):void{
 						var ft:FlagMarker = (me.currentTarget as FlagMarker); 
@@ -419,7 +364,7 @@
 						}
 					});				
 			}
-			
+			*/
 			
 			/**
 			 * Pans and zooms to a specific point and zoom level.
@@ -501,7 +446,7 @@
 			public function set state(o:Object):void{
 				if(o.dataSource is String){
 					var ds:Array = (o.dataSource as String).split(',');
-					for each(var d:String in ds) loadFileData(d,AirQualityColors.CO_8HR);					
+					for each(var d:String in ds) loadData(d,AirQualityColors.CO_8HR);					
 				}
 				panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 			}
@@ -532,17 +477,6 @@
 				map.setCenter(mc);
 				
 			}	
-				
-				
-			protected function maintainHighlights(e:Event=null):void{
-				if(_isPanningAndZooming) return; 
-				for (var i:int = 0; i < _flagsClip.numChildren; i++){
-					var m:FlagMarker = _flagsClip.getChildAt(i) as FlagMarker;
-					var ml:Location = map.getCenter();
-					var mz:int = map.getZoom();
-					m.highlight(locEquals(m.location,ml) && m.zoom == mz);
-				}
-			}
 			
 			/**Checks if two locations are equal to some level of precision */
 			protected function locEquals(a:Location,b:Location,precision:uint=10):Boolean{
@@ -607,7 +541,7 @@
 							timeline.refresh(true);
 							
 							var pollutant:String = info[0].reading;
-							for each (var i:Object in info) loadFileData(i.url,pollutant,i.name);
+							for each (var i:Object in info) loadData(i.url,pollutant,i.name);
 						} 
 						PopUpManager.removePopUp(dataPanel);
 					};

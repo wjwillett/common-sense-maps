@@ -8,24 +8,26 @@
 	<mx:Canvas id="container"  x="{margin + 30}" width="100%" height="100%" resize="{refresh()}" 
 		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
 		mouseMove="{handleMouseMove(event)}" click="{handleMouseClick(event)}" 
-		doubleClick="{handleDoubleClick}"
+		doubleClick="{handleDoubleClick(event)}"
 		horizontalScrollPolicy="off" verticalScrollPolicy="off"
-		doubleClickEnabled="true" 
-		alpha="{plotCheck.selected ? 1 : 0.4}" enabled="{plotCheck.selected}"/>
+		doubleClickEnabled="true" />
 		
 	<mx:Canvas id="labels" mouseEnabled="false" x="{margin + 30}" width="100%" height="100%" />
-	<mx:Button id="zOut" click="{zoomOut()}" label="-" 
-			enabled="{plotCheck.selected}" toolTip="zoom out" 
+	<mx:Button id="zOut" click="{zoomOut()}" label="-" toolTip="zoom out" 
 			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0" width="25"/>
 	<mx:Button id="zIn" click="{zoomIn()}" label="+" 
 			toolTip="zoom in" width="25" paddingLeft="0" 
 			paddingRight="0" y="{margin}" x="{margin}"/>
-	<mx:CheckBox id="plotCheck" x="15" y="5" selected="true" visible="false"/>
-	<mx:LinkButton id="remove" click="{dispatchEvent(new CSEvent(CSEvent.REMOVE_CLICKED))}" label="x" x="8" y="5" 
-		enabled="{plotCheck.selected}" toolTip="remove track" visible="false" />
 	
 	<mx:Script>
 		<![CDATA[
+			import events.DataSetEvent;
+			import mx.messaging.channels.PollingChannel;
+			import etc.PointRenderer;
+			import mx.events.CollectionEventKind;
+			import mx.events.CollectionEvent;
+			import data.SelectionSet;
+			import data.AirQualityDataSet;
 			import events.CSEvent;
 			import etc.AirQualityColors;
 			import events.DataPointEvent;
@@ -40,7 +42,6 @@
 			//------------- Public variables -----------------------------------------------
 			public var xDataField:String = 'time';
 			public var yDataField:String = 'value';
-			public var pollutant:String = AirQualityColors.CO_8HR;
 			public var margin:Number = 15;
 			public var spacing:Number = 5;
 			public var pointDiameter:Number = 6;
@@ -54,18 +55,38 @@
 			 *  sets of points (as Vector.<Object>s) 
 			 *  indexed by the URI of that set of points.  
 			 * @param d
-			 * 
 			 */	
-			override public function get data():Object{return _data;}
-			override public function set data(d:Object):void{
-				_data = d;
+			public function get dataSets():Vector.<AirQualityDataSet>{return _dataSets;}
+			public function set dataSets(d:Vector.<AirQualityDataSet>):void{
+				_dataSets = d;
 				refresh(true);
 			}
+			
+			/**
+			 * A set of selections to draw.
+		 	 */		
+			public function get selections():SelectionSet{ return _selections;}
+			public function set selections(s:SelectionSet):void{
+				_selections = s;
+				s.addEventListener(CollectionEvent.COLLECTION_CHANGE, function(ce:CollectionEvent):void{
+						if(ce.kind == CollectionEventKind.ADD){
+							//for each(var o:Object in ce.items){
+							refresh();									
+							//}  
+						}
+						else if(ce.kind == CollectionEventKind.REMOVE){
+							//re-render the entire view
+							refresh();
+						}
+					});
+			}
+			
+			
 			
 			public var info:Object;
 			
 			//------------- Data Management variables -----------------------------------------------
-			protected var _data:Object;
+			protected var _dataSets:Vector.<AirQualityDataSet>;
 			protected var yMin:Number;		//the lowest data value on the y axis
 			protected var yMax:Number; 		//the highest data value on the y axis
 			protected var xMin:Number;		//the lowest data value on the x axis
@@ -74,20 +95,20 @@
 			protected var xBottom:Number;	//the bottom end of the current display x-axis
 			protected var xTop:Number;		//the top end of the current display x-axis
 
-			protected var _pSetBounds:Object = {}
+			protected var _dSetBounds:Object = {} //the screen bounds of the regions reserved for each dataset (indexed by URI)
+			protected var _dSetLabels:Object = {} //labels for each dataset's region (indexed by URI)
+			protected var _selections:SelectionSet; //the set of selections to draw in the current display 
+			
 			
 			protected var _bitmap:Bitmap;
 			protected var _mask:Sprite = new Sprite();
 			protected var _hScroll:ScrollBar = new ScrollBar();
 						
-			
-
-
 		
 			//-------------Public Methods -----------------------------------------------------
 
 			public function refresh(force:Boolean=false):void{
-				if(force)calculateMinMax();
+				if(force) calculateMinMax();
 				if(isNaN(yMin) || isNaN(yMax)) return;
 				else plotData();
 			}
@@ -101,20 +122,17 @@
 
 				//clear previously drawn bitmaps
 				while(container.rawChildren.numChildren > 0)container.rawChildren.removeChildAt(0);
-				//and labels (FIXME: Not necessary in MANY cases)
-				labels.removeAllChildren();	
 
 				//If no data do nothing
-				if(!data || data.length == 0) return;
-				
+				if(!dataSets || dataSets.length == 0){
+					plotLabels();
+					return;
+				}
 				
 				//prep the shape object and bitmap data we'll use to draw the points
-				var plotShape:Shape = new Shape();
-				var translationMatrix:Matrix = new Matrix();
 				var plotBitmapData:BitmapData = new BitmapData(container.width * 2,container.height,true,0x00FFFFFF);
-											
-				var prevPoint:Object;
-				var prevPt:Point;
+				var renderer:PointRenderer = new PointRenderer(plotBitmapData,pointDiameter,pointOverlapTolerance);
+															
 				
 				//draw outside the current range so that scrolling 
 				// cuts less abruptly
@@ -123,76 +141,51 @@
 				var xtd:Number = Math.min(xMax,xTop + curRange);
 				
 				//allocate space for each point set
-				_pSetBounds = {};
-				var numTracks:uint = 0;
-				for(var n:String in data) numTracks++;
+				_dSetBounds = {};
 				var psHeight:Number = (container.height - 2 * margin - 
-					(numTracks - 1) * spacing - 10)/numTracks;
+					(dataSets.length - 1) * spacing - 10)/dataSets.length;
 				var psBounds:Rectangle = new Rectangle(container.x,container.y + margin,container.width,psHeight);
 
 				plotBitmapData.lock();
 				
-				//for each of the sets of points...
-				for(var psName:String in _data){
-					var pSet:Vector.<Object> = _data[psName];
-					
-					//set bounds for the set
-					_pSetBounds[psName] = psBounds.clone();
-					plotAxes(plotBitmapData,psBounds);
-					psBounds.y += (psHeight + spacing);
-					
-					//set up labels
-					plotLabel(psName,_pSetBounds[psName]);
-					
-					for(var i:int=0; i < pSet.length; i++){
-						var point:Object = pSet[i]; 
-						if(point.time < xbd || point.time > xtd) continue;
-						if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
-					
-						//determine location
-						var hasGPS:Boolean = !(!point.lat || point.lat == "None");
-						var dPt:Point = dataToPosition(point);
-						
-			
-						//skip if position, category not different from last
-						if(prevPoint && prevPoint.cat == point.cat 
-								&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
-								&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
-							continue;
-						}  
+				if(_dataSets && _dataSets.length > 0){
 										
-						//draw the point
-						var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
-						plotShape.graphics.clear();
-						plotShape.graphics.lineStyle(0.5,hasGPS ? 0xffffff : 0x777777,0.6);
-						plotShape.graphics.beginFill(color,0.6);
-						plotShape.graphics.drawCircle(0,0,pointDiameter/2);
-	        			plotShape.graphics.endFill();
-	        			//grey out the outlines and centers of points with no lat/lon
-	        			if(!hasGPS){
-	        				plotShape.graphics.lineStyle(0,0,0);
-	        				plotShape.graphics.beginFill(0x777777,0.8);
-							plotShape.graphics.drawCircle(0,0,pointDiameter/5);
-	        				plotShape.graphics.endFill();
-	        			}
-						translationMatrix.tx = dPt.x;
-						translationMatrix.ty = dPt.y;
+					//for each of the sets of points...
+					for each(var ds:AirQualityDataSet in _dataSets){
+						var pSet:Vector.<Object> = ds.data;
 						
-						plotBitmapData.draw(plotShape,translationMatrix);
-											
-						prevPoint = point;
-						prevPt = dPt;
+						//If we've already reused this renderer, ignore its previous points
+						renderer.ignorePrevPoints();
+						
+						//set bounds for the set
+						_dSetBounds[ds.dataURI] = psBounds.clone();
+						plotAxes(plotBitmapData,psBounds);
+						psBounds.y += (psHeight + spacing);
+						
+						//iterate through recorded points
+						if(!ds.data) continue;
+						for(var i:int=0; i < ds.data.length; i++){
+							var point:Object = ds.data[i]; 
+							if(point.time < xbd || point.time > xtd) continue;
+						
+							//determine location
+							var dPt:Point = dataToPosition(point);
+							
+							//plot the point to the current bitmapdata
+							renderer.plotPoint(point,dPt, ds.pollutant,selections.isSelected(point));
+						}
 					}
+					
+					plotBitmapData.unlock();
+					
+					_bitmap = new Bitmap(plotBitmapData);
+					_bitmap.x = -(container.width / 2);
+					
+					container.rawChildren.addChild(_bitmap);
 				}
 				
-				plotBitmapData.unlock();
-				
-				_bitmap = new Bitmap(plotBitmapData);
-				_bitmap.x = -(container.width / 2);
-				
-				container.rawChildren.addChild(_bitmap);
-				
-				//draw and position the scrollBar and mask
+				//set up and position the labels, scrollBar, and mask
+				plotLabels();
 				setupMask();
 				setupScrollBar();
 			}
@@ -236,12 +229,36 @@
 				bd.draw(plotShape);				
 			}
 			
-			protected function plotLabel(uri:String,bounds:Rectangle):void{
-				var l:TimelineLabel = new TimelineLabel();
-				if(info && info[uri] && info[uri].name) l.labelText = info[uri].name;
-				l.y = bounds.top;
-				//l.onRemoveClick = function
-				labels.addChild(l);
+			protected function plotLabels():void{
+				//remove unused labels
+				for(var dl:Object in _dSetLabels){
+					if(_dSetLabels[dl] && (!_dSetBounds[dl] || !_dataSets || _dataSets.length == 0)){
+						labels.removeChild(_dSetLabels[dl]);						
+						_dSetLabels[dl] = null;	
+					}	
+				}
+				
+				//add and update others
+				for each(var d:AirQualityDataSet in _dataSets){
+					if(!_dSetBounds[d.dataURI]) continue;
+					if(!_dSetLabels[d.dataURI]) _dSetLabels[d.dataURI] = new TimelineLabel();
+					var l:TimelineLabel = _dSetLabels[d.dataURI];
+					if(d.name) l.labelText = d.name;
+					l.y = _dSetBounds[d.dataURI].top;
+					labels.addChild(l);
+					l.onRemoveClick = function(e:MouseEvent):void{
+							// a very shoddy way of finding the dataset to remove.
+							//  however, just using 'd' doesn't work because of a scoping issue
+							for each(var dr:AirQualityDataSet in _dataSets){
+								if(dr.name == (e.target.parent as TimelineLabel).labelText){
+									if(_dataSets.lastIndexOf(dr) != -1){
+										_dataSets.splice(_dataSets.lastIndexOf(dr),1);
+										dispatchEvent(new DataSetEvent(DataSetEvent.DATASET_REMOVED,dr));
+									}
+								}								
+							}
+						};
+				}	
 			}
 
 			/**
@@ -306,9 +323,9 @@
 					
 			}
 			
-			protected function zoomIn():void{
+			protected function zoomIn(midPointVal:Number=Number.POSITIVE_INFINITY):void{
 				var zoomRange:Number = (xTop - xBottom) * zoomPercentage;
-				var midPoint:Number = xBottom + (xTop - xBottom) / 2;
+				var midPoint:Number = midPointVal != Number.POSITIVE_INFINITY ? midPointVal : xBottom + (xTop - xBottom) / 2;
 				xBottom = Math.max(xMin,int(midPoint - zoomRange / 2));
 				xTop = Math.min(xMax,int(midPoint + zoomRange / 2));
 				refresh();
@@ -323,8 +340,8 @@
 			}
 			
 			protected function dataToPosition(pointData:Object):Point{
-				if(!(_pSetBounds[pointData.sourceURI] is Rectangle)) return null;
-				var sBounds:Rectangle = _pSetBounds[pointData.sourceURI];
+				if(!(_dSetBounds[pointData.sourceURI] is Rectangle)) return null;
+				var sBounds:Rectangle = _dSetBounds[pointData.sourceURI];
 				
 				return new Point((pointData[xDataField] - xBottom) * (sBounds.width - 2 * margin) /
 						 	(xTop - xBottom) + sBounds.width / 2 + margin,
@@ -333,15 +350,14 @@
 			}
 			
 			
-			
+			//FIXME: Linear search here is probably going to cause performance problems sooner or later
 			protected function xPosToDataPts(x:Number):Array{
-				var position:Number = x - margin;
-				var overXPos:int = xBottom + Math.floor(position * (xTop - xBottom)/(container.width - 2 * margin));
+				var overXPos:int = xPosToXVal(x);
 				var pts:Array = []
-				for each(var ps:Vector.<Object> in _data){
-					for(var p:int=0;p<ps.length; p++){
-						if(Math.abs(ps[p][xDataField] - overXPos) < 10){
-							pts.push(ps[p]);
+				for each(var ds:AirQualityDataSet in _dataSets){
+					for each (var dp:Object in ds.data){
+						if(Math.abs(dp[xDataField] - overXPos) < 10){
+							pts.push(dp);
 							break;
 						} 
 					}					
@@ -349,14 +365,11 @@
 				return pts; 
 			}
 			
-			//FIXME: O(n) search is not efficient
-			protected function dataToPointNum(pointData:Object):int{
-				var sourceData:Vector.<Object> = data[pointData.sourceURI];
-				for(var i:int = 0; i < sourceData.length; i++){
-					if(sourceData[i] == pointData) return i;
-				}
-				return -1;
+			protected function xPosToXVal(x:Number):int{
+				var position:Number = x - margin;
+				return xBottom + Math.floor(position * (xTop - xBottom)/(container.width - 2 * margin));
 			}
+			
 			
 			/****************************** Tooltipping Methods ************************************/
 			protected var _plotTip:ToolTip;
@@ -373,7 +386,8 @@
 			
 				//color the tip and add additional text if possible
 				if(dataPoint.value){
-					var cat:String = AirQualityColors.getAQICategoryForValue(pollutant,dataPoint.value);
+					//FIXME: Currently defaulting to pollutant from the first dataset, should be able to support per-track
+					var cat:String = AirQualityColors.getAQICategoryForValue(dataSets[0].pollutant,dataPoint.value);
 					var color:uint = AirQualityColors.getColorForAQICategory(cat);
 					_plotTip.setStyle("backgroundColor",color);
 					_plotTip.setStyle("backgroundAlpha",0.7);
@@ -396,7 +410,7 @@
 							if(pi < 0 || pi >= data.length) continue;
 							var adjPt:Object = data[pi];
 							if(adjPt && adjPt.lat != null && adjPt.lat !="None"){
-								var aColor:uint = AirQualityColors.getColorForValue(pollutant,adjPt.value);
+								var aColor:uint = AirQualityColors.getColorForValue(dataSets[0].pollutant,adjPt.value);
 								var aPosition:Point = container.localToGlobal(dataToPosition(adjPt));
 								_plotTip.graphics.lineStyle(2,0xffffff,0.7);
 								_plotTip.graphics.beginFill(aColor,1);
@@ -406,14 +420,16 @@
 						}
 					}*/
 					
+					PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,new Point(),
+						dataSets[0].pollutant,selections.isSelected(dataPoint),true,pointDiameter);
 					//Plot an accentuated version of the point as part of the tooltip
-					_plotTip.graphics.lineStyle(2,0xffffff,0.7);
+					/*_plotTip.graphics.lineStyle(2,0xffffff,0.7);
 					_plotTip.graphics.beginFill(color,1);
 					_plotTip.graphics.drawCircle(rightInset,0,pointDiameter);
 	    			_plotTip.graphics.endFill();
 	    			_plotTip.graphics.beginFill(0xffffff,1);
 	    			_plotTip.graphics.drawCircle(rightInset,0,pointDiameter/2);
-	    			_plotTip.graphics.endFill();
+	    			_plotTip.graphics.endFill();*/
 	    			
 				}
 				else _plotTip.text = "No Data";
@@ -436,19 +452,18 @@
 				var overPts:Array = xPosToDataPts(me.localX);
 							
 				//If we have a point, fire an event
-				if(overPts.length > 0) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPts[0]));
+				if(overPts.length > 0) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPts[0],new Point(me.stageX,me.stageY)));
 			}
 			
 			protected function handleDoubleClick(me:MouseEvent):void{
-				
 				//if we've clicked on some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
 				
 				//calculate the location of the click and locate the nearest matching point
-				var overPts:Array = xPosToDataPts(me.localX);
+				var xVal:int = xPosToXVal(me.localX);
 							
 				//If we have a point, zoom
-				if(overPts.length > 0) zoomIn();
+				if(xVal > xBottom && xVal < xTop) zoomIn(xVal);
 			}
 			
 			
@@ -467,7 +482,7 @@
 					drawDataTip(overPt);
 					tipLine.x = me.localX + container.x;
 					tipLine.visible = true;
-					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,overPt));
+					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,overPt,new Point(me.stageX,me.stageY)));
 				} 
 				//If no points, throw away any tip we might have
 				else{
@@ -490,9 +505,9 @@
 				xMin = yMin = xBottom = Number.POSITIVE_INFINITY; 
 				xMax = yMax = xTop = Number.NEGATIVE_INFINITY;
 				
-				for each(var ds:Vector.<Object> in data){
+				for each(var ds:AirQualityDataSet in dataSets){
 					//Find mins and maxes
-					for each(var o:Object in ds){
+					for each(var o:Object in ds.data){
 
 						var xVal:Number = Number(o[xDataField]);
 						if(isNaN(xMin) || xVal < xMin) xMin = xVal;

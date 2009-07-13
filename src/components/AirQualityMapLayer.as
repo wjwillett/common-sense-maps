@@ -7,13 +7,16 @@ package components
 	import com.modestmaps.events.MapEvent;
 	import com.modestmaps.geo.Location;
 	
+	import data.AirQualityDataSet;
+	import data.SelectionSet;
+	
 	import etc.AirQualityColors;
+	import etc.PointRenderer;
 	
 	import events.DataPointEvent;
 	
 	import flash.display.Bitmap;
 	import flash.display.BitmapData;
-	import flash.display.Shape;
 	import flash.display.Sprite;
 	import flash.events.Event;
 	import flash.events.MouseEvent;
@@ -22,6 +25,8 @@ package components
 	import flash.geom.Rectangle;
 	
 	import mx.controls.ToolTip;
+	import mx.events.CollectionEvent;
+	import mx.events.CollectionEventKind;
 	import mx.managers.ToolTipManager;
 	
 	import papervision3Dqtree.QuadTree;
@@ -30,7 +35,8 @@ package components
 
 	public class AirQualityMapLayer extends Sprite
 	{
-		protected var _data:Object;//Vector.<Object>;
+		protected var _dataSets:Vector.<AirQualityDataSet>;
+		protected var _selections:SelectionSet; //the set of selections to draw in the current display 
 		protected var _map:Map;
 		
 		// setting this.dirty = true will redraw an MapEvent.RENDERED
@@ -44,32 +50,53 @@ package components
 		
 		protected function get map():Map{ return _map;}
 		
-		public var pollutant:String = AirQualityColors.PM_25_24HR;
 		public var pointOverlapTolerance:Number = 11;
 		public var zoomTolerance:Number = 5; 
 		public var pointDiameter:Number = 12;
 		public var numMouseOverAdjacents:uint = 15;
 		
-		
 		/**
-		 * A data object should be an Object containing
-		 *  sets of points (as Vector.<Object>s) 
-		 *  indexed by the URI of that set of points.  
+		 * A set of objects that contain lists of datapoints, along with
+		 *  names, uris, and pollutants for each. 
 		 * @param d
+		 * @param AirQualityDataSet
 		 * 
 		 */		
-		public function set data(d:Object):void{
-			_data = d;
-			for each(var ds:Vector.<Object> in d){
+		public function set dataSets(d:Vector.<AirQualityDataSet>):void{
+			_dataSets = d;
+			for each(var ds:AirQualityDataSet in d){
 				addToQuadTree(ds);
 			}
 			plotData(); 
 		}
-		public function get data():Object{
-			return _data;
+		public function get dataSets():Vector.<AirQualityDataSet>{
+			return _dataSets;
 		}
 		
-		public function AirQualityMapLayer(map:Map,data:Vector.<Object> = null)
+		/**
+		 * A set of selections to draw.
+	 	 */		
+		public function get selections():SelectionSet{ return _selections;}
+		public function set selections(s:SelectionSet):void{
+			_selections = s;
+			s.addEventListener(CollectionEvent.COLLECTION_CHANGE, function(ce:CollectionEvent):void{
+					if(ce.kind == CollectionEventKind.ADD){
+						//TODO:Should probably just draw the new items
+						//for each(var o:Object in ce.items){
+						_dirty = true;
+						refresh();									
+						//}  
+					}
+					else if(ce.kind == CollectionEventKind.REMOVE){
+						//re-render the entire view
+						_dirty = true;
+						refresh();
+					}
+				});
+		}	
+		
+		
+		public function AirQualityMapLayer(map:Map,dataSets:Vector.<AirQualityDataSet> = null)
 		{
 			super();
 			
@@ -77,7 +104,7 @@ package components
 			
 			this._map = map;
 			this.addChild(bitmap);
-			this.data = data;
+			this.dataSets = dataSets;
 			
 			map.addEventListener(MapEvent.START_ZOOMING, onMapStartZooming);
 	        map.addEventListener(MapEvent.STOP_ZOOMING, onMapStopZooming);
@@ -92,21 +119,23 @@ package components
 	        map.addEventListener(MouseEvent.ROLL_OVER, handleMouseMove);
 	        map.addEventListener(MouseEvent.MOUSE_MOVE, handleMouseMove);
 	        map.addEventListener(MouseEvent.MOUSE_OUT, handleMouseOut);
+	        map.addEventListener(MouseEvent.CLICK, handleMouseClick);
+	        
 		}
 		
 		public function refresh(force:Boolean=false):void{
 			if(force){
 				 _cachedBitmapData = {};
 				 _quadTree.clearItems();
-				 for each(var ds:Vector.<Object> in _data) addToQuadTree(ds);
+				 for each(var ds:AirQualityDataSet in _dataSets) addToQuadTree(ds);
 				 _dirty = true;
 			}
 			plotData();
 		}
 		
 		
-		protected function addToQuadTree(dataSet:Vector.<Object>):void{
-			for each(var dp:Object in dataSet){
+		protected function addToQuadTree(dataSet:AirQualityDataSet):void{
+			for each(var dp:Object in dataSet.data){
 				if(!(dp.lat || dp.lon) || dp.lat == 'None' || dp.lon == 'None') continue;
 				var dpr:Rectangle = new Rectangle(Number(dp.lon) + 180,Number(dp.lat) + 90,0,0)
 				var dpq:QuadTreeItem = new QuadTreeItem(dp,dpr);
@@ -129,9 +158,6 @@ package components
 	    	this.y = map.getHeight() / 2;	    	
 	        scaleX = scaleY = 1.0;
 			
-			//If no data do nothing
-			if(!data || data.length == 0) return;
-			
 			//Set up the bitmapData we'll paint into
 			//TODO: This will break for displays bigger than 2800px.
 			var w:Number = Math.min(2880, 2*map.getWidth());
@@ -148,6 +174,9 @@ package components
 	        else {
 	            plotBitmapData.fillRect(new Rectangle(0,0,plotBitmapData.width,plotBitmapData.height),0x00000000);
 	        }
+	        
+	        //If no dataSets do nothing
+			if(!_dataSets || _dataSets.length == 0) return;
 			
 			//If we've already drawn this zoom , just reuse it
 			//FIXME: This will probably no longer work once we start using multiple datasets, etc.
@@ -170,47 +199,29 @@ package components
 				}
 			}
 
-			//prep the shape object we'll use to draw the points
-			var plotShape:Shape = new Shape();
-			var translationMatrix:Matrix = new Matrix();
+			//prep the renderer we'll use to draw points
+			var renderer:PointRenderer = new PointRenderer(plotBitmapData,pointDiameter,pointOverlapTolerance);
 			
 			plotBitmapData.lock();
 			
 			//for each of the sets of points...
-			for each(var pSet:Vector.<Object> in _data){
-				var prevPoint:Object;
-				var prevPt:Point;
+			for each(var ds:AirQualityDataSet in _dataSets){
 				//iterate through recorded points
-				for(var i:int=0; i < pSet.length; i++){
-					var point:Object = pSet[i]; 
-					if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
+				if(!ds.data) continue;
+				for(var i:int=0; i < ds.data.length; i++){
+					var point:Object = ds.data[i]; 
 				
+					//don't plot points without GPS data
+					if(!point.lat || point.lat == "None") continue;
+					
 					//determine location
 					var dLoc:Location = new Location(point.lat,point.lon);
 					var dPt:Point = _map.locationPoint(dLoc);
+					dPt.x += (w - map.getWidth()) / 2;
+					dPt.y += (h - map.getHeight()) / 2;
 		
-					//skip if position, AQI category not different from last
-					if(prevPoint && prevPoint.cat == point.cat 
-							&& Math.abs(prevPt.x - dPt.x) < pointOverlapTolerance 
-							&& Math.abs(prevPt.y - dPt.y) < pointOverlapTolerance){
-						continue;
-					}  
-									
-					//draw the point
- 					var color:uint = AirQualityColors.getColorForAQICategory(point.cat);
-					plotShape.graphics.clear();
-					plotShape.graphics.lineStyle(0.5,0xffffff,0.6);
-					plotShape.graphics.beginFill(color,0.6);
-					plotShape.graphics.drawCircle(0,0,pointDiameter/2);
-        			plotShape.graphics.endFill();
-					translationMatrix.tx = dPt.x + (w - map.getWidth()) / 2;
-					translationMatrix.ty = dPt.y + (h - map.getHeight()) / 2;
-					
-					plotBitmapData.draw(plotShape,translationMatrix);
-					
-					
-					prevPoint = point;
-					prevPt = dPt;
+					//plot the point to the current bitmapdata
+					renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point));
 				}
 			}
 			
@@ -219,7 +230,7 @@ package components
 			//save bitmapData for later
 			var backupBitmapData:BitmapData  = new BitmapData(plotBitmapData.width,plotBitmapData.height,true,0x00000000);
 			backupBitmapData.draw(plotBitmapData);
-			_cachedBitmapData[drawCoord.zoom] = {bitmap:backupBitmapData,center:map.getCenter()};
+			//_cachedBitmapData[drawCoord.zoom] = {bitmap:backupBitmapData,center:map.getCenter()};
 			
 			dirty = false;
 		}
@@ -242,7 +253,7 @@ package components
 		        this.x = p.x;
 	    	    this.y = p.y;
 	    	}
-	    	else {
+	    	else {	
 	    		dirty = true;
 	    	}
 	    }
@@ -329,7 +340,9 @@ package components
 		
 			//color the tip and add additional text if possible
 			if(dataPoint.value){
-				var cat:String = AirQualityColors.getAQICategoryForValue(pollutant,dataPoint.value);
+				
+				//FIXME: Currently defaulting to pollutant from the first dataset, should be able to support per-track
+				var cat:String = AirQualityColors.getAQICategoryForValue(dataSets[0].pollutant,dataPoint.value);
 				var color:uint = AirQualityColors.getColorForAQICategory(cat);
 				_plotTip.setStyle("backgroundColor",color);
 				_plotTip.setStyle("backgroundAlpha",0.7);
@@ -342,14 +355,14 @@ package components
 				_plotTip.graphics.clear();
 					
 				//Overplot nearby points as part of the tooltip
-				/*for each(var ds:Vector.<Object> in data){
-					var pn:int = dataToPointNum(ds,dataPoint);
+				/*for each(var ds:AirQualityDataSet in dataSets){
+					var pn:int = ds.getPointIndex(dataPoint);
 					if(pn != -1){
 						for(var pi:int = pn - numMouseOverAdjacents; pi < pn + numMouseOverAdjacents; pi++){
 							if(pi < 0 || pi >= ds.length) continue;
 							var adjPt:Object = ds[pi];
 							if(adjPt){
-								var aColor:uint = AirQualityColors.getColorForValue(pollutant,adjPt.value);
+								var aColor:uint = AirQualityColors.getColorForValue(dataSets[0].pollutant,adjPt.value);
 								var aPosition:Point = map.locationPoint(new Location(adjPt.lat,adjPt.lon),map.stage)
 								_plotTip.graphics.lineStyle(2,0xffffff,0.7);
 								_plotTip.graphics.beginFill(aColor,1);
@@ -360,16 +373,17 @@ package components
 						}
 					}
 				}*/
-				
+				PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,new Point(),
+					dataSets[0].pollutant,selections.isSelected(dataPoint),true,pointDiameter);
 				
 				//Plot an accentuated version of the point as part of the tooltip
-				_plotTip.graphics.lineStyle(2,0xffffff,0.7);
+				/*_plotTip.graphics.lineStyle(2,0xffffff,0.7);
 				_plotTip.graphics.beginFill(color,1);
 				_plotTip.graphics.drawCircle(0,0,(2/3)*pointDiameter);
     			_plotTip.graphics.endFill();
     			_plotTip.graphics.beginFill(0xffffff,1);
     			_plotTip.graphics.drawCircle(0,0,pointDiameter/3);
-    			_plotTip.graphics.endFill();
+    			_plotTip.graphics.endFill();*/
 			}
 			else _plotTip.text = "No Data"
 			
@@ -384,9 +398,9 @@ package components
 			}
 			//bitmap.alpha = 1;
 		}
-			
+		
+		
 		protected function handleMouseMove(me:MouseEvent):void{
-			
 			//locate any points under the mouse
 			var pointRadiusDegrees:Number = Math.abs(map.pointLocation(new Point(0,0)).lat 
 				- map.pointLocation(new Point(0,pointDiameter/2)).lat); 
@@ -397,24 +411,30 @@ package components
 			//If we have points, draw the first
 			if(mPoints.length > 0){ 
 				drawDataTip(mPoints[0].data);
-				dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,mPoints[0].data));
+				dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,mPoints[0].data,new Point(me.stageX,me.stageY)));
 			}
 			//If no points, throw away any tip we might have
 			else discardActiveDataTip();
 		}
+		
 		
 		protected function handleMouseOut(me:MouseEvent):void{
 			discardActiveDataTip();
 		}
 		
 		
-		/****************************** Tooltipping Methods ************************************/
-		//FIXME: A linear searches here are not efficcient.
-		protected function dataToPointNum(dataSet:Vector.<Object>,pointData:Object):int{
-			for(var i:int = 0; i < dataSet.length; i++){
-				if(dataSet[i] == pointData) return i;
+		protected function handleMouseClick(me:MouseEvent):void{
+			var pointRadiusDegrees:Number = Math.abs(map.pointLocation(new Point(0,0)).lat 
+				- map.pointLocation(new Point(0,pointDiameter/2)).lat); 
+			var loc:Location = map.pointLocation(new Point(me.localX,me.localY));
+			var mPoints:Array = _quadTree.queryRectangle(new Rectangle(loc.lon - pointRadiusDegrees / 2 + 180,
+				loc.lat - pointRadiusDegrees / 2 + 90, pointRadiusDegrees, pointRadiusDegrees));
+			
+			//If we have points, dispatch an event for the first
+			if(mPoints.length > 0){ 
+				dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,mPoints[0].data,new Point(me.stageX,me.stageY)));
 			}
-			return -1;
 		}
+		
 	}
 }

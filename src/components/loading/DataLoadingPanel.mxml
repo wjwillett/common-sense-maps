@@ -53,6 +53,17 @@
 			
 			
 			protected const recommendedQueries:Array = [
+				{name:"Badge 6 CO (since July 10th)",
+					url:BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800", 
+					reading:"co"},
+				{name:"Badge 9 CO (since July 10th)",
+					url:BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800" + 
+						"&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
+				{name:"Badge 17 CO (since July 10th)",
+					url:BASE_DB_QUERY_URL + "?badge_id=000000000011&reading=mco&start_time=1247212800" + 
+						"&end_time=" + int(new Date().time / 1000),
+					reading:"co"},
 				{name:"Badge 4 CO (since June 29th)",
 					url:BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800" + 
 						"&end_time=" + int(new Date().time / 1000),
@@ -71,6 +82,12 @@
 					reading:"co"},
 				{name:"West Oakland PM (15 May 2009)",
 					url:"http://www.commonsensecommunity.com/data/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv",
+					reading:"pm25"},
+				{name:"Berkeley PM (7 July 2009)",
+					url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
+					reading:"pm25"},
+				{name:"Berkeley PM (13 July 2009)",
+					url:"http://www.commonsensecommunity.com/data/2009-07-13%20(Berkeley%20PM%20+%20GPS).csv",
 					reading:"pm25"}
 				];					
 					
@@ -91,7 +108,14 @@
 				{name:"Badge 12",id:'00000000000C'},
 				{name:"Badge 13",id:'00000000000D'},
 				{name:"Badge 14",id:'00000000000E'},
-				{name:"Badge 15",id:'00000000000F'}];
+				{name:"Badge 15",id:'00000000000F'},
+				{name:"Badge 16",id:'000000000010'},
+				{name:"Badge 17",id:'000000000011'},
+				{name:"Badge 18",id:'000000000012'},
+				{name:"Badge 19",id:'000000000013'},
+				{name:"Badge 20",id:'000000000014'},
+				{name:"Badge 21",id:'000000000015'},
+				{name:"Badge 22",id:'000000000016'}];
 				
 			protected const POLLUTANTS:Array = [
 				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
