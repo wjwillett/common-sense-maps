@@ -20,41 +20,18 @@ package data
 		
 		public var indexByField:String = "id";
 		
+		protected var _dbManager:SimpleDBManager = new SimpleDBManager("CommonSenseTest");
 		
 		public function SelectionSet(){
-			//loadSelections();
+			loadSelections();
 		}
-		
-		public function addSelection(value:*):void{//property:String, value:*, comparator:String='='):void{
-			if(!_selections[value]){
-				_selections[value] = value;		
-				trace("selections: Add " + value);
-				dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
-					CollectionEventKind.ADD, -1,-1,[value]));
-			}
-		}
-		
-		public function removeSelection(value:*):void{
-			if(_selections[value]){
-				var v:* = _selections[value];
-				_selections[value] = null;
-				trace("selections: Removed " + value);
-				dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
-					CollectionEventKind.REMOVE, -1,-1,[v]));
-			}
-		}
-		
-		public function isSelected(dataPoint:Object):Boolean{
-			if(!indexByField || !dataPoint[indexByField]) return false;
-			return _selections[dataPoint[indexByField]];
-		}
-		
-		
+
 		protected function loadSelections():void{
-			var s:SimpleDBManager = new SimpleDBManager();
-			//TODO: support for different workspaces
-			s.loadData("http://exp.sense.us:8080/commentspace/getfiltered?workspace=Test&type=selection");
-			s.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
+			var s:SimpleDBManager = new SimpleDBManager("CommonSenseTest");
+			_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/getfiltered?type=selection");
+			_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
+					_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
+					
 					var results:Array = [];
 					//hash results 
 					for each(var o:Object in ce.data){
@@ -67,10 +44,44 @@ package data
 					dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
 						CollectionEventKind.ADD, -1,-1,results));	
 				});
-			
-			
-			
 		}
+
+		
+		public function addSelection(value:*):void{//property:String, value:*, comparator:String='='):void{
+			if(!_selections[value]){
+				_selections[value] = value;		
+				_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?query=" + value.toString());
+				_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
+						_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
+						
+						dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
+							CollectionEventKind.ADD, -1,-1,[value]));
+					});
+			}
+		}
+
+		
+		public function removeSelection(value:*):void{
+			if(_selections[value]){
+				var v:* = _selections[value];
+				_selections[value] = null;
+				_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?id=" + value.toString());
+				_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
+						_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
+	
+						dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
+							CollectionEventKind.REMOVE, -1,-1,[v]));						
+					});
+			}
+		}
+
+		
+		public function isSelected(dataPoint:Object):Boolean{
+			if(!indexByField || !dataPoint[indexByField]) return false;
+			return _selections[dataPoint[indexByField]];
+		}
+		
+		
 		
 	}
 }

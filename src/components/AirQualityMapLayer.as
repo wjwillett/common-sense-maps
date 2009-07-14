@@ -47,6 +47,7 @@ package components
 		protected var _plotCount:uint = 0;
 		protected var _cachedBitmapData:Object = {};
 		protected var _quadTree:QuadTree = new QuadTree(360,180,8);
+		protected var _maxTime:Number;
 		
 		protected function get map():Map{ return _map;}
 		
@@ -54,6 +55,10 @@ package components
 		public var zoomTolerance:Number = 5; 
 		public var pointDiameter:Number = 12;
 		public var numMouseOverAdjacents:uint = 15;
+		
+		
+		
+		
 		
 		/**
 		 * A set of objects that contain lists of datapoints, along with
@@ -94,6 +99,15 @@ package components
 					}
 				});
 		}	
+		
+		
+		public function set maxTime(m:Number):void{
+			_maxTime = m;
+			_dirty = true;
+		}
+		public function get maxTime():Number{
+			return !isNaN(_maxTime) ? _maxTime : -1;
+		}
 		
 		
 		public function AirQualityMapLayer(map:Map,dataSets:Vector.<AirQualityDataSet> = null)
@@ -213,6 +227,9 @@ package components
 				
 					//don't plot points without GPS data
 					if(!point.lat || point.lat == "None") continue;
+					
+					//don't plot points
+					if(maxTime > 0 && point.time > maxTime) continue; 
 					
 					//determine location
 					var dLoc:Location = new Location(point.lat,point.lon);
@@ -373,7 +390,7 @@ package components
 						}
 					}
 				}*/
-				PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,new Point(),
+				PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,null,
 					dataSets[0].pollutant,selections.isSelected(dataPoint),true,pointDiameter);
 				
 				//Plot an accentuated version of the point as part of the tooltip

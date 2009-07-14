@@ -26,6 +26,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import events.TimelineEvent;
 			import events.DataSetEvent;
 			import data.SelectionSet;
 			import data.AirQualityDataSet;
@@ -41,7 +42,6 @@
 			import mx.effects.Zoom;
 			import com.modestmaps.mapproviders.microsoft.MicrosoftHybridMapProvider;
 			import com.modestmaps.events.MarkerEvent;
-			import components.MarkerManager;
 			import com.modestmaps.TweenMap;
 			import com.modestmaps.extras.ui.Button;
 			import mx.events.ResizeEvent;
@@ -50,7 +50,6 @@
 			import com.modestmaps.overlays.MarkerClip;
 			import mx.events.MenuEvent;
 			import mx.controls.Menu;
-			import components.FlagMarker;
 			import com.modestmaps.Map;
 			import com.modestmaps.extras.ZoomSlider;
 			import com.modestmaps.extras.MapControls;
@@ -171,12 +170,12 @@
 				//Requires a click-through disclaimer before using the site	
 				//triggerDisclaimerPopup(runOnStartup);
 				//Jump straight into a load
-				//runOnStartup()	
+				runOnStartup()	
 				//Alternative startup, just pops up the loader
-				triggerLoadingPopup();
+				//triggerLoadingPopup();
 				//plotExistingMarkers(); //probably removed forever?				
 				//let commentspace know we're loaded
-				dispatchComplete();	
+				//dispatchComplete();	
 					
 			}
 			
@@ -228,6 +227,14 @@
 						_plotLayer.refresh(true);
 						timeline.refresh(true);
 					});
+					
+				//time scrubbing for map
+				timeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
+						if(te.playheadTime){
+							_plotLayer.maxTime = te.playheadTime;
+							_plotLayer.refresh();
+						} 
+					});
 				
 			}
 			
@@ -271,18 +278,6 @@
 				}
 			}
 			
-			
-			
-			/**
-			 * Plots and persisted markers from the MarkerManager
-			 * 
-			 */
-			/*protected function plotExistingMarkers():void{
-				var markers:Array = MarkerManager.getMarkers();
-				for each(var m:FlagMarker in markers) attachMarker(m);
-			}*/
-			
-
 
 			/**
 			 * Click handlers for the marker menu - ensures the
@@ -438,16 +433,26 @@
 				var cz:Array = map.getCenterZoom();
 				var cl:Location = roundLocation(cz[0] as Location);
 				var ds:String = "";
-				for(var d:String in _dataSets) ds += (d + ",");
-				if(ds.length > 0)ds = ds.slice(0,ds.length - 1);
-				return {centerLat:cl.lat,centerLon:cl.lon,zoom:cz[1],dataSource:ds};
+				for each(var d:AirQualityDataSet in _dataSets) ds += (d.dataURI + ",");
+				if(ds.length > 0) ds = ds.slice(0,ds.length - 1);
+				return {centerLat:cl.lat,
+						centerLon:cl.lon,
+						zoom:cz[1],
+						dataSource:ds};
+						//startTime:timeline
+						//endTime:timeline.};
 			}
 			
 			public function set state(o:Object):void{
+				//discard old datasets
+				var oldDataSets:Vector.<AirQualityDataSet> = new Vector.<AirQualityDataSet>();
+				while(_dataSets.length > 0) oldDataSets.push(_dataSets.pop());
+				//load datasets for view
 				if(o.dataSource is String){
 					var ds:Array = (o.dataSource as String).split(',');
 					for each(var d:String in ds) loadData(d,AirQualityColors.CO_8HR);					
 				}
+				//pan and zoom appropriately
 				panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 			}
 			

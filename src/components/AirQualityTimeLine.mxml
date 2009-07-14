@@ -1,18 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:display="flash.display.*"  height="70"
 	backgroundColor="0xDDCCCCCC" backgroundAlpha="0.8" 
+	mouseUp="{stopPlayHeadDrag(event)}" mouseOut="{stopPlayHeadDrag(event)}"
 	horizontalScrollPolicy="off" verticalScrollPolicy="off">
 	
 	<mx:VRule id="tipLine" top="{margin}" bottom="{margin}" visible="false"/>
 	
-	<mx:Canvas id="container"  x="{margin + 30}" width="100%" height="100%" resize="{refresh()}" 
+	<mx:Canvas id="container"  x="{margin + 45}" width="{width - (2 * margin) - 45}" 
+		top="{margin}" height="{height - 2 * margin - SCROLLBAR_HEIGHT}" resize="{refresh()}" 
 		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
-		mouseMove="{handleMouseMove(event)}" click="{handleMouseClick(event)}" 
+		mouseMove="{handleMouseMove(event);playHeadDrag(event)}" click="{handleMouseClick(event)}" 
 		doubleClick="{handleDoubleClick(event)}"
 		horizontalScrollPolicy="off" verticalScrollPolicy="off"
-		doubleClickEnabled="true" />
+		doubleClickEnabled="true" color="#aa2222"/>
 		
-	<mx:Canvas id="labels" mouseEnabled="false" x="{margin + 30}" width="100%" height="100%" />
+	<mx:Canvas id="playhead" top="{margin}" bottom="{margin + SCROLLBAR_HEIGHT}" 
+		x="{container.x + container.width}" width="6" useHandCursor="true"
+		mouseDown="{startPlayHeadDrag(event)}" 
+		backgroundAlpha="0.4" backgroundColor="#FFFFFF">
+		<mx:VRule x="{playhead.width / 2}" height="100%"/>
+	</mx:Canvas>
+	
+	<mx:Canvas id="labels" mouseEnabled="false" x="{margin + 45}" width="100%" height="100%" />	
+	
 	<mx:Button id="zOut" click="{zoomOut()}" label="-" toolTip="zoom out" 
 			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0" width="25"/>
 	<mx:Button id="zIn" click="{zoomIn()}" label="+" 
@@ -21,6 +31,8 @@
 	
 	<mx:Script>
 		<![CDATA[
+			import events.TimelineEvent;
+			import mx.messaging.AbstractConsumer;
 			import events.DataSetEvent;
 			import mx.messaging.channels.PollingChannel;
 			import etc.PointRenderer;
@@ -47,7 +59,7 @@
 			public var pointDiameter:Number = 6;
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
-			public var numMouseOverAdjacents:uint = 15;
+			//public var numMouseOverAdjacents:uint = 15;
 			
 			
 			/**
@@ -81,9 +93,14 @@
 					});
 			}
 			
+			[Bindable(event=TimelineEvent.PLAYHEAD_MOVED)]
+			public function get playheadPosition():Number{
+				if(playhead && playhead.x){
+					return xPosToXVal(playhead.x - container.x); 					
+				}
+				else return xMax;
+			}
 			
-			
-			public var info:Object;
 			
 			//------------- Data Management variables -----------------------------------------------
 			protected var _dataSets:Vector.<AirQualityDataSet>;
@@ -94,7 +111,7 @@
 			
 			protected var xBottom:Number;	//the bottom end of the current display x-axis
 			protected var xTop:Number;		//the top end of the current display x-axis
-
+			
 			protected var _dSetBounds:Object = {} //the screen bounds of the regions reserved for each dataset (indexed by URI)
 			protected var _dSetLabels:Object = {} //labels for each dataset's region (indexed by URI)
 			protected var _selections:SelectionSet; //the set of selections to draw in the current display 
@@ -105,6 +122,8 @@
 			protected var _hScroll:ScrollBar = new ScrollBar();
 						
 		
+			protected const SCROLLBAR_HEIGHT:Number = 18;
+			
 			//-------------Public Methods -----------------------------------------------------
 
 			public function refresh(force:Boolean=false):void{
@@ -142,9 +161,9 @@
 				
 				//allocate space for each point set
 				_dSetBounds = {};
-				var psHeight:Number = (container.height - 2 * margin - 
-					(dataSets.length - 1) * spacing - 10)/dataSets.length;
-				var psBounds:Rectangle = new Rectangle(container.x,container.y + margin,container.width,psHeight);
+				var psHeight:Number = (container.height -  
+					(dataSets.length - 1) * spacing) / dataSets.length;
+				var psBounds:Rectangle = new Rectangle(0,0,container.width,psHeight);
 
 				plotBitmapData.lock();
 				
@@ -167,12 +186,17 @@
 						for(var i:int=0; i < ds.data.length; i++){
 							var point:Object = ds.data[i]; 
 							if(point.time < xbd || point.time > xtd) continue;
-						
+							
+							//skip everything after the playhead
+							if(point.time > playheadPosition){
+								break;
+							} 
+														
 							//determine location
 							var dPt:Point = dataToPosition(point);
 							
 							//plot the point to the current bitmapdata
-							renderer.plotPoint(point,dPt, ds.pollutant,selections.isSelected(point));
+							renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point));
 						}
 					}
 					
@@ -207,8 +231,8 @@
 				var d:Number = startDate.time / 1000;
 				plotShape.graphics.lineStyle(0.5,0x999999,0.5);
 				while(d < xTop){
-					var dx:Number = (d - xBottom) * (bounds.width - 2 * margin) / 
-							(xTop - xBottom) + bounds.width / 2 + margin;
+					var dx:Number = (d - xBottom) * bounds.width / 
+							(xTop - xBottom) + bounds.width / 2;
 					plotShape.graphics.moveTo(dx,bounds.bottom);
 					plotShape.graphics.lineTo(dx,bounds.top);
 					d += (24 * 3600);
@@ -218,14 +242,14 @@
 				d = startDate.time / 1000;
 				plotShape.graphics.lineStyle(0.5,0x999999,0.2);
 				while(d < xTop){
-					var dx:Number = (d - xBottom) * (bounds.width - 2 * margin) / 
-							(xTop - xBottom) + bounds.width / 2 + margin;
+					var dx:Number = (d - xBottom) * bounds.width / 
+							(xTop - xBottom) + bounds.width / 2 ;
 					plotShape.graphics.moveTo(dx,bounds.bottom);
 					plotShape.graphics.lineTo(dx,bounds.top);
 					d += 3600;
 				}
 				
-				//plot hours
+				//draw into bitmap data
 				bd.draw(plotShape);				
 			}
 			
@@ -244,7 +268,7 @@
 					if(!_dSetLabels[d.dataURI]) _dSetLabels[d.dataURI] = new TimelineLabel();
 					var l:TimelineLabel = _dSetLabels[d.dataURI];
 					if(d.name) l.labelText = d.name;
-					l.y = _dSetBounds[d.dataURI].top;
+					l.y = _dSetBounds[d.dataURI].top + margin;
 					labels.addChild(l);
 					l.onRemoveClick = function(e:MouseEvent):void{
 							// a very shoddy way of finding the dataset to remove.
@@ -267,8 +291,8 @@
 			protected function setupMask():void{
 				_mask.graphics.clear();
 				_mask.graphics.beginFill(0xFFFFFF);
-				_mask.graphics.drawRect(margin - pointDiameter / 2,margin - pointDiameter / 2,
-					container.width - 2 * margin + pointDiameter, container.height - margin);
+				_mask.graphics.drawRect(-(pointDiameter / 2),-(pointDiameter / 2),
+					container.width + pointDiameter, container.height + SCROLLBAR_HEIGHT + pointDiameter);
 				_mask.graphics.endFill();
 				
 				container.rawChildren.addChild(_mask);
@@ -282,9 +306,9 @@
 			 */
 			protected function setupScrollBar():void{
 				_hScroll.direction = ScrollBarDirection.HORIZONTAL;
-				_hScroll.x = margin - pointDiameter / 2;
-				_hScroll.y = container.height - _hScroll.height - margin + 10;
-				_hScroll.width = container.width - 2 * margin + pointDiameter;
+				_hScroll.x = -(pointDiameter / 2);
+				_hScroll.y = container.height - _hScroll.height + SCROLLBAR_HEIGHT;
+				_hScroll.width = container.width + pointDiameter;
 				
 				var range:Number = xTop - xBottom;
 				
@@ -303,7 +327,7 @@
 			
 			protected function handleScroll(se:ScrollEvent):void{	
 				var range:Number = xTop - xBottom;
-				_bitmap.x -= ((se.position - xBottom) * (container.width - 2 * margin) / range);  
+				_bitmap.x -= ((se.position - xBottom) * container.width / range);  
 				
 				xBottom = Math.max(_hScroll.scrollPosition,xMin);
 				xTop = Math.min(xBottom + range,xMax);
@@ -343,8 +367,8 @@
 				if(!(_dSetBounds[pointData.sourceURI] is Rectangle)) return null;
 				var sBounds:Rectangle = _dSetBounds[pointData.sourceURI];
 				
-				return new Point((pointData[xDataField] - xBottom) * (sBounds.width - 2 * margin) /
-						 	(xTop - xBottom) + sBounds.width / 2 + margin,
+				return new Point((pointData[xDataField] - xBottom) * sBounds.width /
+						 	(xTop - xBottom) + sBounds.width / 2,
 						 sBounds.height * (1 - (pointData[yDataField] - yMin) /
 						 	(yMax - yMin)) + sBounds.y); 
 			}
@@ -358,16 +382,59 @@
 					for each (var dp:Object in ds.data){
 						if(Math.abs(dp[xDataField] - overXPos) < 10){
 							pts.push(dp);
-							break;
+							//break;
 						} 
 					}					
 				}
 				return pts; 
 			}
 			
+			protected function posToClosestPoint(pos:Point):Object{
+				//check which bounds (if any) the point is inside of
+				for(var db:String in _dSetBounds){
+					if((_dSetBounds[db] as Rectangle).containsPoint(pos)){
+						//find the dataset for the enclosing bounds
+						for each(var d:AirQualityDataSet in _dataSets){
+							if(d.dataURI == db){
+								//find the value of the cursor position in that space
+								var overValue:Point = localToDataSpace(pos,d);
+								
+								var pts:Array = [];
+								for each(var dx:Object in d.data){
+									if(Math.abs(dx[xDataField] - overValue.x) < 10) pts.push(dx);
+								}
+								//then find the closest of those in y;
+								var cpt:Object;
+								var cst:Number = Number.POSITIVE_INFINITY;
+								for each(var dy:Object in pts){
+									if(Math.abs(dy[yDataField] - overValue.y) < cst){
+										cpt = dy;
+										cst == Math.abs(dy[yDataField] - overValue.y);
+									} 
+								}
+								return cpt;
+							}
+						}
+					}
+				}
+				return null;
+			}
+			
+			
 			protected function xPosToXVal(x:Number):int{
-				var position:Number = x - margin;
-				return xBottom + Math.floor(position * (xTop - xBottom)/(container.width - 2 * margin));
+				var position:Number = x;
+				return xBottom + Math.floor(position * (xTop - xBottom)/container.width);
+			}
+			
+			protected function localToDataSpace(position:Point,dataSet:AirQualityDataSet):Point{
+				var bounds:Rectangle = _dSetBounds[dataSet.dataURI];
+				if(!bounds) return null;
+				
+				var dPos:Point = position.clone();
+				
+				dPos.x = xBottom + Math.floor(dPos.x * (xTop - xBottom)/bounds.width);
+				dPos.y = yMin + Math.floor((dPos.y - bounds.y) * (yMax - yMin)/bounds.height);
+				return dPos;
 			}
 			
 			
@@ -420,7 +487,10 @@
 						}
 					}*/
 					
-					PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,new Point(),
+					if(rightInset > 0){
+						trace(rightInset);
+					}
+					PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,new Point(rightInset,0),
 						dataSets[0].pollutant,selections.isSelected(dataPoint),true,pointDiameter);
 					//Plot an accentuated version of the point as part of the tooltip
 					/*_plotTip.graphics.lineStyle(2,0xffffff,0.7);
@@ -448,7 +518,7 @@
 				//if we've clicked on some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
 				
-				//calculate the location of the click and locate the nearest matching point
+				//calculate the location of the click and locate the nearest matching points
 				var overPts:Array = xPosToDataPts(me.localX);
 							
 				//If we have a point, fire an event
@@ -472,17 +542,17 @@
 				//if we've moused over some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
 				
-				//calculate the location we're currently mousing over and locate the nearest matching point
-				var overPts:Array = xPosToDataPts(me.localX);
+				//calculate the location we're currently mousing over and locate the nearest matching points
+				//var overPts:Array = xPosToDataPts(me.localX);
 				
+				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY));
 				
-				//If we have a point, mark it
-				if(overPts.length > 0){
-					var overPt:Object = overPts[0];
-					drawDataTip(overPt);
+				//If we have points, mark the closest one
+				if(closestPoint){//overPts.length > 0){
+					drawDataTip(closestPoint);
 					tipLine.x = me.localX + container.x;
 					tipLine.visible = true;
-					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,overPt,new Point(me.stageX,me.stageY)));
+					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,closestPoint,new Point(me.stageX,me.stageY)));
 				} 
 				//If no points, throw away any tip we might have
 				else{
@@ -495,6 +565,38 @@
 			protected function handleMouseOut(me:MouseEvent):void{
 				tipLine.visible = false;
 				discardActiveDataTip();
+			}
+			
+			
+			
+			/****************************** Playhead Methods ************************************/
+			
+			protected var _playheadDragging:Boolean = false;
+			
+			protected function startPlayHeadDrag(e:MouseEvent):void{
+				_playheadDragging = true;
+				playhead.setStyle("backgroundColor",0xdddddd);
+			}
+			
+			protected function stopPlayHeadDrag(e:MouseEvent):void{
+				if(e.target != playhead && e.target.parent != playhead 
+					&& e.target != container && e.target != tipLine){
+					_playheadDragging = false;
+					playhead.setStyle("backgroundColor",0xffffff);
+					refresh();
+				}
+			}
+			
+			protected function playHeadDrag(e:MouseEvent):void{
+				if(_playheadDragging){
+					var coords:Point = new Point(e.localX,e.localY);
+					var oldx:Number = playhead.x;
+					playhead.x = container.x + Math.max(0,Math.min(container.width,	coords.x));
+					if(playhead.x != oldx){
+						dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_MOVED,xPosToXVal(playhead.x)));
+						refresh();
+					} 
+				}	
 			}
 			
 			

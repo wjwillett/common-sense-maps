@@ -49,7 +49,7 @@ package etc
 				return;
 			}  
 			
-			drawPointToGraphics(plotShape.graphics,point,position,pollutant,isSelected,isHovered,pointDiameter);
+			drawPointToGraphics(plotShape.graphics,point,null,pollutant,isSelected,isHovered,pointDiameter);
 			
 			translationMatrix.tx = position.x;
 			translationMatrix.ty = position.y;
@@ -59,11 +59,14 @@ package etc
 			prevPoint = point;
 			prevPos = position;
 		}
+		
+		private static const defaultPosition:Point = new Point(0,0);
 
 		public static function drawPointToGraphics(graphics:Graphics, point:Object, position:Point, 
 				pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false,diameter:Number=5):void{
 			//determine location
 			var hasGPS:Boolean = !(!point.lat || point.lat == "None");
+			if(!position)position = defaultPosition;
 							
 			//draw the point
 			var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
@@ -71,29 +74,29 @@ package etc
 			//Highlight selected points
 			if(isSelected){
 				graphics.beginFill(0x6ba7fe,isHovered ? 0.8 : 0.6);
-				graphics.drawCircle(0,0,isHovered ? diameter * 1.3 : diameter);
+				graphics.drawCircle(position.x,position.y,isHovered ? diameter * 1.3 : diameter);
 				graphics.endFill();
 				//draw comment icon
-				graphics.beginBitmapFill(ciBitmap.bitmapData,new Matrix(1,0,0,1,diameter/4,-diameter/3 - 14));
-				graphics.drawRect(diameter/4,-diameter/3 - 14,14,14);
+				graphics.beginBitmapFill(ciBitmap.bitmapData,new Matrix(1,0,0,1,position.x + diameter/4,position.y - diameter/3 - 14));
+				graphics.drawRect(position.x + diameter/4,position.y - diameter/3 - 14,14,14);
 				graphics.endFill();
 			}
 			graphics.lineStyle(0.5,hasGPS ? 0xffffff : 0x777777, isHovered ? 1 : 0.6);
 			graphics.beginFill(color,isSelected ? 1 : 0.6);
-			graphics.drawCircle(0,0,diameter/2);
+			graphics.drawCircle(position.x,position.y,diameter/2);
 			graphics.endFill();
 			//grey out the outlines and centers of points with no lat/lon
 			if(!hasGPS){
 				graphics.lineStyle(0,0,0);
 				graphics.beginFill(0x777777,0.8);
-				graphics.drawCircle(0,0,diameter/5);
+				graphics.drawCircle(position.x,position.y,diameter/5);
 				graphics.endFill();
 			}
 			//draw center circle on hovered points
 			if(isHovered){
 				graphics.lineStyle(0,0,0);
 				graphics.beginFill(0xffffff,1);
-				graphics.drawCircle(0,0,diameter/4);
+				graphics.drawCircle(position.x,position.y,diameter/4);
 				graphics.endFill()
 			}
 		}  
