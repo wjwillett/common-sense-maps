@@ -81,6 +81,11 @@ package data
 			return _selections[dataPoint[indexByField]];
 		}
 		
+		public function getSelections(dataPoint:Object):Array{
+			if(!indexByField || !dataPoint[indexByField]) return [];
+			return [_selections[dataPoint[indexByField]]];
+		}
+		
 		
 		
 	}

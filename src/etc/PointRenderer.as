@@ -37,19 +37,11 @@ package etc
 			prevPos = null;
 		}
 		
-		public function plotPoint(point:Object, position:Point, pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false):void{
+		public function plotPoint(point:Object, position:Point, pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false, isFaded:Boolean=false):void{
 			
 			if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
 					
-
-			//skip if position, category not different from last
-			if(!isSelected && prevPoint //&& prevPoint.cat == point.cat 
-					&& Math.abs(prevPos.x - position.x) < pointOverlapTolerance 
-					&& Math.abs(prevPos.y - position.y) < pointOverlapTolerance){
-				return;
-			}  
-			
-			drawPointToGraphics(plotShape.graphics,point,null,pollutant,isSelected,isHovered,pointDiameter);
+			drawPointToGraphics(plotShape.graphics,point,null,pollutant,isSelected,isHovered,isFaded,pointDiameter);
 			
 			translationMatrix.tx = position.x;
 			translationMatrix.ty = position.y;
@@ -63,7 +55,7 @@ package etc
 		private static const defaultPosition:Point = new Point(0,0);
 
 		public static function drawPointToGraphics(graphics:Graphics, point:Object, position:Point, 
-				pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false,diameter:Number=5):void{
+				pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false, isFaded:Boolean=false,diameter:Number=5):void{
 			//determine location
 			var hasGPS:Boolean = !(!point.lat || point.lat == "None");
 			if(!position)position = defaultPosition;
@@ -81,14 +73,14 @@ package etc
 				graphics.drawRect(position.x + diameter/4,position.y - diameter/3 - 14,14,14);
 				graphics.endFill();
 			}
-			graphics.lineStyle(0.5,hasGPS ? 0xffffff : 0x777777, isHovered ? 1 : 0.6);
-			graphics.beginFill(color,isSelected ? 1 : 0.6);
+			graphics.lineStyle(0.5,hasGPS ? 0xffffff : 0x777777, isHovered ? 1 : (isFaded ? 0.2 : 0.6));
+			graphics.beginFill(color,isFaded ? 0.2 : (isSelected ? 1 : 0.6));
 			graphics.drawCircle(position.x,position.y,diameter/2);
 			graphics.endFill();
 			//grey out the outlines and centers of points with no lat/lon
 			if(!hasGPS){
 				graphics.lineStyle(0,0,0);
-				graphics.beginFill(0x777777,0.8);
+				graphics.beginFill(0x777777,(isFaded ? 0.2 : 0.8));
 				graphics.drawCircle(position.x,position.y,diameter/5);
 				graphics.endFill();
 			}
@@ -100,8 +92,6 @@ package etc
 				graphics.endFill()
 			}
 		}  
-
-
 
 	}
 }

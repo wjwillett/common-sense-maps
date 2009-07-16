@@ -12,9 +12,11 @@
 		<mx:VBox width="100%">
 			<mx:HBox width="100%">
 				<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  
-					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
 					height="25"/>
 				<mx:Button label="refresh" click="{reloadDataSets()}"  
+					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
+					height="25"/>
+				<mx:Button label="center map on last point" click="{centermap()}"  
 					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
 					height="25"/>
 				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" mode="manual"/>	
@@ -26,6 +28,9 @@
 
 	<mx:Script>
 		<![CDATA[
+			import commentspace.events.EntityEvent;
+			import mx.events.CollectionEventKind;
+			import mx.events.CollectionEvent;
 			import events.TimelineEvent;
 			import events.DataSetEvent;
 			import data.SelectionSet;
@@ -109,7 +114,6 @@
 					setupMap();
 					setupTimeline();
 				}
-				
 			}
 			
 			/******** Mapping Methods **********************************************************/
@@ -140,31 +144,29 @@
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),14);
 				
-				//Listeners for triggering menus
-				//map.addEventListener(MouseEvent.MOUSE_DOWN, handleMouseDown);
-				//map.addEventListener(MouseEvent.MOUSE_UP, handleClick);
-
 				//Listeners for updating state 
 				map.addEventListener(MapEvent.STOP_PANNING, dispatchUpdated);
 				map.addEventListener(MapEvent.STOP_ZOOMING, dispatchUpdated);
 				map.addEventListener(CSEvent.PAN_AND_ZOOM_COMPLETE, dispatchUpdated);
 				
-				//Listeners for handling marker highlighting				
-				//map.addEventListener(MapEvent.STOP_PANNING,maintainHighlights);
-				//map.addEventListener(MapEvent.STOP_ZOOMING,maintainHighlights);
-				//map.addEventListener(CSEvent.PAN_AND_ZOOM_COMPLETE,maintainHighlights);
-				
 				this.addEventListener(ResizeEvent.RESIZE,onResize);
+				
+				//Listener for zoom and pan
+				map.addEventListener(MouseEvent.DOUBLE_CLICK,function(me:MouseEvent):void{
+						var location:Location = map.pointLocation(map.globalToLocal(new Point(me.stageX,me.stageY)),map);
+						panAndZoomTo(location,map.getZoom() + 1);
+					});
+				
 								
 				//FIXME: A Hardwired default query - make this cleaner
 				var runOnStartup:Function = function():void{
 					loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
 						AirQualityColors.CO_8HR,"Badge 6 Carbon Monoxide (8-hour thresholds) (since July 10th",
-						function():void{
-							loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
-								AirQualityColors.CO_8HR,"Badge 9 Carbon Monoxide (8-hour thresholds) since July 10th",
+						//function():void{
+						//	loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
+						//		AirQualityColors.CO_8HR,"Badge 9 Carbon Monoxide (8-hour thresholds) since July 10th",
 								function():void{ dispatchComplete(); });	
-						});
+						//});
 					}
 					
 				//Requires a click-through disclaimer before using the site	
@@ -184,13 +186,6 @@
 				timeline.dataSets = _dataSets;
 				timeline.selections = _selections;
 
-				//add listeners to handle linking
-				var clickPlot:Function = function(de:DataPointEvent):void{
-						if(de.dataPoint && de.dataPoint.lat && de.dataPoint.lat != "None"){
-							var loc:Location = new Location(de.dataPoint.lat,de.dataPoint.lon); 
-							panAndZoomTo(loc,map.getZoom());
-						}
-					};
 				var drawLayerTip:Function = function(de:DataPointEvent):void{
 						_plotLayer.drawDataTip(de.dataPoint);
 					};
@@ -203,7 +198,6 @@
 				var discardPlotTip:Function = function(de:DataPointEvent):void{
 						timeline.discardActiveDataTip();
 					};
-				timeline.addEventListener(DataPointEvent.CLICK,clickPlot);
 				timeline.addEventListener(DataPointEvent.HOVER,drawLayerTip);
 				timeline.addEventListener(DataPointEvent.UNHOVER,discardLayerTip);
 				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
@@ -309,11 +303,25 @@
 			protected function createMenu(mousePt:Point,dataPoint:Object):void{
 				//set up menu XML
 				var menuXML:XML = XML(<root/>);
-				var addXML:XML = XML(<item/>);
-				addXML.@label = 'Comment on this data point';	
-				addXML.@icon = 'CommentIcon';
-				addXML.@event = 'add';
-				menuXML.appendChild(addXML);
+				var centerXML:XML = XML(<item/>);
+				centerXML.@label = 'Center Views on This Point';	
+				centerXML.@event = 'center';
+				menuXML.appendChild(centerXML);
+				
+				if(_selections.isSelected(dataPoint)){
+					var viewXML:XML = XML(<item/>);
+					viewXML.@label = 'View Comments for this Data Point';	
+					viewXML.@icon = 'CommentIcon';
+					viewXML.@event = 'view';
+					menuXML.appendChild(viewXML);
+				}
+				else{
+					var addXML:XML = XML(<item/>);
+					addXML.@label = 'Comment on this data point';	
+					addXML.@icon = 'CommentIcon';
+					addXML.@event = 'add';
+					menuXML.appendChild(addXML);
+				}
 				var cancelXML:XML = XML(<item/>);
 				cancelXML.@label = 'Cancel';
 				cancelXML.@icon = 'CancelIcon';
@@ -325,15 +333,24 @@
 				menu.labelField = "@label";
 				menu.iconFunction = iconFunction;
 				menu.addEventListener(MenuEvent.ITEM_CLICK,function(me:MenuEvent):void{
-						//when Add is clicked - add a marker
+						//When Add is clicked - add selection
 						if(me.item.@event == 'add'){
-							_selections.addSelection(dataPoint.id);
-							//once the pan is completed, dispatch an event
-							/*map.addEventListener(MapEvent.STOP_PANNING,function(e:Event):void{
-									map.removeEventListener(MapEvent.STOP_PANNING,arguments.callee);
-									map.dispatchEvent(new CSEvent(CSEvent.COMMENT_MARKER_ADDED,m,true));
+							_selections.addEventListener(CollectionEvent.COLLECTION_CHANGE,function(ce:CollectionEvent):void{
+									_selections.removeEventListener(CollectionEvent.COLLECTION_CHANGE, arguments.callee);
+									if(ce.kind == CollectionEventKind.ADD) dispatchEvent(new EntityEvent(EntityEvent.ENTITY_FOCUSED,ce.items[0]));
 								});
-							map.panTo(location);*/
+							_selections.addSelection(dataPoint.id);
+						}
+						//When Add is clicked - center both views on point
+						else if(me.item.@event == 'center'){
+							if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
+							if(dataPoint.time) timeline.centerOn(dataPoint.time);
+						}
+						//When view is clicked, focus that selection
+						else if(me.item.@event == 'view'){
+							var dSel:Array = _selections.getSelections(dataPoint);
+							if(dSel && dSel.length > 0) dispatchEvent(new EntityEvent(EntityEvent.ENTITY_FOCUSED,dSel[0]));
+							
 						}
 						//otherwise, hide the menu
 						else menu.hide();
@@ -341,25 +358,6 @@
 					
 	            menu.show(mousePt.x, mousePt.y);
 			}
-			
-			
-			/**
-			 * Attaches a flag marker to the visualiation using 
-			 *  the location specified on it.
-			 */
-			/*protected function attachMarker(marker:FlagMarker):void{
-				_flagsClip.attachMarker(marker,marker.location);
-				marker.addEventListener(MouseEvent.CLICK, function(me:MouseEvent):void{
-						var ft:FlagMarker = (me.currentTarget as FlagMarker); 
-						panAndZoomTo(ft.location, ft.zoom);
-						//secret click-to delete function
-						if(me.shiftKey && me.ctrlKey){
-							_flagsClip.removeMarker(ft.name);
-							MarkerManager.deleteMarker(ft);
-						}
-					});				
-			}
-			*/
 			
 			/**
 			 * Pans and zooms to a specific point and zoom level.
@@ -422,6 +420,21 @@
 				map.panTo(loc);
 			}
 			
+			/**
+			 * Center the map (currently on the last plotted data point)
+			 */
+			protected function centermap():void{
+				var last:Object;
+				for each(var d:AirQualityDataSet in _dataSets){
+					for(var di:int=0; di < d.data.length; di++){
+						var dl:Object = d.data[di];
+						if((!last || last.time < dl.time) && dl.lat && dl.lon && dl.lat!="None") last = dl;
+						if(_plotLayer.maxTime > 0 && dl.time >= _plotLayer.maxTime) break;
+					}	
+				}
+				if(last) panAndZoomTo(new Location(last.lat,last.lon), map.getZoom());
+			}
+			
 			
 			/******** Implements IStatefulVis *************************************************/	
 				
@@ -440,7 +453,8 @@
 						zoom:cz[1],
 						dataSource:ds};
 						//startTime:timeline
-						//endTime:timeline.};
+						//endTime:timeline.}
+						//playhead;
 			}
 			
 			public function set state(o:Object):void{
@@ -507,6 +521,7 @@
 			protected function iconFunction(o:Object):Class{
 				if((o as XML).attributes().icon){
 					var iconName:String = o.@icon;
+					if(!iconName || iconName == "") return null;
 					var iconClass:Class = this[iconName] as Class;
 					return iconClass;				
 				}
@@ -561,5 +576,6 @@
 			
 		]]>
 	</mx:Script>
+	<mx:Style source="assets/commonsensestyles.css"/>
 	
 </mx:Application>

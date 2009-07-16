@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#FFFFFF" 
-	borderStyle="solid" cornerRadius="10" borderColor="#FFFFFF" 
-	paddingBottom="25" paddingLeft="25" paddingRight="25" paddingTop="25" width="700">
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="700" styleName="cspopup">
 	<mx:RadioButtonGroup id="radioGroup"/>
-	<mx:Label text="load additional data" color="#62D000" fontFamily="Helvetica" fontSize="30"/>
+	<mx:Label text="load additional data" styleName="csH1"/>
 	
 	<mx:RadioButton label="Recommended Datasets" id="recommendedRadio" selected="true"  
 		group="{radioGroup}" value='recommended'  fontSize="16" />

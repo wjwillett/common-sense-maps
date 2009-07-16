@@ -11,6 +11,7 @@ package components
 	import data.SelectionSet;
 	
 	import etc.AirQualityColors;
+	import etc.DirtyFlag;
 	import etc.PointRenderer;
 	
 	import events.DataPointEvent;
@@ -20,7 +21,6 @@ package components
 	import flash.display.Sprite;
 	import flash.events.Event;
 	import flash.events.MouseEvent;
-	import flash.geom.Matrix;
 	import flash.geom.Point;
 	import flash.geom.Rectangle;
 	
@@ -40,14 +40,18 @@ package components
 		protected var _map:Map;
 		
 		// setting this.dirty = true will redraw an MapEvent.RENDERED
-		protected var _dirty:Boolean;
+		protected var dirty:DirtyFlag = new DirtyFlag;
     	protected var drawCoord:Coordinate; 
 		protected var bitmap:Bitmap = new Bitmap();
 		protected var plotBitmapData:BitmapData;
 		protected var _plotCount:uint = 0;
 		protected var _cachedBitmapData:Object = {};
 		protected var _quadTree:QuadTree = new QuadTree(360,180,8);
-		protected var _maxTime:Number;
+		
+		protected var _maxTime:Number; 				//latest time for which to points are displayed (typically paired with the playhead)
+		
+		protected var _prevMaxPtNums:Object = {}; 	//last point number drawn by the last append pass (indexed by dataURI)
+		protected var _prevPos:Object = {} 			//position of the last point drawn (indexed by dataURI)
 		
 		protected function get map():Map{ return _map;}
 		
@@ -55,9 +59,6 @@ package components
 		public var zoomTolerance:Number = 5; 
 		public var pointDiameter:Number = 12;
 		public var numMouseOverAdjacents:uint = 15;
-		
-		
-		
 		
 		
 		/**
@@ -72,7 +73,8 @@ package components
 			for each(var ds:AirQualityDataSet in d){
 				addToQuadTree(ds);
 			}
-			plotData(); 
+			dirty.dirty();
+			plotData();
 		}
 		public function get dataSets():Vector.<AirQualityDataSet>{
 			return _dataSets;
@@ -85,25 +87,17 @@ package components
 		public function set selections(s:SelectionSet):void{
 			_selections = s;
 			s.addEventListener(CollectionEvent.COLLECTION_CHANGE, function(ce:CollectionEvent):void{
-					if(ce.kind == CollectionEventKind.ADD){
-						//TODO:Should probably just draw the new items
-						//for each(var o:Object in ce.items){
-						_dirty = true;
-						refresh();									
-						//}  
-					}
-					else if(ce.kind == CollectionEventKind.REMOVE){
-						//re-render the entire view
-						_dirty = true;
-						refresh();
-					}
+					dirty.dirty();
+					refresh();									
 				});
 		}	
 		
 		
 		public function set maxTime(m:Number):void{
+			if(m == _maxTime) return;
+			if(m < _maxTime || isNaN(_maxTime))dirty.dirty(DirtyFlag.DIRTY);  	//If backtracking, need a full redraw
+			else dirty.dirty(DirtyFlag.APPEND);				//If moving forward, can append
 			_maxTime = m;
-			_dirty = true;
 		}
 		public function get maxTime():Number{
 			return !isNaN(_maxTime) ? _maxTime : -1;
@@ -139,10 +133,9 @@ package components
 		
 		public function refresh(force:Boolean=false):void{
 			if(force){
-				 _cachedBitmapData = {};
 				 _quadTree.clearItems();
 				 for each(var ds:AirQualityDataSet in _dataSets) addToQuadTree(ds);
-				 _dirty = true;
+				 dirty.dirty();
 			}
 			plotData();
 		}
@@ -159,11 +152,9 @@ package components
 
 		
 		protected function plotData(e:Event=null):void{
-			if (!dirty) {
-	    		return;
-	    	}
-	    	
-	    	trace(_plotCount++ + ". " + (e ? e.type : "") + " -> plotData()");
+			
+			//don't redraw if clean
+			if(dirty.check(DirtyFlag.CLEAN))return;
 	    	
 	    	drawCoord = map.grid.centerCoordinate.copy();
 			
@@ -176,43 +167,24 @@ package components
 			//TODO: This will break for displays bigger than 2800px.
 			var w:Number = Math.min(2880, 2*map.getWidth());
         	var h:Number = Math.min(2880, 2*map.getHeight());
-			if(!plotBitmapData || plotBitmapData.width != w || plotBitmapData.height != h) {
-	        	if (plotBitmapData) {
-	        		plotBitmapData.dispose();
-	        	}
-	            plotBitmapData = new BitmapData(w,h,true,0x00000000);
-				bitmap.bitmapData = plotBitmapData;
-	            bitmap.x = -w/2;
-	            bitmap.y = -h/2;
-	        }
-	        else {
-	            plotBitmapData.fillRect(new Rectangle(0,0,plotBitmapData.width,plotBitmapData.height),0x00000000);
-	        }
-	        
-	        //If no dataSets do nothing
-			if(!_dataSets || _dataSets.length == 0) return;
 			
-			//If we've already drawn this zoom , just reuse it
-			//FIXME: This will probably no longer work once we start using multiple datasets, etc.
-			if(_cachedBitmapData[drawCoord.zoom]){
-				var cachedBMD:BitmapData = _cachedBitmapData[drawCoord.zoom].bitmap;
-				var cachedCenter:Location = _cachedBitmapData[drawCoord.zoom].center;
-				var centerPoint:Point = map.locationPoint(map.getCenter());
-				var cachedCenterPoint:Point = map.locationPoint(cachedCenter);
-				var tx:Number = cachedCenterPoint.x - centerPoint.x;
-				var ty:Number = cachedCenterPoint.y - centerPoint.y;
-				
-				//only reuse if we're translating by a small enough distance that the old bitmap will still work
-				if(Math.abs(ty) + map.getHeight()/2 < h/2 && Math.abs(tx) + map.getWidth()/2 < w/2){  
-					var translateMatrix:Matrix = new Matrix();
-					translateMatrix.tx = tx;
-					translateMatrix.ty = ty;
-					plotBitmapData.draw(cachedBMD,translateMatrix);
-					dirty = false;
-					return;
-				}
+			//only build a new bitmap data if actually dirty (appends reuse the old bitmapdata)
+			if(dirty.check() || !plotBitmapData){ 
+				if(!plotBitmapData || plotBitmapData.width != w || plotBitmapData.height != h) {
+		        	if (plotBitmapData) {
+		        		plotBitmapData.dispose();
+		        	}
+		            plotBitmapData = new BitmapData(w,h,true,0x00000000);
+					bitmap.bitmapData = plotBitmapData;
+		            bitmap.x = -w/2;
+		            bitmap.y = -h/2;
+		        }
+		        else {
+		            plotBitmapData.fillRect(new Rectangle(0,0,plotBitmapData.width,plotBitmapData.height),0x00000000);
+		        }
+		        _prevPos = {};	
 			}
-
+	        
 			//prep the renderer we'll use to draw points
 			var renderer:PointRenderer = new PointRenderer(plotBitmapData,pointDiameter,pointOverlapTolerance);
 			
@@ -222,14 +194,18 @@ package components
 			for each(var ds:AirQualityDataSet in _dataSets){
 				//iterate through recorded points
 				if(!ds.data) continue;
-				for(var i:int=0; i < ds.data.length; i++){
+				
+				//start from the last drawn point if possible
+				var firstPoint:int = (dirty.check(DirtyFlag.APPEND) && _prevMaxPtNums[ds.dataURI]) ?  _prevMaxPtNums[ds.dataURI] : 0;
+				
+				for(var i:int=firstPoint; i < ds.data.length; i++){
 					var point:Object = ds.data[i]; 
 				
 					//don't plot points without GPS data
 					if(!point.lat || point.lat == "None") continue;
 					
-					//don't plot points
-					if(maxTime > 0 && point.time > maxTime) continue; 
+					//don't plot points after the maxtime
+					if(maxTime > 0 && point.time > maxTime) break; 
 					
 					//determine location
 					var dLoc:Location = new Location(point.lat,point.lon);
@@ -237,26 +213,29 @@ package components
 					dPt.x += (w - map.getWidth()) / 2;
 					dPt.y += (h - map.getHeight()) / 2;
 		
+					//skip if position not different different from last plotted point
+					if(!selections.isSelected(point) && _prevPos[ds.dataURI]
+							&& Math.abs(_prevPos[ds.dataURI].x - dPt.x) < pointOverlapTolerance 
+							&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance){
+						continue;
+					} 
+		
 					//plot the point to the current bitmapdata
 					renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point));
+					_prevPos[ds.dataURI] = dPt;
 				}
+				_prevMaxPtNums[ds.dataURI] = Math.max(i - 1,0);
 			}
 			
 			plotBitmapData.unlock();
 			
-			//save bitmapData for later
-			var backupBitmapData:BitmapData  = new BitmapData(plotBitmapData.width,plotBitmapData.height,true,0x00000000);
-			backupBitmapData.draw(plotBitmapData);
-			//_cachedBitmapData[drawCoord.zoom] = {bitmap:backupBitmapData,center:map.getCenter()};
-			
-			dirty = false;
+			dirty.clean();
 		}
 		
 		
 		protected function onMapExtentChanged(event:MapEvent):void
 	    {
-	    	_cachedBitmapData = {}; //clear all cached bitmap data
-			dirty = true;	    	
+			dirty.dirty();	    	
 	    }
 	    
 	    protected function onMapPanned(event:MapEvent):void
@@ -271,7 +250,8 @@ package components
 	    	    this.y = p.y;
 	    	}
 	    	else {	
-	    		dirty = true;
+	    		if(stage) stage.invalidate();
+	    		dirty.dirty();
 	    	}
 	    }
 	    
@@ -283,11 +263,11 @@ package components
 		        	scaleX = scaleY = Math.pow(2, map.grid.zoomLevel - drawCoord.zoom);
 		     	}
 		     	else {
-		     		dirty = true;	
+		     		dirty.dirty();	
 		     	}
 	        }
 	        else { 
-		        dirty = true;
+		        dirty.dirty();
 	        }
 	    }
 	
@@ -307,37 +287,26 @@ package components
 	    {
 	    	// tidy up
 	    	cacheAsBitmap = false;
-		    dirty = true;
+	    	if(stage) stage.invalidate();
+		    dirty.dirty();
 	    }
 	    
 	    protected function onMapStopZooming(event:MapEvent):void
 	    {
-	        dirty = true;
+	        dirty.dirty();
+	        _prevMaxPtNums = {};
 	    }
 	    
 	    protected function onMapResized(event:MapEvent):void
 	    {
 	        x = map.getWidth() / 2;
 	        y = map.getHeight() / 2;
-	        dirty = true;
+	        if(stage) stage.invalidate();
+	        dirty.dirty();
+	        _prevMaxPtNums = {};
 	        plotData(); // force redraw because flash seems stingy about it
 	    }
 	    
-		    ///// Invalidations...
-	    
-		protected function set dirty(d:Boolean):void
-		{
-			_dirty = d;
-			if (d) {
-				if (stage) stage.invalidate();
-			}
-		}
-		
-		protected function get dirty():Boolean
-		{
-			return _dirty;
-		}
-		
 		/****************************** Tooltipping Methods ************************************/
 		protected var _plotTip:ToolTip;
 			
@@ -391,7 +360,7 @@ package components
 					}
 				}*/
 				PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,null,
-					dataSets[0].pollutant,selections.isSelected(dataPoint),true,pointDiameter);
+					dataSets[0].pollutant,selections.isSelected(dataPoint),true,false,pointDiameter);
 				
 				//Plot an accentuated version of the point as part of the tooltip
 				/*_plotTip.graphics.lineStyle(2,0xffffff,0.7);
