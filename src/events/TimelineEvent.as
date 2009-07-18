@@ -6,6 +6,10 @@ package events
 	{
 		
 		public static const PLAYHEAD_MOVED:String = "playheadMoved";
+		public static const PLAYHEAD_STOPPED:String = "playheadStopped";
+		public static const TIMELINE_ZOOMED:String = "timelineZoomed";
+		public static const TIMELINE_SCROLLED:String = "timelineScrolled";
+		
 		
 		public var playheadTime:Number;
 		

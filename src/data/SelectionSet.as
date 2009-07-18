@@ -23,7 +23,7 @@ package data
 		protected var _dbManager:SimpleDBManager = new SimpleDBManager("CommonSenseTest");
 		
 		public function SelectionSet(){
-			loadSelections();
+			//loadSelections();
 		}
 
 		protected function loadSelections():void{

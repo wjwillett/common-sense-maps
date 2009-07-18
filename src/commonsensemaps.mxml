@@ -14,7 +14,7 @@
 				<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  
 					height="25"/>
 				<mx:Button label="refresh" click="{reloadDataSets()}"  
-					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
+					toolTip="reloads all loaded datasets a any new data"
 					height="25"/>
 				<mx:Button label="center map on last point" click="{centermap()}"  
 					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
@@ -162,17 +162,17 @@
 				var runOnStartup:Function = function():void{
 					loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
 						AirQualityColors.CO_8HR,"Badge 6 Carbon Monoxide (8-hour thresholds) (since July 10th",
-						//function():void{
-						//	loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
-						//		AirQualityColors.CO_8HR,"Badge 9 Carbon Monoxide (8-hour thresholds) since July 10th",
+						function():void{
+							loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
+								AirQualityColors.CO_8HR,"Badge 9 Carbon Monoxide (8-hour thresholds) since July 10th",
 								function():void{ dispatchComplete(); });	
-						//});
+						});
 					}
 					
 				//Requires a click-through disclaimer before using the site	
-				//triggerDisclaimerPopup(runOnStartup);
+				triggerDisclaimerPopup(runOnStartup);
 				//Jump straight into a load
-				runOnStartup()	
+				//runOnStartup()	
 				//Alternative startup, just pops up the loader
 				//triggerLoadingPopup();
 				//plotExistingMarkers(); //probably removed forever?				
@@ -185,41 +185,41 @@
 
 				timeline.dataSets = _dataSets;
 				timeline.selections = _selections;
-
-				var drawLayerTip:Function = function(de:DataPointEvent):void{
+				
+				//Add handlers for linked tooltipping between map and timeline
+				var drawMapTip:Function = function(de:DataPointEvent=null):void{
 						_plotLayer.drawDataTip(de.dataPoint);
 					};
-				var drawPlotTip:Function = function(de:DataPointEvent):void{
+				var drawTimelineTip:Function = function(de:DataPointEvent=null):void{
 						timeline.drawDataTip(de.dataPoint);
 					};
-				var discardLayerTip:Function = function(de:DataPointEvent):void{
+				var discardMapTip:Function = function(de:DataPointEvent=null):void{
 						_plotLayer.discardActiveDataTip();
 					};
-				var discardPlotTip:Function = function(de:DataPointEvent):void{
+				var discardTimelineTip:Function = function(de:DataPointEvent=null):void{
 						timeline.discardActiveDataTip();
 					};
-				timeline.addEventListener(DataPointEvent.HOVER,drawLayerTip);
-				timeline.addEventListener(DataPointEvent.UNHOVER,discardLayerTip);
-				_plotLayer.addEventListener(DataPointEvent.HOVER,drawPlotTip);
-				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardPlotTip);
+				timeline.addEventListener(DataPointEvent.HOVER,drawMapTip);
+				timeline.addEventListener(DataPointEvent.UNHOVER,discardMapTip);
+				_plotLayer.addEventListener(DataPointEvent.HOVER,drawTimelineTip);
+				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardTimelineTip);
 				
+				//handlers for popup menus on map and timeline
 				timeline.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
-						//if(_selections.isSelected(de.dataPoint))_selections.removeSelection(de.dataPoint[_selections.indexByField]);
-						//else _selections.addSelection(de.dataPoint[_selections.indexByField]);	
+						discardTimelineTip();	
 						createMenu(de.mousePosition,de.dataPoint);
 						
 					});
-					
 				_plotLayer.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
-						//if(_selections.isSelected(de.dataPoint))_selections.removeSelection(de.dataPoint[_selections.indexByField]);
-						//else _selections.addSelection(de.dataPoint[_selections.indexByField]);
+						discardMapTip();
 						createMenu(de.mousePosition,de.dataPoint);
 					});
 				
-				
+				//handler for dataset removal
 				timeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
 						_plotLayer.refresh(true);
 						timeline.refresh(true);
+						dispatchUpdated();
 					});
 					
 				//time scrubbing for map
@@ -230,14 +230,26 @@
 						} 
 					});
 				
+				//Listeners for updating state on zoom and pan
+				timeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
+				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
+				
+				//Update state whenever the timeline stops (do not try to update during playback)
+				timeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
 			}
+			
 			
 			/**
 			 * Loads data from a source and passes it to the timeline and map when complete.
 			 *  Manages the progress bar while loading. 
 			 */
 			protected function loadData(source:Object,pollutant:String,name:String=null,onComplete:Function=null):void{
-			
+				
+				//if this same source has already been loaded, remove it before reloading.
+				for each(var d:AirQualityDataSet in _dataSets){
+					if(d.dataURI == source) _dataSets.splice(_dataSets.lastIndexOf(d),1);
+				}
+				
 				progressBar.visible = true;
 				progressBar.includeInLayout = true;
 				
@@ -256,6 +268,7 @@
 						_dataSets.push(ds);
 						timeline.refresh(true);
 						_plotLayer.refresh(true);
+						dispatchUpdated();
 						if(onComplete != null) onComplete();
 				});
 			}
@@ -272,30 +285,6 @@
 				}
 			}
 			
-
-			/**
-			 * Click handlers for the marker menu - ensures the
-			 *  menu isn't popped up on drags
-			 */ 
-			/*protected var _mouseDownXY:Point;
-			protected function handleMouseDown(me:MouseEvent):void{
-				_mouseDownXY = map.globalToLocal(new Point(me.stageX, me.stageY));
-			}
-			protected function handleClick(me:MouseEvent):void{
-				var newMouseXY:Point = map.globalToLocal(new Point(me.stageX, me.stageY));
-				if(me.target is FlagMarker ||
-					me.target is com.modestmaps.extras.ui.Button ||
-					!_mouseDownXY ||
-					newMouseXY.x < _mouseDownXY.x - CLICK_RADIUS ||
-					newMouseXY.x > _mouseDownXY.x + CLICK_RADIUS || 
-					newMouseXY.y < _mouseDownXY.y - CLICK_RADIUS ||
-					newMouseXY.y > _mouseDownXY.y + CLICK_RADIUS) return;
-				
-				var mouseXY:Point = new Point(me.stageX, me.stageY);
-				var loc:Location = map.pointLocation(_mouseDownXY);
-				//createMenu(mouseXY,loc);
-			}*/
-			
 			
 			/** Pops up a menu that allows markers to be
 			 *   added to the display.
@@ -308,6 +297,8 @@
 				centerXML.@event = 'center';
 				menuXML.appendChild(centerXML);
 				
+				//TODO:Enable Commenting functionality.
+				/*
 				if(_selections.isSelected(dataPoint)){
 					var viewXML:XML = XML(<item/>);
 					viewXML.@label = 'View Comments for this Data Point';	
@@ -321,7 +312,8 @@
 					addXML.@icon = 'CommentIcon';
 					addXML.@event = 'add';
 					menuXML.appendChild(addXML);
-				}
+				}*/
+				
 				var cancelXML:XML = XML(<item/>);
 				cancelXML.@label = 'Cancel';
 				cancelXML.@icon = 'CancelIcon';
@@ -438,40 +430,89 @@
 			
 			/******** Implements IStatefulVis *************************************************/	
 				
-			protected var _isVisCreationComplete:Boolean = false;	
-			public function get isVisCreationComplete():Boolean{ return _isVisCreationComplete; }
+			protected var _setStateReady:Boolean = false;	
+			public function get setStateReady():Boolean{ return _setStateReady; }
 				
 			
 			public function get state():Object{
 				var cz:Array = map.getCenterZoom();
 				var cl:Location = roundLocation(cz[0] as Location);
-				var ds:String = "";
-				for each(var d:AirQualityDataSet in _dataSets) ds += (d.dataURI + ",");
-				if(ds.length > 0) ds = ds.slice(0,ds.length - 1);
+				var ds:String;
+				var dsn:String;
+				var dsp:String;
+				var dsorted:Array = [];
+				for each(var d:AirQualityDataSet in _dataSets) dsorted.push(d);
+				dsorted.sortOn("dataURI"); 
+				for each(var di:AirQualityDataSet in dsorted){
+					ds = (ds == null ? di.dataURI : ds + "," + di.dataURI);
+					dsn = (dsn == null ? escape(di.name) : dsn + "," + escape(di.name));
+					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
+				} 
 				return {centerLat:cl.lat,
 						centerLon:cl.lon,
 						zoom:cz[1],
-						dataSource:ds};
-						//startTime:timeline
-						//endTime:timeline.}
-						//playhead;
+						dataSource:ds,
+						dataNames:dsn,
+						dataPollutants:dsp,
+						xBottom:timeline.xBottom,
+						xTop:timeline.xTop,
+						playheadPosition:timeline.playheadPosition};
 			}
 			
 			public function set state(o:Object):void{
-				//discard old datasets
+				
+				//parameters to be set once we know the data's loaded
+				var onceLoaded:Function = function():void{
+						//pan and zoom appropriately
+						panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
+						
+						//set time bounds
+						timeline.xBottom = o.xBottom;
+						timeline.xTop = o.xTop;
+						timeline.playheadPosition = o.playheadPosition;
+						timeline.refresh();
+					};
+
+				//get names, uris, and pollutants of datasets in state
+				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
+				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
+				var dsp:Array = (o.dataPollutants is String) ?(o.dataPollutants as String).split(',') : null;
+				
+				var loadingCount:int = 0;
+				
+				//pull old datasets
 				var oldDataSets:Vector.<AirQualityDataSet> = new Vector.<AirQualityDataSet>();
 				while(_dataSets.length > 0) oldDataSets.push(_dataSets.pop());
-				//load datasets for view
-				if(o.dataSource is String){
-					var ds:Array = (o.dataSource as String).split(',');
-					for each(var d:String in ds) loadData(d,AirQualityColors.CO_8HR);					
+				
+				//loook for specified datasets via URI
+				if(ds){
+					for(var i:int=0;i<ds.length;i++){
+						var dsi:String = ds[i];
+						//if we have an old dataset that matches, keep it
+						var match:Boolean = false;
+						for each(var ods:AirQualityDataSet in oldDataSets){
+							if(ods.dataURI == dsi){
+								match = true;
+								_dataSets.push(ods);
+								break;
+							}
+						}
+						//otherwise, load from outside
+						if(!match){
+							loadingCount++; 
+							loadData(dsi,unescape(dsp[i]),unescape(dsn[i]),function():void{
+									loadingCount--;
+									if(loadingCount == 0)onceLoaded();
+								});
+						}
+					}					
 				}
-				//pan and zoom appropriately
-				panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
+				if(loadingCount == 0)onceLoaded();
+				
 			}
 			
 			protected function dispatchComplete(e:Event = null):void{
-				_isVisCreationComplete = true;
+				_setStateReady = true;
 				dispatchEvent(new StatefulVisEvent(StatefulVisEvent.VIS_CREATION_COMPLETE,true));
 			}
 			

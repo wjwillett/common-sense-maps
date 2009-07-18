@@ -22,9 +22,6 @@ package etc
 		protected static const CommentIcon:Class;
 		protected static const ciBitmap:Bitmap = new CommentIcon() as Bitmap;
 		
-		protected var prevPoint:Object;
-		protected var prevPos:Point;
-		
 		public function PointRenderer(bitmapData:BitmapData,pointDiameter:Number,pointOverlapTolerance:Number){
 			
 			this.bitmapData = bitmapData;
@@ -32,11 +29,6 @@ package etc
 			this.pointOverlapTolerance = pointOverlapTolerance;
 		}
 
-		public function ignorePrevPoints():void{
-			prevPoint = null;
-			prevPos = null;
-		}
-		
 		public function plotPoint(point:Object, position:Point, pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false, isFaded:Boolean=false):void{
 			
 			if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
@@ -48,8 +40,6 @@ package etc
 			
 			bitmapData.draw(plotShape,translationMatrix);
 			
-			prevPoint = point;
-			prevPos = position;
 		}
 		
 		private static const defaultPosition:Point = new Point(0,0);

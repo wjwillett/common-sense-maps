@@ -31,12 +31,14 @@
 			paddingRight="0" y="{margin}" x="{margin}"/>
 
 	<mx:Button id="pauseBtn" x="{margin}" label="||" bottom="{margin}" enabled="{_playing}" 
-		paddingRight="0" paddingLeft="0" click="{stopPlayback(event)}" width="18"/>
+		paddingRight="0" paddingLeft="0" click="{stopPlayback(event)}" width="18" 
+		toolTip="pause"/>
 	<mx:Button id="playBtn" x="{margin + 20}" label=">" bottom="{margin}" enabled="{!_playing}"
-		paddingRight="2" paddingLeft="2" click="{startPlayback(event)}" width="20"/>
+		paddingRight="2" paddingLeft="2" click="{startPlayback(event)}" width="20"
+		toolTip="play"/>
 	<mx:VSlider id="playSlider" x="{margin }" y="{playBtn.y - 60}" height="50" value="3"
 		minimum="0.3" maximum="4" labels="{['.','..','...','....']}" dataTipFormatFunction="{playScrollDataTip}"
-		toolTip="{int(Math.pow(10,playSlider.value)) + 'x Playback'}" liveDragging="true"
+		toolTip="{'playback speed: ' + int(Math.pow(10,playSlider.value)) + 'x'}" liveDragging="true"
 		change="{timeMultiplier=Math.pow(10,playSlider.value)}"/>
 	
 	
@@ -99,15 +101,46 @@
 			}
 			
 			/**
-			 * Indicates the current location of the playhead in terms of the xDataField
+			 * The current location of the playhead in terms of the xDataField
 			 */
 			[Bindable(event=TimelineEvent.PLAYHEAD_MOVED)]
 			public function get playheadPosition():Number{
-				if(playhead && playhead.x){
-					return xPosToXVal(playhead.x - container.x); 					
-				}
-				else return xMax;
+				if(!isNaN(_playheadPosition)) return _playheadPosition 					
+				else if(!isNaN(xTop)) return xTop;
+				else return 0;
 			}
+			public function set playheadPosition(val:Number):void{
+				var oldVal:Number = _playheadPosition;
+				_playheadPosition = Math.max(xBottom, Math.min(xTop, val));
+				
+				if(_playheadPosition > oldVal) dirty.dirty(DirtyFlag.APPEND);
+				else dirty.dirty();
+				
+				if(_playheadPosition != oldVal){
+					dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_MOVED,_playheadPosition));
+					if(!_playing) dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_STOPPED,_playheadPosition));
+				}
+			}
+			
+			/**
+			 * The value from the xDataField corresponding
+			 *  to the right edge of the currently visible section of the timeline.
+			 */
+			public function get xBottom():Number { return _xBottom; }
+			public function set xBottom(value:Number):void{
+				_xBottom = value;
+				dirty.dirty();
+			}
+			/**
+			 * The value from the xDataField corresponding
+			 *  to the right edge of the currently visible section of the timeline.
+			 */
+			public function get xTop():Number { return _xTop; }
+			public function set xTop(value:Number):void {
+				_xTop = value;
+				dirty.dirty();
+			}
+			
 			
 			
 			//------------- Data Management variables -----------------------------------------------
@@ -117,8 +150,10 @@
 			protected var xMin:Number;		//the lowest data value on the x axis
 			protected var xMax:Number;		//the lowest data value on the x axis
 			
-			protected var xBottom:Number;	//the bottom end of the current display x-axis
-			protected var xTop:Number;		//the top end of the current display x-axis
+			protected var _xBottom:Number;	//the bottom end of the current display x-axis
+			protected var _xTop:Number;		//the top end of the current display x-axis
+			
+			protected var _playheadPosition:Number; //the position of the playhead on the x axis.
 			
 			protected var _dSetBounds:Object = {} //the screen bounds of the regions reserved for each dataset (indexed by URI)
 			protected var _dSetLabels:Object = {} //labels for each dataset's region (indexed by URI)
@@ -177,9 +212,9 @@
 				
 				//draw outside the current range so that scrolling 
 				// cuts less abruptly
-				var curRange:Number = xTop - xBottom;
-				var xbd:Number = Math.max(xMin,xBottom - curRange);
-				var xtd:Number = Math.min(xMax,xTop + curRange);
+				var curRange:Number = _xTop - _xBottom;
+				var xbd:Number = Math.max(xMin,_xBottom - curRange);
+				var xtd:Number = Math.min(xMax,_xTop + curRange);
 				
 				//allocate space for each point set
 				_dSetBounds = {};
@@ -189,14 +224,11 @@
 
 				plotBitmapData.lock();
 				
-				if(_dataSets && _dataSets.length > 0){
+				if(_dataSets){
 										
 					//for each of the sets of points...
 					for each(var ds:AirQualityDataSet in _dataSets){
 						var pSet:Vector.<Object> = ds.data;
-						
-						//If we've already reused this renderer, ignore its previous points
-						renderer.ignorePrevPoints();
 						
 						//set bounds for the set
 						_dSetBounds[ds.dataURI] = psBounds.clone();
@@ -215,14 +247,15 @@
 							var point:Object = ds.data[i]; 
 							if(point.time < xbd || point.time > xtd) continue;
 							
-							//skip everything after the playhead if we've already drawn it
+							//Save the index of the last point drawn at/after the playhead 							
 							if(point.time > playheadPosition && isNaN(playheadPt)){
 								playheadPt = i;
-								if(_prevMaxPtNums[ds.dataURI]) break;
+								//We can skip everything after the playhead if we've already drawn it
+								if(_prevMaxPtNums[ds.dataURI] != null) break;
 							} 
 														
 							//determine location
-							var dPt:Point = dataToPosition(point);
+							var dPt:Point = datapointToLocalPosition(point);
 							
 							//skip if position not different different from last plotted point
 							if(!selections.isSelected(point) && _prevPos[ds.dataURI]
@@ -235,7 +268,7 @@
 							renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point),false,(point.time > playheadPosition));
 							_prevPos[ds.dataURI] = dPt;
 						}
-						_prevMaxPtNums[ds.dataURI] = playheadPt;
+						if(!isNaN(playheadPt)) _prevMaxPtNums[ds.dataURI] = playheadPt;
 					}
 					
 					plotBitmapData.unlock();
@@ -246,7 +279,9 @@
 						container.rawChildren.addChild(_bitmap);
 					}
 				}
-				
+
+				//position playhead
+				playhead.x = (playheadPosition - xBottom) / (xTop - xBottom) * container.width + container.x;				
 				//set up and position the labels, scrollBar, and mask
 				plotLabels();
 				setupMask();
@@ -267,16 +302,16 @@
 				plotShape.graphics.moveTo(0,bounds.bottom);
 				plotShape.graphics.lineTo(bd.width,bounds.bottom);
 				
-				var startDate:Date = new Date(xBottom * 1000);
+				var startDate:Date = new Date(_xBottom * 1000);
 				startDate.setFullYear(startDate.fullYear,startDate.month,startDate.day + 1);
 				startDate.setHours(0,0,0,0);
 				
 				//plot days
 				var d:Number = startDate.time / 1000;
 				plotShape.graphics.lineStyle(0.5,0x999999,0.5);
-				while(d < xTop){
-					var dx:Number = (d - xBottom) * bounds.width / 
-							(xTop - xBottom) + bounds.width / 2;
+				while(d < _xTop){
+					var dx:Number = (d - _xBottom) * bounds.width / 
+							(_xTop - _xBottom) + bounds.width / 2;
 					plotShape.graphics.moveTo(dx,bounds.bottom);
 					plotShape.graphics.lineTo(dx,bounds.top);
 					d += (24 * 3600);
@@ -285,9 +320,9 @@
 				//plot hours
 				d = startDate.time / 1000;
 				plotShape.graphics.lineStyle(0.5,0x999999,0.2);
-				while(d < xTop){
-					var dx:Number = (d - xBottom) * bounds.width / 
-							(xTop - xBottom) + bounds.width / 2 ;
+				while(d < _xTop){
+					var dx:Number = (d - _xBottom) * bounds.width / 
+							(_xTop - _xBottom) + bounds.width / 2 ;
 					plotShape.graphics.moveTo(dx,bounds.bottom);
 					plotShape.graphics.lineTo(dx,bounds.top);
 					d += 3600;
@@ -357,10 +392,10 @@
 				_hScroll.y = container.height - _hScroll.height + SCROLLBAR_HEIGHT;
 				_hScroll.width = container.width + pointDiameter;
 				
-				var range:Number = xTop - xBottom;
+				var range:Number = _xTop - _xBottom;
 				
 				_hScroll.setScrollProperties(range,xMin,xMax-range,range / 10);
-				_hScroll.scrollPosition = xBottom;
+				_hScroll.scrollPosition = _xBottom;
 				
 				if(!_hScroll.hasEventListener(ScrollEvent.SCROLL)){
 					_hScroll.addEventListener(ScrollEvent.SCROLL, handleScroll);
@@ -369,17 +404,21 @@
 				container.rawChildren.addChild(_hScroll);
 			}
 			
-			//Only redraw periodically during drags
+			
 			protected var _scrollTimer:Timer;
-			
-			
 			protected function handleScroll(se:ScrollEvent):void{	
-				var range:Number = xTop - xBottom;
-				_bitmap.x -= ((se.position - xBottom) * container.width / range);  
+				var range:Number = _xTop - _xBottom;
+				var scrollBy:Number = ((se.position - _xBottom) * container.width / range);
+				_bitmap.x -= scrollBy;  
+				playhead.x -= scrollBy;
 				
-				xBottom = Math.max(_hScroll.scrollPosition,xMin);
-				xTop = Math.min(xBottom + range,xMax);
+				_xBottom = Math.max(_hScroll.scrollPosition,xMin);
+				_xTop = Math.min(_xBottom + range ,xMax);
+
+				//hide the playhead if it goes out of view
+				if(playhead.x < container.x || playhead.x > (container.x + container.width))playhead.visible = false;
 				
+				//Only redraw periodically while scrolling	
 				if(_scrollTimer && _scrollTimer.running){
 					_scrollTimer.reset();
 					_scrollTimer.start();
@@ -388,7 +427,9 @@
 					_scrollTimer = new Timer(300);
 					_scrollTimer.addEventListener(TimerEvent.TIMER,function(e:Event):void{
 							_scrollTimer.stop();
-							movePlayHead(playhead.x);
+							playheadPosition = playheadPosition;
+							playhead.visible = true;
+							dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_SCROLLED,playheadPosition));
 							dirty.dirty();
 							refresh();
 						});
@@ -401,11 +442,11 @@
 			 *  without changing the zoom level. 
 			 */
 			public function centerOn(midPoint:Number):void{
-				var range:Number = xTop - xBottom;
+				var range:Number = _xTop - _xBottom;
 				if(range < xMax - xMin){
-					xBottom = Math.max(xMin,int(midPoint - range / 2));
-					xTop = Math.min(xMax,int(midPoint + range / 2));
-					movePlayHead(playhead.x);
+					_xBottom = Math.max(xMin,int(midPoint - range / 2));
+					_xTop = Math.min(xMax,int(midPoint + range / 2));
+					playheadPosition = playheadPosition;
 					dirty.dirty();
 					refresh();
 				}
@@ -416,12 +457,12 @@
 			 *  centered at the middle of the current view.
 			 */
 			public function zoomIn(midPointVal:Number=Number.POSITIVE_INFINITY):void{
-				var zoomRange:Number = (xTop - xBottom) * zoomPercentage;
-				var midPoint:Number = midPointVal != Number.POSITIVE_INFINITY ? midPointVal : xBottom + (xTop - xBottom) / 2;
-				xBottom = Math.max(xMin,int(midPoint - zoomRange / 2));
-				xTop = Math.min(xMax,int(midPoint + zoomRange / 2));
-				movePlayHead(playhead.x);
-				dirty.dirty();
+				var zoomRange:Number = (_xTop - _xBottom) * zoomPercentage;
+				var midPoint:Number = midPointVal != Number.POSITIVE_INFINITY ? midPointVal : _xBottom + (_xTop - _xBottom) / 2;
+				_xBottom = Math.max(xMin,int(midPoint - zoomRange / 2));
+				_xTop = Math.min(xMax,int(midPoint + zoomRange / 2));
+				playheadPosition = playheadPosition;
+				dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_ZOOMED,playheadPosition));
 				refresh();
 			}
 			
@@ -429,90 +470,13 @@
 			 * Zooms the view out.
 			 */
 			public function zoomOut():void{
-				var zoomRange:Number = (xTop - xBottom) / zoomPercentage;
-				var midPoint:Number = xBottom + (xTop - xBottom) / 2;
-				xBottom = Math.max(xMin,midPoint - zoomRange / 2);
-				xTop = Math.min(xMax,midPoint + zoomRange / 2);
-				movePlayHead(playhead.x);
-				dirty.dirty();
+				var zoomRange:Number = (_xTop - _xBottom) / zoomPercentage;
+				var midPoint:Number = _xBottom + (_xTop - _xBottom) / 2;
+				_xBottom = Math.max(xMin,midPoint - zoomRange / 2);
+				_xTop = Math.min(xMax,midPoint + zoomRange / 2);
+				playheadPosition = playheadPosition;
+				dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_ZOOMED,playheadPosition));
 				refresh();
-			}
-			
-			protected function dataToPosition(pointData:Object):Point{
-				if(!(_dSetBounds[pointData.sourceURI] is Rectangle)) return null;
-				var sBounds:Rectangle = _dSetBounds[pointData.sourceURI];
-				
-				return new Point((pointData[xDataField] - xBottom) * sBounds.width /
-						 	(xTop - xBottom) + sBounds.width / 2,
-						 sBounds.height * (1 - (pointData[yDataField] - yMin) /
-						 	(yMax - yMin)) + sBounds.y); 
-			}
-			
-			
-			//FIXME: Linear search here is probably going to cause performance problems sooner or later
-			/*protected function xPosToDataPts(x:Number):Array{
-				var overXPos:int = xPosToXVal(x);
-				var pts:Array = []
-				for each(var ds:AirQualityDataSet in _dataSets){
-					for each (var dp:Object in ds.data){
-						if(Math.abs(dp[xDataField] - overXPos) < 10){
-							pts.push(dp);
-						} 
-					}					
-				}
-				return pts; 
-			}*/
-			
-			protected function posToClosestPoint(pos:Point):Object{
-				//check which bounds (if any) the point is inside of
-				for(var db:String in _dSetBounds){
-					if((_dSetBounds[db] as Rectangle).containsPoint(pos)){
-						
-						//find the dataset for the enclosing bounds
-						for each(var d:AirQualityDataSet in _dataSets){
-							if(d.dataURI == db){
-								//find the value of the cursor position in that space
-								var overValue:Point = localToDataSpace(pos,d);
-								var r:Number = localToDataSpace(new Point(pointDiameter/2,0),d).x - localToDataSpace(new Point(0,0),d).x;
-								
-								var pts:Array = [];
-								for each(var dx:Object in d.data){
-									//FIXME: Need a smarter threshold here. 
-									// This will break horribly when zoomed
-									if(Math.abs(dx[xDataField] - overValue.x) < r) pts.push(dx);
-								}
-								//then find the closest of those in y;
-								var cpt:Object;
-								var cst:Number = Number.POSITIVE_INFINITY;
-								for each(var dy:Object in pts){
-									if(Math.abs(dy[yDataField] - overValue.y) < cst){
-										cpt = dy;
-										cst = Math.abs(dy[yDataField] - overValue.y);
-									} 
-								}
-								return cpt;
-							}
-						}
-					}
-				}
-				return null;
-			}
-			
-			
-			protected function xPosToXVal(x:Number):int{
-				var position:Number = x;
-				return xBottom + Math.floor(position * (xTop - xBottom)/container.width);
-			}
-			
-			protected function localToDataSpace(position:Point,dataSet:AirQualityDataSet):Point{
-				var bounds:Rectangle = _dSetBounds[dataSet.dataURI];
-				if(!bounds) return null;
-				
-				var dPos:Point = position.clone();
-				
-				dPos.x = xBottom + Math.floor(dPos.x * (xTop - xBottom)/bounds.width);
-				dPos.y = yMin + Math.floor((bounds.y + bounds.height - dPos.y) * (yMax - yMin)/bounds.height);
-				return dPos;
 			}
 			
 			
@@ -524,7 +488,7 @@
 			 */
 			public function drawDataTip(dataPoint:Object):void{
 				
-				var ptPosition:Point = dataToPosition(dataPoint);
+				var ptPosition:Point = datapointToLocalPosition(dataPoint);
 				if(!ptPosition) return;
 				ptPosition = container.localToGlobal(ptPosition);
 				if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
@@ -538,9 +502,10 @@
 					_plotTip.setStyle("backgroundAlpha",0.7);
 					var time:Number = Number(dataPoint.time * 1000);
 					var date:Date = new Date(time);
-					_plotTip.text = (date + "\n" + 
-						dataPoint.value + " (" + cat + ")" +
-						((dataPoint.lat == null || dataPoint.lat == "None") ? "\n!NO GPS DATA" : ""));
+					var value:Number = Number(dataPoint.value);
+					_plotTip.text = date.toLocaleDateString() + "\n" +
+						date.toLocaleTimeString() + "\n" + value.toPrecision(5) + " (" + cat + ")" +
+						((dataPoint.lat == null || dataPoint.lat == "None") ? "\n!NO GPS DATA" : "");
 					var rightInset:Number = Math.max(0, ptPosition.x + _bitmap.x -
 						 container.localToGlobal(new Point(container.width - _plotTip.width)).x);
 					_plotTip.x = ptPosition.x + _bitmap.x - rightInset;
@@ -596,11 +561,11 @@
 				//if we've clicked on some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
 				
-				//calculate the location of the click and locate the nearest matching point
-				var overPt:Object = posToClosestPoint(new Point(me.localX,me.localY));
+				//locate the nearest matching point and trigger tooltipping
+				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY),pointDiameter/2,pointDiameter/2);
 							
 				//If we have a point, fire an event
-				if(overPt) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,overPt,new Point(me.stageX,me.stageY)));
+				if(closestPoint) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,closestPoint,new Point(me.stageX,me.stageY)));
 			}
 			
 			
@@ -608,11 +573,9 @@
 				//if we've clicked on some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
 				
-				//calculate the location of the click and locate the nearest matching point
-				var xVal:int = xPosToXVal(me.localX);
-							
-				//If we have a point, zoom
-				if(xVal > xBottom && xVal < xTop) zoomIn(xVal);
+				//calculate the location of the click and zoom in at that point
+				var xVal:Number = localToDataSpace(new Point(me.localX,0)).x;
+				if(xVal > _xBottom && xVal < _xTop) zoomIn(xVal);
 			}
 			
 			
@@ -621,8 +584,8 @@
 				//if we've moused over some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
 				
-				//calculate the location we're currently mousing over and locate the nearest matching point
-				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY));
+				//locate the nearest matching point in x column and trigger tooltipping
+				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY),pointDiameter/2);
 				if(closestPoint){
 					drawDataTip(closestPoint);
 					tipLine.x = me.localX + container.x;
@@ -652,72 +615,62 @@
 			protected var _timer:Timer;
 			
 			public var framerate:Number = 10; 	//as FPS	
-			public var timeMultiplier:Number = 100;
+			public var timeMultiplier:Number = 1000;
 			
 			protected function startPlayback(e:Event=null):void{
 				//if playhead is maxed out, restart from the beginning.
-				if(playhead.x == container.x + container.width){
-					movePlayHead(0);
+				if(playheadPosition >= xTop){
+					playheadPosition = xBottom;
 				}
 				//set up and run timer to push playhead forward
 				_timer = new Timer(1000/framerate);
 				_timer.addEventListener(TimerEvent.TIMER,function(te:TimerEvent):void{
 						var increment:Number = (_timer.delay * timeMultiplier / 1000);
-						var ix:Number = increment * container.width / (xTop - xBottom);
-						var px:Number = playhead.x + Math.max(0.1,ix); //make sure it moves some minimum amount!
-						movePlayHead(px);
-						if(playhead.x == container.x + container.width) stopPlayback();
+						playheadPosition += increment;
+						if(playheadPosition >= xTop) stopPlayback();
+						refresh();
 					});
 				_timer.reset();
 				_timer.start();
 				_playing = true;
 			}
 			
+			/**
+			 * Stops playback if it's currently going and dispatches a PLAYHEAD_STOPPED event.
+			 */
 			protected function stopPlayback(e:Event=null):void{
 				if(_timer)_timer.stop();
 				_playing = false;
+				dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_STOPPED,playheadPosition));
 			}
 			
 			protected function startPlayHeadDrag(e:MouseEvent):void{
-				stopPlayback();
 				_playheadDragging = true;
 				playhead.setStyle("backgroundColor",0x62d000);
 			}
 			
 			protected function stopPlayHeadDrag(e:MouseEvent):void{
-				_playheadDragging = false;
-				playhead.setStyle("backgroundColor",0xffffff);
+				if(_playheadDragging){
+					_playheadDragging = false;
+					playhead.setStyle("backgroundColor",0xffffff);
+					stopPlayback();
+				}
 			}
 			
 			protected function playHeadDrag(e:MouseEvent):void{
 				if(_playheadDragging){
-					movePlayHead(e.localX + container.x)
+					playheadPosition = localToDataSpace(new Point(e.localX,0)).x;
+					refresh();
 				}	
 			}
 			
-			protected function movePlayHead(moveToX:Number):void{
-				var oldx:Number = playhead.x;
-				playhead.x = container.x + Math.max(0,Math.min(container.width,	moveToX - container.x));
-				if(playhead.x < oldx) dirty.dirty();
-				else dirty.dirty(DirtyFlag.APPEND);
-				//if(playhead.x != oldx){
-					//Currently we're refreshing while dragging interactively. Performance tweaks
-					// are necessary if we're going to make this work with more data.
-					dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_MOVED,xPosToXVal(playhead.x - container.x)));
-					refresh();
-				//} 
-			}
-			
-			protected function playScrollDataTip(val:Number):String{
-				return int(Math.pow(10,val)) + 'x Playback';
-			}
 			
 			/****************************** Helper Methods ************************************/
 			
 			protected function calculateMinMax():void{
 				
-				xMin = yMin = xBottom = Number.POSITIVE_INFINITY; 
-				xMax = yMax = xTop = Number.NEGATIVE_INFINITY;
+				xMin = yMin = _xBottom = Number.POSITIVE_INFINITY; 
+				xMax = yMax = _xTop = Number.NEGATIVE_INFINITY;
 				
 				for each(var ds:AirQualityDataSet in dataSets){
 					//Find mins and maxes
@@ -732,10 +685,122 @@
 						if(isNaN(yMax) || yVal > yMax) yMax = yVal;
 					}
 				}
-				xBottom = xMin;
-				xTop = xMax;
+				_xBottom = xMin;
+				_xTop = xMax;
+				
 				dirty.dirty();
 			}
+			
+			/**
+			 * Converts a coordinate within the bounds of a dataset's 
+			 * 	layout into a point in the data space.
+			 *  If no dataset is specified, uses the container bounds instead 
+			 *  (this gives valid x coordinates, but y values are incorrect
+			 *  if more than one dataset is loaded).
+			 */
+			protected function localToDataSpace(position:Point,dataSet:AirQualityDataSet=null):Point{
+				var bounds:Rectangle = (dataSet ? _dSetBounds[dataSet.dataURI] : 
+					new Rectangle(container.x,container.y,container.width, container.height));
+				
+				var dPos:Point = position.clone();
+				dPos.x = _xBottom + dPos.x * (_xTop - _xBottom) / bounds.width;
+				dPos.y = yMin + (bounds.y + bounds.height - dPos.y) * (yMax - yMin) / bounds.height;
+				return dPos;
+			}
+			
+			
+			/**
+			 * Converts a coordinate in the data space
+			 *  into a point in the coordinate space of the 
+			 *  corresponding dataset's layout bounds. 
+			 */
+			protected function dataspaceToLocal(value:Point,dataSet:AirQualityDataSet):Point{
+				var bounds:Rectangle = _dSetBounds[dataSet.dataURI];
+				if(!bounds) return null; 
+				
+				var dv:Point = value.clone();
+				dv.x = (dv.x - xBottom) / (xTop - xBottom) * bounds.width;
+				dv.y = (yMax - dv.y) / yMax * bounds.height;				 
+				return dv;
+			}
+			
+			/**
+			 * Returns the position of a datapoint within the bounds
+			 *  of its parent dataset.
+			 */
+			protected function datapointToLocalPosition(pointData:Object):Point{
+				if(!(_dSetBounds[pointData.sourceURI] is Rectangle)) return null;
+				var sBounds:Rectangle = _dSetBounds[pointData.sourceURI];
+				
+				return new Point((pointData[xDataField] - _xBottom) * sBounds.width /
+						 	(_xTop - _xBottom) + sBounds.width / 2,
+						 sBounds.height * (1 - (pointData[yDataField] - yMin) /
+						 	(yMax - yMin)) + sBounds.y); 
+			}
+			
+			
+			/**
+			 * Returns the datapoint closest to a given position 
+			 *  (provided in the coordinate space of the container).
+			 */
+			protected function posToClosestPoint(pos:Point,
+				maxXDistance:Number=Number.POSITIVE_INFINITY,
+				maxYDistance:Number=Number.POSITIVE_INFINITY):Object{
+				
+				//convert x max distance into data coordinate space
+				if(maxXDistance != Number.POSITIVE_INFINITY){
+					maxXDistance = localToDataSpace(new Point(maxXDistance,0)).x - localToDataSpace(new Point(0,0)).x;
+					maxXDistance = Math.abs(maxXDistance);
+				}
+
+				//check which bounds (if any) the point is inside of
+				for(var db:String in _dSetBounds){
+					if((_dSetBounds[db] as Rectangle).containsPoint(pos)){
+						
+						//find the dataset for the enclosing bounds
+						for each(var d:AirQualityDataSet in _dataSets){
+							if(d.dataURI == db){
+								//find the value of the cursor position in that space
+								var overValue:Point = localToDataSpace(pos,d);
+								
+								var pts:Array = [];
+								for each(var dx:Object in d.data){
+									if(Math.abs(dx[xDataField] - overValue.x) < maxXDistance) pts.push(dx);
+								}
+								
+								//convert y max distance into data coordinate space
+								if(maxYDistance != Number.POSITIVE_INFINITY){
+									maxYDistance = localToDataSpace(new Point(0,maxYDistance),d).y 
+										- localToDataSpace(new Point(0,0),d).y;
+									maxYDistance = Math.abs(maxYDistance);
+								}
+								
+								//then find the closest of the datapoints in y;								
+								var cpt:Object;
+								var cdist:Number = Number.POSITIVE_INFINITY;
+								for each(var dy:Object in pts){
+									var dist:Number = Math.abs(dy[yDataField] - overValue.y);
+									if(dist < cdist && dist < maxYDistance){
+										cpt = dy;
+										cdist = Math.abs(dy[yDataField] - overValue.y);
+									} 
+								}
+								return cpt;
+							}
+						}
+					}
+				}
+				return null;
+			}
+			
+			
+			/**
+			 * Datatip function for playhead speed slider.
+			 */
+			protected function playScrollDataTip(val:Number):String{
+				return int(Math.pow(10,val)) + 'x';
+			}
+			
 		]]>
 	</mx:Script>
 	

@@ -26,7 +26,6 @@ package components
 	
 	import mx.controls.ToolTip;
 	import mx.events.CollectionEvent;
-	import mx.events.CollectionEventKind;
 	import mx.managers.ToolTipManager;
 	
 	import papervision3Dqtree.QuadTree;
@@ -334,7 +333,9 @@ package components
 				_plotTip.setStyle("backgroundAlpha",0.7);
 				var time:Number = Number(dataPoint.time * 1000);
 				var date:Date = new Date(time);
-				_plotTip.text = date + "\n" + dataPoint.value + " (" + cat + ")";
+				var value:Number = Number(dataPoint.value);
+				_plotTip.text = date.toLocaleDateString() + "\n" +
+					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + " (" + cat + ")";
 				_plotTip.x = ptPosition.x;
 				_plotTip.y = ptPosition.y;
 				
