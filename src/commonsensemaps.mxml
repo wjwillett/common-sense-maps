@@ -28,6 +28,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import com.adobe.serialization.json.JSON;
 			import commentspace.events.EntityEvent;
 			import mx.events.CollectionEventKind;
 			import mx.events.CollectionEvent;
@@ -157,18 +158,30 @@
 						panAndZoomTo(location,map.getZoom() + 1);
 					});
 				
-								
-				//FIXME: A Hardwired default query - make this cleaner
+				//A function for loading a default set of data		
+				//TODO:- make this cleaner
 				var runOnStartup:Function = function():void{
-					loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
-						AirQualityColors.CO_8HR,"Badge 6 Carbon Monoxide (8-hour thresholds) (since July 10th",
-						function():void{
-							loadData(DataLoadingPanel.BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800&end_time=" + int(new Date().time / 1000),
-								AirQualityColors.CO_8HR,"Badge 9 Carbon Monoxide (8-hour thresholds) since July 10th",
-								function():void{ dispatchComplete(); });	
-						});
-					}
+					var request:URLRequest = new URLRequest(DataLoadingPanel.DATA_INDEX_XML_URL);
+					var loader:URLLoader = new URLLoader(request);
 					
+					loader.addEventListener(Event.COMPLETE,function(e:Event):void{
+							var indexString:String = loader.data;
+							indexString = indexString.replace(/BASE_DB_QUERY_URL/gi,DataLoadingPanel.BASE_DB_QUERY_URL);
+							indexString = indexString.replace('24HOURSAGO',int((new Date().time) / 1000 - 24 * 3600));
+							indexString = indexString.replace('1WEEKAGO',int((new Date().time) / 1000 - 7 * 24 * 3600));
+							var indexArray:Array = JSON.decode(indexString).defaults as Array;
+							
+							if(indexArray && indexArray.length > 0){
+								var loading:int = indexArray.length;
+								for each(var def:Object in indexArray){
+									loadData(def.url,def.reading,def.name,function():void{ 
+										loading--;
+										if(loading == 0)dispatchComplete(); 
+									});	
+								}	
+							}
+						});
+					};	
 				//Requires a click-through disclaimer before using the site	
 				triggerDisclaimerPopup(runOnStartup);
 				//Jump straight into a load
@@ -298,8 +311,7 @@
 				menuXML.appendChild(centerXML);
 				
 				//TODO:Enable Commenting functionality.
-				/*
-				if(_selections.isSelected(dataPoint)){
+				/*if(_selections.isSelected(dataPoint)){
 					var viewXML:XML = XML(<item/>);
 					viewXML.@label = 'View Comments for this Data Point';	
 					viewXML.@icon = 'CommentIcon';

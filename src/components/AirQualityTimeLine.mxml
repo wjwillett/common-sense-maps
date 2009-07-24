@@ -68,7 +68,7 @@
 			//------------- Public variables -----------------------------------------------
 			public var xDataField:String = 'time';
 			public var yDataField:String = 'value';
-			public var margin:Number = 15;
+			
 			public var spacing:Number = 5;
 			public var pointDiameter:Number = 6;
 			public var pointOverlapTolerance:Number = 6;
@@ -141,7 +141,9 @@
 				dirty.dirty();
 			}
 			
-			
+			/** Margin around the edge of the timeline **/
+			public function get margin():Number{ return _margin;}
+			public function set margin(value:Number):void{_margin = value;}
 			
 			//------------- Data Management variables -----------------------------------------------
 			protected var _dataSets:Vector.<AirQualityDataSet>;
@@ -167,6 +169,8 @@
 			protected var _prevPos:Object = {} 			//position of the last point drawn (indexed by dataURI)
 		
 			protected var dirty:DirtyFlag = new DirtyFlag();
+		
+			protected var _margin:Number = 15;
 		
 			protected const SCROLLBAR_HEIGHT:Number = 18;
 			

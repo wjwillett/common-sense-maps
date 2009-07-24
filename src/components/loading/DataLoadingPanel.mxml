@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" 
-	width="700" styleName="cspopup">
+	width="700" styleName="cspopup" >
 	<mx:RadioButtonGroup id="radioGroup"/>
 	<mx:Label text="load additional data" styleName="csH1"/>
 	
@@ -42,10 +42,11 @@
 	
 	<mx:Script>
 		<![CDATA[
+			import com.adobe.serialization.json.JSON;
 			import etc.AirQualityColors;
 			import mx.collections.ArrayCollection;
 		
-			protected const DATA_INDEX_XML_URL:String = "http://www.eecs.berkeley.edu/~willettw//temp/CommonSenseDataIndex.xml";
+			public static const DATA_INDEX_XML_URL:String = "http://www.commonsensecommunity.com/data/recommended_datasets.json";
 			
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
@@ -174,15 +175,18 @@
 
 			
 			protected function setupGrid():void{
-				grid.dataProvider = recommendedQueries;
-				/*var req
-				uest:URLRequest = new URLRequest(DATA_INDEX_XML_URL);
+				//grid.dataProvider = recommendedQueries;
+				var request:URLRequest = new URLRequest(DATA_INDEX_XML_URL);
 				var loader:URLLoader = new URLLoader(request);
 				
 				loader.addEventListener(Event.COMPLETE,function(e:Event):void{
-						var gridXML:XMLList = XMLList(loader.data);
-						grid.dataProvider = gridXML..item;
-					});*/
+						var indexString:String = loader.data;
+						indexString = indexString.replace(/BASE_DB_QUERY_URL/gi,BASE_DB_QUERY_URL);
+						indexString = indexString.replace('24HOURSAGO',int((new Date().time) / 1000 - 24 * 3600));
+						indexString = indexString.replace('1WEEKAGO',int((new Date().time) / 1000 - 7 * 24 * 3600));
+						var indexArray:Array = JSON.decode(indexString).recommended as Array;
+						if(indexArray)grid.dataProvider = indexArray;
+					});
 			}
 			
 			

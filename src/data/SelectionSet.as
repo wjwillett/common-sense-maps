@@ -1,7 +1,7 @@
 package data
 {
 	import commentspace.data.CommentSpaceDataEvent;
-	import commentspace.data.SimpleDBManager;
+	import commentspace.data.WorkspaceManager;
 	
 	import flash.events.EventDispatcher;
 	
@@ -20,43 +20,50 @@ package data
 		
 		public var indexByField:String = "id";
 		
-		protected var _dbManager:SimpleDBManager = new SimpleDBManager("CommonSenseTest");
+		protected var _dbManager:WorkspaceManager; //= WorkspaceManager.getWorkspaceManager("Test");
 		
 		public function SelectionSet(){
 			//loadSelections();
 		}
 
 		protected function loadSelections():void{
-			var s:SimpleDBManager = new SimpleDBManager("CommonSenseTest");
-			_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/getfiltered?type=selection");
-			_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
-					_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
-					
-					var results:Array = [];
-					//hash results 
-					for each(var o:Object in ce.data){
-						if(o['query']){
-							_selections[o['query']] = o['query'];
-							results.push(o['query'])
-						}	
-					}
-					//dispatch change event
-					dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
-						CollectionEventKind.ADD, -1,-1,results));	
+			var onLoaded:Function = function():void{
+				//hash results 
+				var results:Array = [];
+				for each(var o:Object in _dbManager.match({type:"selection"},"entity")){
+					if(o['query']){
+						_selections[o['query']] = o;
+						results.push(o)
+					}	
+				}
+				//dispatch change event
+				dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
+					CollectionEventKind.ADD, -1,-1,results));	
+			}
+			
+			if(_dbManager.isWorkspaceLoaded) onLoaded();
+			else{
+				_dbManager.addEventListener(CommentSpaceDataEvent.WORKSPACE_LOADED,function(ce:CommentSpaceDataEvent):void{
+					_dbManager.removeEventListener(CommentSpaceDataEvent.WORKSPACE_LOADED, arguments.callee);
+					onLoaded();
 				});
+			}
 		}
 
 		
-		public function addSelection(value:*):void{//property:String, value:*, comparator:String='='):void{
-			if(!_selections[value]){
-				_selections[value] = value;		
-				_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?query=" + value.toString());
-				_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
+		public function addSelection(query:*):void{//property:String, value:*, comparator:String='='):void{
+			if(!_selections[query]){
+				var s:Object = {type:'selection',query:query};
+				_selections[query] = s
+				_dbManager.addEntity(s);
+				_dbManager.save(s);		
+				//_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?query=" + s);
+				/*_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
 						_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
 						
 						dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
-							CollectionEventKind.ADD, -1,-1,[value]));
-					});
+							CollectionEventKind.ADD, -1,-1,[q]));
+					});*/
 			}
 		}
 
@@ -65,7 +72,7 @@ package data
 			if(_selections[value]){
 				var v:* = _selections[value];
 				_selections[value] = null;
-				_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?id=" + value.toString());
+				//_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?id=" + value.toString());
 				_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
 						_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
 	
@@ -75,6 +82,8 @@ package data
 			}
 		}
 
+
+		//FIXME: These methods work only for super-simple selection-by-id
 		
 		public function isSelected(dataPoint:Object):Boolean{
 			if(!indexByField || !dataPoint[indexByField]) return false;
@@ -83,7 +92,11 @@ package data
 		
 		public function getSelections(dataPoint:Object):Array{
 			if(!indexByField || !dataPoint[indexByField]) return [];
-			return [_selections[dataPoint[indexByField]]];
+			var matches:Array = [];
+			for each(var s:Object in _selections){
+				if(s.query == dataPoint.id) matches.push(s);	
+			}
+			return matches;
 		}
 		
 		
