@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" >
-	<mx:Label x="20" text="{labelText}" height="100%" color="#777777" fontFamily="Helvetica" fontSize="12" y="2"/>
+	<mx:Label x="49" text="{labelText}" height="100%" color="#777777" fontFamily="Helvetica" fontSize="12" y="1"/>
 	<mx:LinkButton label="x" width="25" height="17" id="removeButton"
-		toolTip="remove this track" click="{onRemoveClick(event)}" enabled="true" styleName="removeButton"/>
+		toolTip="remove this track" click="{onRemoveClick(event)}" enabled="true" styleName="removeButton" y="0"/>
+	<mx:LinkButton label="~" width="25" height="17" id="visibleButton"
+		toolTip="toggle visibility" click="{onRemoveClick(event)}" enabled="true" styleName="removeButton" x="23" toggle="true" y="0"/>
 	
 	
 	<mx:Script>

@@ -1,6 +1,7 @@
 package data
 {
 	import commentspace.data.CommentSpaceDataEvent;
+	import commentspace.data.EntityTypes;
 	import commentspace.data.WorkspaceManager;
 	
 	import flash.events.EventDispatcher;
@@ -20,17 +21,17 @@ package data
 		
 		public var indexByField:String = "id";
 		
-		protected var _dbManager:WorkspaceManager; //= WorkspaceManager.getWorkspaceManager("Test");
+		protected var _wm:WorkspaceManager = WorkspaceManager.instance;
 		
 		public function SelectionSet(){
-			//loadSelections();
+			loadSelections();
 		}
 
 		protected function loadSelections():void{
 			var onLoaded:Function = function():void{
 				//hash results 
 				var results:Array = [];
-				for each(var o:Object in _dbManager.match({type:"selection"},"entity")){
+				for each(var o:Object in _wm.match({type:EntityTypes.SELECTION},"entity")){
 					if(o['query']){
 						_selections[o['query']] = o;
 						results.push(o)
@@ -41,30 +42,24 @@ package data
 					CollectionEventKind.ADD, -1,-1,results));	
 			}
 			
-			if(_dbManager.isWorkspaceLoaded) onLoaded();
+			if(_wm.isWorkspaceLoaded) onLoaded();
 			else{
-				_dbManager.addEventListener(CommentSpaceDataEvent.WORKSPACE_LOADED,function(ce:CommentSpaceDataEvent):void{
-					_dbManager.removeEventListener(CommentSpaceDataEvent.WORKSPACE_LOADED, arguments.callee);
+				_wm.addEventListener(CommentSpaceDataEvent.WORKSPACE_LOADED,function(ce:CommentSpaceDataEvent):void{
+					_wm.removeEventListener(CommentSpaceDataEvent.WORKSPACE_LOADED, arguments.callee);
 					onLoaded();
 				});
 			}
 		}
 
 		
-		public function addSelection(query:*):void{//property:String, value:*, comparator:String='='):void{
+		public function addSelection(query:*):Object{//property:String, value:*, comparator:String='='):void{
 			if(!_selections[query]){
-				var s:Object = {type:'selection',query:query};
+				var s:Object = {type:EntityTypes.SELECTION,query:query};
 				_selections[query] = s
-				_dbManager.addEntity(s);
-				_dbManager.save(s);		
-				//_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?query=" + s);
-				/*_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
-						_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
-						
-						dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
-							CollectionEventKind.ADD, -1,-1,[q]));
-					});*/
+				_wm.newEntity(s);		
+				return s;
 			}
+			else return _selections[query]; 
 		}
 
 		
@@ -72,9 +67,8 @@ package data
 			if(_selections[value]){
 				var v:* = _selections[value];
 				_selections[value] = null;
-				//_dbManager.sendRequest("http://exp.sense.us:8080/commentspace/postselection?id=" + value.toString());
-				_dbManager.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
-						_dbManager.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
+				_wm.addEventListener(CommentSpaceDataEvent.COMPLETE,function(ce:CommentSpaceDataEvent):void{
+						_wm.removeEventListener(CommentSpaceDataEvent.COMPLETE, arguments.callee);
 	
 						dispatchEvent(new CollectionEvent(CollectionEvent.COLLECTION_CHANGE,false,false,
 							CollectionEventKind.REMOVE, -1,-1,[v]));						

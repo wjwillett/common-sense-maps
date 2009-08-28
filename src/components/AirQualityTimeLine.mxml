@@ -9,11 +9,16 @@
 	<mx:Canvas id="container"  x="{margin + 45}" width="{width - (2 * margin) - 45}" 
 		top="{margin}" height="{height - 2 * margin - SCROLLBAR_HEIGHT}" resize="{dirty.dirty();refresh()}" 
 		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
-		mouseMove="{handleMouseMove(event);playHeadDrag(event)}" click="{handleMouseClick(event)}" 
+		mouseMove="{handleMouseMove(event); playHeadDrag(event)}" click="{handleMouseClick(event)}" 
+		mouseDown="{handleMouseDown(event)}" mouseUp="{handleMouseUp(event)}"
 		doubleClick="{handleDoubleClick(event)}"
 		horizontalScrollPolicy="off" verticalScrollPolicy="off"
 		doubleClickEnabled="true" color="#aa2222"/>
-		
+	
+	<mx:Canvas id="brushLayer"  x="{margin + 45}" width="{width - (2 * margin) - 45}" 
+		top="{margin}" height="{height - 2 * margin - SCROLLBAR_HEIGHT}" resize="{dirty.dirty();refresh()}" 
+		horizontalScrollPolicy="off" verticalScrollPolicy="off" mouseEnabled="false"/>
+	
 	<mx:Canvas id="playhead" top="{margin}" bottom="{margin + SCROLLBAR_HEIGHT}" 
 		x="{container.x + container.width}" width="6" useHandCursor="true"
 		mouseChildren="false" buttonMode="true"
@@ -22,13 +27,18 @@
 		<mx:VRule x="{playhead.width / 2}" height="100%"/>
 	</mx:Canvas>
 	
-	<mx:Canvas id="labels" mouseEnabled="false" x="{margin + 45}" width="100%" height="100%" />
+	<mx:Canvas id="labels" mouseEnabled="false" x="{margin + 45}" width="100%" height="100%" >
 		
+	</mx:Canvas>
+	
 	<mx:Button id="zOut" click="{zoomOut()}" label="-" toolTip="zoom out" 
-			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0" width="25"/>
+			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0"
+			width="25" visible="{useAdvancedControls}"
+			enabled="{_xBottom &gt; xMin || _xTop &lt; xMax}"/>
 	<mx:Button id="zIn" click="{zoomIn()}" label="+" 
 			toolTip="zoom in" width="25" paddingLeft="0" 
-			paddingRight="0" y="{margin}" x="{margin}"/>
+			paddingRight="0" y="{margin}" x="{margin}"
+			visible="{useAdvancedControls}" />
 
 	<mx:Button id="pauseBtn" x="{margin}" label="||" bottom="{margin}" enabled="{_playing}" 
 		paddingRight="0" paddingLeft="0" click="{stopPlayback(event)}" width="18" 
@@ -73,6 +83,10 @@
 			public var pointDiameter:Number = 6;
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
+			
+			[Bindable]
+			public var useAdvancedControls:Boolean = true;
+			
 			//public var numMouseOverAdjacents:uint = 15;
 			
 			
@@ -100,6 +114,10 @@
 					});
 			}
 			
+			
+			
+			
+			
 			/**
 			 * The current location of the playhead in terms of the xDataField
 			 */
@@ -112,15 +130,22 @@
 			public function set playheadPosition(val:Number):void{
 				var oldVal:Number = _playheadPosition;
 				_playheadPosition = Math.max(xBottom, Math.min(xTop, val));
+				playheadDate = new Date(_playheadPosition * 1000);
 				
 				if(_playheadPosition > oldVal) dirty.dirty(DirtyFlag.APPEND);
 				else dirty.dirty();
 				
 				if(_playheadPosition != oldVal){
 					dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_MOVED,_playheadPosition));
+					var d:Date = new Date(_playheadPosition*1000);
 					if(!_playing) dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_STOPPED,_playheadPosition));
 				}
 			}
+			
+			[Bindable]
+			public var playheadDate:Date;
+			
+			
 			
 			/**
 			 * The value from the xDataField corresponding
@@ -142,6 +167,7 @@
 			}
 			
 			/** Margin around the edge of the timeline **/
+			[Bindable]
 			public function get margin():Number{ return _margin;}
 			public function set margin(value:Number):void{_margin = value;}
 			
@@ -149,10 +175,14 @@
 			protected var _dataSets:Vector.<AirQualityDataSet>;
 			protected var yMin:Number;		//the lowest data value on the y axis
 			protected var yMax:Number; 		//the highest data value on the y axis
+			[Bindable]
 			protected var xMin:Number;		//the lowest data value on the x axis
+			[Bindable]
 			protected var xMax:Number;		//the lowest data value on the x axis
 			
+			[Bindable]
 			protected var _xBottom:Number;	//the bottom end of the current display x-axis
+			[Bindable]
 			protected var _xTop:Number;		//the top end of the current display x-axis
 			
 			protected var _playheadPosition:Number; //the position of the playhead on the x axis.
@@ -173,6 +203,9 @@
 			protected var _margin:Number = 15;
 		
 			protected const SCROLLBAR_HEIGHT:Number = 18;
+			
+			protected const BRUSHING_THRESHOLD:Number = 5;
+			
 			
 			//-------------Public Methods -----------------------------------------------------
 
@@ -355,6 +388,9 @@
 					var l:TimelineLabel = _dSetLabels[d.dataURI];
 					if(d.name) l.labelText = d.name;
 					l.y = _dSetBounds[d.dataURI].top + margin;
+					
+					if(!useAdvancedControls) l.visible = false;
+					
 					labels.addChild(l);
 					l.onRemoveClick = function(e:MouseEvent):void{
 							// a very shoddy way of finding the dataset to remove.
@@ -483,6 +519,70 @@
 				refresh();
 			}
 			
+			/****************************** Mouse Event Handling Methods ************************************/
+			
+			protected function handleMouseClick(me:MouseEvent):void{
+				//if we've clicked on some other child (like the scrollbar) do nothing
+				if(me.target != container) return;
+				
+				//locate the nearest matching point and trigger tooltipping
+				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY),pointDiameter/2,pointDiameter/2);
+							
+				//If we have a point, fire an event
+				if(closestPoint) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,closestPoint,new Point(me.stageX,me.stageY)));
+			}
+			
+			
+			protected function handleDoubleClick(me:MouseEvent):void{
+				//skip if not using advanced controls
+				if(!useAdvancedControls)return;
+				
+				//if we've clicked on some other child (like the scrollbar) do nothing
+				if(me.target != container) return;
+				
+				//calculate the location of the click and zoom in at that point
+				var xVal:Number = localToDataSpace(new Point(me.localX,0)).x;
+				if(xVal > _xBottom && xVal < _xTop) zoomIn(xVal);
+			}
+			
+			
+			protected function handleMouseMove(me:MouseEvent):void{
+				
+				//if we've moused over some other child (like the scrollbar) do nothing
+				if(me.target != container) return;
+				
+				if(_brushing) moveBrush(brushLayer.globalToLocal(new Point(me.stageX,me.stageY)));
+				
+				//locate the nearest matching point in x column and trigger tooltipping
+				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY),pointDiameter/2);
+				if(closestPoint){
+					drawDataTip(closestPoint);
+					tipLine.x = me.localX + container.x;
+					tipLine.visible = true;
+					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,closestPoint,new Point(me.stageX,me.stageY)));
+				} 
+				//If no point is sufficiently close throw away any tip we might have
+				else{
+					discardActiveDataTip();
+					tipLine.visible = false;
+				} 
+				
+			}
+			
+			protected function handleMouseOut(me:MouseEvent):void{
+				tipLine.visible = false;
+				stopBrushing(brushLayer.globalToLocal(new Point(me.stageX,me.stageY)));
+				discardActiveDataTip();
+			}
+			
+			protected function handleMouseUp(me:MouseEvent):void{
+				stopBrushing(brushLayer.globalToLocal(new Point(me.stageX,me.stageY)));
+			}
+			
+			protected function handleMouseDown(me:MouseEvent):void{
+				startBrushing(brushLayer.globalToLocal(new Point(me.stageX,me.stageY)));
+			}
+			
 			
 			/****************************** Tooltipping Methods ************************************/
 			protected var _plotTip:ToolTip;
@@ -561,67 +661,74 @@
 				}
 			}
 			
-			protected function handleMouseClick(me:MouseEvent):void{
-				//if we've clicked on some other child (like the scrollbar) do nothing
-				if(me.target != container) return;
-				
-				//locate the nearest matching point and trigger tooltipping
-				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY),pointDiameter/2,pointDiameter/2);
-							
-				//If we have a point, fire an event
-				if(closestPoint) dispatchEvent(new DataPointEvent(DataPointEvent.CLICK,closestPoint,new Point(me.stageX,me.stageY)));
+			
+			/****************************** Brushing Methods ************************************/
+			protected var _brushStart:Point
+			protected var _brushing:Boolean = false;
+			
+			protected function startBrushing(brushStart:Point):void{
+				_brushStart = brushStart;
+				_brushing = true;
 			}
 			
-			
-			protected function handleDoubleClick(me:MouseEvent):void{
-				//if we've clicked on some other child (like the scrollbar) do nothing
-				if(me.target != container) return;
+			protected function stopBrushing(brushEnd:Point):void{
+				if(!_brushStart || !brushEnd) return;
 				
-				//calculate the location of the click and zoom in at that point
-				var xVal:Number = localToDataSpace(new Point(me.localX,0)).x;
-				if(xVal > _xBottom && xVal < _xTop) zoomIn(xVal);
+				var left:Number = Math.min(_brushStart.x,brushEnd.x);
+				var right:Number = Math.max(_brushStart.x,brushEnd.x);
+				
+				var xs:Number = xBottom + (xTop - xBottom) * left/brushLayer.width; 
+				var xe:Number = xBottom + (xTop - xBottom) * right/brushLayer.width
+				
+				if(Math.abs(xs - xe) > BRUSHING_THRESHOLD){
+					_xBottom = Math.max(xMin,xs);
+					_xTop = Math.min(xMax,xe);
+				}
+								
+				_brushStart = null;
+				_brushing = false;
+				drawBrush(null,null);
+				
+				dirty.dirty();
+				refresh();
 			}
 			
-			
-			protected function handleMouseMove(me:MouseEvent):void{
-				
-				//if we've moused over some other child (like the scrollbar) do nothing
-				if(me.target != container) return;
-				
-				//locate the nearest matching point in x column and trigger tooltipping
-				var closestPoint:Object = posToClosestPoint(new Point(me.localX,me.localY),pointDiameter/2);
-				if(closestPoint){
-					drawDataTip(closestPoint);
-					tipLine.x = me.localX + container.x;
-					tipLine.visible = true;
-					dispatchEvent(new DataPointEvent(DataPointEvent.HOVER,closestPoint,new Point(me.stageX,me.stageY)));
-				} 
-				//If no point is sufficiently close throw away any tip we might have
-				else{
-					discardActiveDataTip();
-					tipLine.visible = false;
-				} 
-				
+			/**
+			 * Decides brush bounds based on the old startpoint and the 
+			 *  new endpoint. Then calls draw method. 
+			 **/
+			protected function moveBrush(brushPoint:Point):void{
+				var left:Number = Math.min(_brushStart.x,brushPoint.x);
+				var right:Number = Math.max(_brushStart.x,brushPoint.x);
+				drawBrush(new Point(left,0),new Point(right,brushLayer.height));
 			}
 			
-			protected function handleMouseOut(me:MouseEvent):void{
-				tipLine.visible = false;
-				discardActiveDataTip();
+			/**
+			 * Actually paints the brush onto the brushlayer 
+			 **/
+			protected function drawBrush(upperLeft:Point,lowerRight:Point):void{
+				brushLayer.graphics.clear();
+				if(upperLeft && lowerRight && 
+					(Math.abs(upperLeft.x - lowerRight.x) > BRUSHING_THRESHOLD)){
+					brushLayer.graphics.beginFill(0xFFFF00,0.2);
+					brushLayer.graphics.drawRect(upperLeft.x,upperLeft.y,
+						lowerRight.x - upperLeft.x, lowerRight.y - upperLeft.y);
+					brushLayer.graphics.endFill();
+				}
 			}
-			
 			
 			
 			/****************************** Playback Methods ************************************/
 
 			[Bindable]
-			protected var _playing:Boolean = false;			
+			public var _playing:Boolean = false;			
 			protected var _playheadDragging:Boolean = false;
 			protected var _timer:Timer;
 			
 			public var framerate:Number = 10; 	//as FPS	
 			public var timeMultiplier:Number = 1000;
 			
-			protected function startPlayback(e:Event=null):void{
+			public function startPlayback(e:Event=null):void{
 				//if playhead is maxed out, restart from the beginning.
 				if(playheadPosition >= xTop){
 					playheadPosition = xBottom;
@@ -642,7 +749,7 @@
 			/**
 			 * Stops playback if it's currently going and dispatches a PLAYHEAD_STOPPED event.
 			 */
-			protected function stopPlayback(e:Event=null):void{
+			public function stopPlayback(e:Event=null):void{
 				if(_timer)_timer.stop();
 				_playing = false;
 				dispatchEvent(new TimelineEvent(TimelineEvent.PLAYHEAD_STOPPED,playheadPosition));

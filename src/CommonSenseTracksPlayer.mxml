@@ -4,30 +4,30 @@
 	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*" 
 	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]">
 	
-	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
-		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"/>
+	<mx:Canvas id="container" backgroundColor="0xffffff" 
+		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
+		left="10" top="10" right="10" bottom="30"/>
+	<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
+		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">
+		<mx:HBox bottom="85" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
+			<mx:VBox cornerRadius="15" width="115">
+				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
+				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
+			</mx:VBox>
+			<mx:Button label="{timeline._playing ? '||' : '&gt;'}" height="100%" fontSize="23" id="bigPlayPause" 
+				click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
+		</mx:HBox>
+	</mx:Canvas>
 	
-	<mx:VDividedBox left="15" top="15" right="15" width="100" height="100%">
-		<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" creationComplete="{setup()}"/>
-		<mx:VBox width="100%">
-			<mx:HBox width="100%">
-				<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  
-					height="25"/>
-				<mx:Button label="refresh" click="{reloadDataSets()}"  
-					toolTip="reloads all loaded datasets a any new data"
-					height="25"/>
-				<mx:Button label="center map on last point" click="{centermap()}"  
-					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
-					height="25"/>
-				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" mode="manual"/>	
-			</mx:HBox>
-			<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
-		</mx:VBox>
-	</mx:VDividedBox>
-	
+	<ns1:AirQualityTimeLine id="timeline" height="80" creationComplete="{setup()}" 
+		bottom="30" left="10" right="10" margin="5" timeMultiplier="25" useAdvancedControls="false"/>
+	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
+		
+	<mx:ProgressBar id="progressBar" visible="true" includeInLayout="false" mode="manual" left="40" right="20" bottom="50"/>	
 
 	<mx:Script>
 		<![CDATA[
+			import components.loading.TracksPlayerLoadingPanel;
 			import com.adobe.serialization.json.JSON;
 			import commentspace.events.EntityEvent;
 			import mx.events.CollectionEventKind;
@@ -137,13 +137,14 @@
 				_plotLayer.dataSets = _dataSets;
 				_plotLayer.selections = _selections;
 				
+				
 				map.addChild(_plotLayer);
 				//map.addChild(_flagsClip);
 				
-				map.addChild(new MapControls(map));
+				//map.addChild(new MapControls(map));
 
 				//set the map center
-				map.setCenterZoom(new Location(37.803,-122.298),14);
+				map.setCenterZoom(new Location(37.803,-122.298),17);
 				
 				//Listeners for updating state 
 				map.addEventListener(MapEvent.STOP_PANNING, dispatchUpdated);
@@ -184,9 +185,12 @@
 					};	
 					
 				var quickStartup:Function = function ():void{
-					var quickdata:Object = {"name":"All Badges Carbon Monoxide (past 3 hours)",
+					/* var quickdata:Object = {"name":"All Badges Carbon Monoxide (past 3 hours)",
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
-						"reading":"co"};
+						"reading":"co"}; */
+					var quickdata:Object = {"name":"Badges 4 Carbon Monoxide (past 3 hours)",
+						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?badge=000000000004&reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
+						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();});
 				}
 					
@@ -194,9 +198,9 @@
 				//triggerDisclaimerPopup(runOnStartup);
 				//Jump straight into a load
 				//runOnStartup();
-				quickStartup();	
+				//quickStartup();	
 				//Alternative startup, just pops up the loader
-				//triggerLoadingPopup();
+				triggerLoadingPopup();
 				//plotExistingMarkers(); //probably removed forever?				
 				//let commentspace know we're loaded
 				//dispatchComplete();	
@@ -248,6 +252,25 @@
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
 						if(te.playheadTime){
 							_plotLayer.maxTime = te.playheadTime;
+							
+							//Centers map on the last point
+							//FIXME: This is a VERY quick implementation that loops through all the points every time.
+							// optimize the search for the last point(e.g. only check since the last update) and 
+							// smooth the playback	
+							if(_dataSets[0] && (_dataSets[0] as AirQualityDataSet).data){
+								var ds:AirQualityDataSet = (_dataSets[0] as AirQualityDataSet);
+								
+								//iterate through points
+								for(var i:int=0; i < ds.data.length; i++){
+									var point:Object = ds.data[i]; 
+									//Save the index of the last point drawn at/after the playhead 							
+									if(Number(point.time) > te.playheadTime && point.lat && point.lat != "None" && point.lat !=0){
+										//panAndZoomTo(new Location(point.lat, point.lon),map.getZoom());
+										map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
+										break;
+									}
+								}
+							}
 							_plotLayer.refresh();
 						} 
 					});
@@ -445,7 +468,7 @@
 				}
 				if(last) panAndZoomTo(new Location(last.lat,last.lon), map.getZoom());
 			}
-			
+						
 			
 			/******** Implements IStatefulVis *************************************************/	
 				
@@ -608,34 +631,36 @@
 			 *  outside.
 			 */
 			protected function triggerLoadingPopup():void{
-				var dataPanel:DataLoadingPanel = new DataLoadingPanel();
+				var loadPanel:TracksPlayerLoadingPanel = new TracksPlayerLoadingPanel();
 				
 				//when the okay button is clicked
-				dataPanel.onLoadClick = function(e:Event=null):void{
-						var info:Array = dataPanel.getSelectedInfo();
+				loadPanel.onLoadClick = function(e:Event=null):void{
+						var info:Array = loadPanel.getSelectedInfo();
 						if(info && info.length > 0){
 							
-							//clear the existing plots
-							for(var ds:String in _dataSets) delete _dataSets[ds];
-							_plotLayer.refresh(true);
-							timeline.refresh(true);
+							//DEBUG
+							info[0] = {name:"Berkeley PM (7 July 2009)",
+								url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
+								reading:"pm25"};
 							
-							var pollutant:String = info[0].reading;
-							for each (var i:Object in info) loadData(i.url,pollutant,i.name);
+														
+							loadData(info[0].url,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
 						} 
-						PopUpManager.removePopUp(dataPanel);
+						PopUpManager.removePopUp(loadPanel);
 					};
 					//when the cancel button is clicked
 					//when the okay button is clicked
-				dataPanel.onCancelClick = function(e:Event=null):void{
-						PopUpManager.removePopUp(dataPanel);
+				loadPanel.onCancelClick = function(e:Event=null):void{
+						PopUpManager.removePopUp(loadPanel);
 					};
-				PopUpManager.addPopUp(dataPanel,this,true);
-				PopUpManager.centerPopUp(dataPanel);
+				PopUpManager.addPopUp(loadPanel,this,true);
+				PopUpManager.centerPopUp(loadPanel);
 			}
 			
 		]]>
 	</mx:Script>
 	<mx:Style source="assets/commonsensestyles.css"/>
+	
+
 	
 </mx:Application>

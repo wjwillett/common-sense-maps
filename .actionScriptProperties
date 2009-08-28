@@ -13,6 +13,7 @@
 </compiler>
 <applications>
 <application path="commonsensemaps.mxml"/>
+<application path="CommonSenseTracksPlayer.mxml"/>
 </applications>
 <modules/>
 <buildCSSFiles/>
