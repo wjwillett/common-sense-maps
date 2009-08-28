@@ -5,9 +5,7 @@
 <libraryPath defaultLinkType="1">
 <libraryPathEntry kind="4" path=""/>
 <libraryPathEntry kind="1" linkType="1" path="libs"/>
-<libraryPathEntry kind="3" linkType="1" path="${DOCUMENTS}/modestmaps.as3/swc/bin/ModestMapsSWC.swc" useDefaultLinkType="false"/>
 <libraryPathEntry kind="3" linkType="1" path="${DOCUMENTS}/commentspace.shared/bin/commentspace.shared.swc" useDefaultLinkType="false"/>
-<libraryPathEntry kind="3" linkType="1" path="libs/FlashControls.swc" useDefaultLinkType="false"/>
 </libraryPath>
 <sourceAttachmentPath/>
 </compiler>
