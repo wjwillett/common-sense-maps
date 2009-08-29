@@ -7,6 +7,8 @@ package events
 	public class DataSetEvent extends Event
 	{
 		public static const DATASET_REMOVED:String = "commonSenseDataSetRemoved"; 
+		public static const DATASET_HIDDEN:String = "commonSenseDataSetHidden";
+		public static const DATASET_UNHIDDEN:String = "commonSenseDataSetUnhidden"; 
 		
 		public var dataset:AirQualityDataSet;
 		

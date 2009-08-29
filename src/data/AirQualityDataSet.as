@@ -28,9 +28,7 @@ package data
 		public function get data():Vector.<Object>{return _data;}
 		public function get dataURI():String{return _sourceObject.toString();} 
 		
-		
-		
-		
+		public var hidden:Boolean = false;
 		
 		/****************************** Data Loading Methods ************************************/
 		protected function loadData(source:Object):void{

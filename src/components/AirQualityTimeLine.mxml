@@ -84,6 +84,13 @@
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
 			
+			
+			/**
+			 * Controls whether or not additional features (zooming, 
+			 *  panning, and recentering the timeline) are turned on 
+			 *  for this timeline. This allows this funcitonality to 
+			 *  be turned off when building simple visualizations.
+			 * */
 			[Bindable]
 			public var useAdvancedControls:Boolean = true;
 			
@@ -113,9 +120,6 @@
 						refresh();
 					});
 			}
-			
-			
-			
 			
 			
 			/**
@@ -204,7 +208,8 @@
 		
 			protected const SCROLLBAR_HEIGHT:Number = 18;
 			
-			protected const BRUSHING_THRESHOLD:Number = 5;
+			//Minimum number of pixels the mouse must be dragged to start brushing
+			protected const BRUSHING_THRESHOLD:Number = 10;
 			
 			
 			//-------------Public Methods -----------------------------------------------------
@@ -302,7 +307,8 @@
 							}  
 							
 							//plot the point to the current bitmapdata
-							renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point),false,(point.time > playheadPosition));
+							renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point),false,
+								(point.time > playheadPosition || ds.hidden));
 							_prevPos[ds.dataURI] = dPt;
 						}
 						if(!isNaN(playheadPt)) _prevMaxPtNums[ds.dataURI] = playheadPt;
@@ -404,6 +410,19 @@
 								}								
 							}
 						};
+					l.onHiddenClick = function(e:MouseEvent):void{
+							var isHidden:Boolean = TimelineLabel(e.currentTarget.parent).hidden;
+							// a very shoddy way of finding the dataset to hide/show.
+							//  however, just using 'd' doesn't work because of a scoping issue
+							for each(var dr:AirQualityDataSet in _dataSets){
+								if(dr.name == (e.target.parent as TimelineLabel).labelText){
+									if(_dataSets.lastIndexOf(dr) != -1){
+										_dataSets[_dataSets.lastIndexOf(dr)].hidden = isHidden;
+										dispatchEvent(isHidden ? new DataSetEvent(DataSetEvent.DATASET_HIDDEN,dr) : new DataSetEvent(DataSetEvent.DATASET_UNHIDDEN,dr));
+									}
+								}								
+							}
+						};
 				}	
 			}
 
@@ -450,13 +469,24 @@
 				var range:Number = _xTop - _xBottom;
 				var scrollBy:Number = ((se.position - _xBottom) * container.width / range);
 				_bitmap.x -= scrollBy;  
-				playhead.x -= scrollBy;
+				
+				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
 				
 				_xBottom = Math.max(_hScroll.scrollPosition,xMin);
 				_xTop = Math.min(_xBottom + range ,xMax);
+				
+				//if playhead is at the right edge of the view, 
+				// leave it stuck to the right edge as we move
+				if(playheadRight) playheadPosition = xTop;
+				//otherwise, it slides with the scroll
+				else playhead.x -= scrollBy;
 
 				//hide the playhead if it goes out of view
 				if(playhead.x < container.x || playhead.x > (container.x + container.width))playhead.visible = false;
+				
+				//dispatch a scrolling progress event
+				dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_SCROLLING,playheadPosition));
+				
 				
 				//Only redraw periodically while scrolling	
 				if(_scrollTimer && _scrollTimer.running){
@@ -484,9 +514,17 @@
 			public function centerOn(midPoint:Number):void{
 				var range:Number = _xTop - _xBottom;
 				if(range < xMax - xMin){
+					
+					var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
+					
 					_xBottom = Math.max(xMin,int(midPoint - range / 2));
 					_xTop = Math.min(xMax,int(midPoint + range / 2));
-					playheadPosition = playheadPosition;
+					
+					//if playhead is at the right edge of the view, 
+					// leave it stuck to the right edge as we recenter
+					if(playheadRight) playheadPosition = xTop;
+					else playheadPosition = playheadPosition;
+					
 					dirty.dirty();
 					refresh();
 				}
@@ -499,9 +537,16 @@
 			public function zoomIn(midPointVal:Number=Number.POSITIVE_INFINITY):void{
 				var zoomRange:Number = (_xTop - _xBottom) * zoomPercentage;
 				var midPoint:Number = midPointVal != Number.POSITIVE_INFINITY ? midPointVal : _xBottom + (_xTop - _xBottom) / 2;
+				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
+				
 				_xBottom = Math.max(xMin,int(midPoint - zoomRange / 2));
 				_xTop = Math.min(xMax,int(midPoint + zoomRange / 2));
-				playheadPosition = playheadPosition;
+				
+				//if playhead is at the right edge of the view, 
+				// leave it stuck to the right edge as we zoom
+				if(playheadRight) playheadPosition = xTop;
+				else playheadPosition = playheadPosition;
+
 				dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_ZOOMED,playheadPosition));
 				refresh();
 			}
@@ -512,10 +557,18 @@
 			public function zoomOut():void{
 				var zoomRange:Number = (_xTop - _xBottom) / zoomPercentage;
 				var midPoint:Number = _xBottom + (_xTop - _xBottom) / 2;
+				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
+				
 				_xBottom = Math.max(xMin,midPoint - zoomRange / 2);
 				_xTop = Math.min(xMax,midPoint + zoomRange / 2);
-				playheadPosition = playheadPosition;
+				
+				//if playhead is at the right edge of the view, 
+				// leave it stuck to the right edge as we zoom
+				if(playheadRight) playheadPosition = xTop;
+				else playheadPosition = playheadPosition;
+
 				dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_ZOOMED,playheadPosition));
+				dirty.dirty();
 				refresh();
 			}
 			
@@ -667,6 +720,7 @@
 			protected var _brushing:Boolean = false;
 			
 			protected function startBrushing(brushStart:Point):void{
+				if(!useAdvancedControls) return; //allow brushing only if advanced controls are on
 				_brushStart = brushStart;
 				_brushing = true;
 			}
@@ -698,6 +752,7 @@
 			 *  new endpoint. Then calls draw method. 
 			 **/
 			protected function moveBrush(brushPoint:Point):void{
+				if(!_brushStart) return;
 				var left:Number = Math.min(_brushStart.x,brushPoint.x);
 				var right:Number = Math.max(_brushStart.x,brushPoint.x);
 				drawBrush(new Point(left,0),new Point(right,brushLayer.height));

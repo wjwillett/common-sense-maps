@@ -19,7 +19,7 @@
 				<mx:Button label="center map on last point" click="{centermap()}"  
 					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
 					height="25"/>
-				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" mode="manual"/>	
+				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>	
 			</mx:HBox>
 			<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
 		</mx:VBox>
@@ -71,11 +71,6 @@
 			protected const CancelIcon:Class;
 			
 			
-			/******** Source Data **********************************************************/
-			//[Embed(source = "assets/2009-05-14 (West Oakland PM + GPS).csv", mimeType="application/octet-stream")]
-			//protected const Embedded20090514PMData:Class;
-			//protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv?";
-
 			
 			/******** Constants **********************************************************/
 			protected const CLICK_RADIUS:Number = 2;
@@ -138,7 +133,6 @@
 				_plotLayer.selections = _selections;
 				
 				map.addChild(_plotLayer);
-				//map.addChild(_flagsClip);
 				
 				map.addChild(new MapControls(map));
 
@@ -189,16 +183,23 @@
 						"reading":"co"};
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();});
 				}
+				
+				
+				/*A set of different options for what to do on startup. 1-4 are helpful when debugging*/
 					
-				//Requires a click-through disclaimer before using the site	
-				//triggerDisclaimerPopup(runOnStartup);
-				//Jump straight into a load
+				//0.Production startup. Requires a click-through disclaimer before using the site	
+				triggerDisclaimerPopup(runOnStartup);
+				
+				//1.Alternative startup. Jump straight into a load
 				//runOnStartup();
-				quickStartup();	
-				//Alternative startup, just pops up the loader
+				
+				//2.Alternative startup, loads a small test dataset
+				//quickStartup();
+					
+				//3.Alternative startup, just pops up the loader
 				//triggerLoadingPopup();
-				//plotExistingMarkers(); //probably removed forever?				
-				//let commentspace know we're loaded
+				
+				//4. Do nothing. Just let commentspace know we're loaded
 				//dispatchComplete();	
 					
 			}
@@ -237,12 +238,20 @@
 						createMenu(de.mousePosition,de.dataPoint);
 					});
 				
-				//handler for dataset removal
-				timeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
+				//handlers for dataset removal and hide/unhide
+				var handleRemove:Function = function(de:DataSetEvent):void{			
 						_plotLayer.refresh(true);
 						timeline.refresh(true);
 						dispatchUpdated();
-					});
+					};
+				var handleHide:Function = function(de:DataSetEvent):void{			
+						timeline.refresh();
+						_plotLayer.refresh(true);
+						dispatchUpdated();
+					};
+				timeline.addEventListener(DataSetEvent.DATASET_REMOVED, handleRemove);
+				timeline.addEventListener(DataSetEvent.DATASET_HIDDEN, handleHide);
+				timeline.addEventListener(DataSetEvent.DATASET_UNHIDDEN, handleHide);
 					
 				//time scrubbing for map
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
@@ -252,9 +261,16 @@
 						} 
 					});
 				
-				//Listeners for updating state on zoom and pan
-				timeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
-				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
+				//Listener for updating map min and max times on the map when timeline zooms and pans
+				var timelineMoveHandler:Function = function(te:TimelineEvent):void{
+						if(!isNaN(timeline.xTop)) _plotLayer.maxTime = timeline.xTop;
+						if(!isNaN(timeline.xBottom)) _plotLayer.minTime = timeline.xBottom;
+						_plotLayer.refresh();
+						dispatchUpdated();
+					};
+				timeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,timelineMoveHandler);
+				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLING,timelineMoveHandler);
+				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,timelineMoveHandler);
 				
 				//Update state whenever the timeline stops (do not try to update during playback)
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
@@ -274,6 +290,8 @@
 				
 				progressBar.visible = true;
 				progressBar.includeInLayout = true;
+				progressBar.minimum = 0;
+				progressBar.setProgress(0,1);
 				
 				var handleProgress:Function = function(pe:ProgressEvent):void{
 					progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
@@ -312,6 +330,14 @@
 			 *   added to the display.
 			 */
 			protected function createMenu(mousePt:Point,dataPoint:Object):void{
+				
+				
+				//Short-term solution, always center on point click, bypassing the menu
+				if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
+				if(dataPoint.time) timeline.centerOn(dataPoint.time);
+				
+				
+				/* TODO: Bring all of this code back once commenting is avaliable. 
 				//set up menu XML
 				var menuXML:XML = XML(<root/>);
 				var centerXML:XML = XML(<item/>);
@@ -352,7 +378,7 @@
 							_plotLayer.refresh(true);
 							timeline.refresh(true);
 						}
-						//When Add is clicked - center both views on point
+						//When Center is clicked - center both views on point
 						else if(me.item.@event == 'center'){
 							if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
 							if(dataPoint.time) timeline.centerOn(dataPoint.time);
@@ -367,7 +393,7 @@
 						else menu.hide();
 					});
 					
-	            menu.show(mousePt.x, mousePt.y);
+	            menu.show(mousePt.x, mousePt.y);*/
 			}
 			
 			/**
@@ -437,6 +463,7 @@
 			protected function centermap():void{
 				var last:Object;
 				for each(var d:AirQualityDataSet in _dataSets){
+					if(d.hidden) continue;
 					for(var di:int=0; di < d.data.length; di++){
 						var dl:Object = d.data[di];
 						if((!last || last.time < dl.time) && dl.lat && dl.lon && dl.lat!="None") last = dl;
@@ -456,9 +483,10 @@
 			public function get state():Object{
 				var cz:Array = map.getCenterZoom();
 				var cl:Location = roundLocation(cz[0] as Location);
-				var ds:String;
-				var dsn:String;
-				var dsp:String;
+				var ds:String;	//dataset uris
+				var dsn:String;	//dataset names
+				var dsp:String;	//dataset pollutants
+				var dsh:String;	//dataset hidden status
 				var dsorted:Array = [];
 				for each(var d:AirQualityDataSet in _dataSets) dsorted.push(d);
 				dsorted.sortOn("dataURI"); 
@@ -466,6 +494,7 @@
 					ds = (ds == null ? di.dataURI : ds + "," + di.dataURI);
 					dsn = (dsn == null ? escape(di.name) : dsn + "," + escape(di.name));
 					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
+					dsh = (dsh == null ? di.hidden.toString() : dsh + "," + di.hidden.toString());
 				} 
 				return {centerLat:cl.lat,
 						centerLon:cl.lon,
@@ -473,6 +502,7 @@
 						dataSource:ds,
 						dataNames:dsn,
 						dataPollutants:dsp,
+						dataHidden:dsh,
 						xBottom:timeline.xBottom,
 						xTop:timeline.xTop,
 						playheadPosition:timeline.playheadPosition};
@@ -485,6 +515,12 @@
 						//pan and zoom appropriately
 						panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 						
+						//set hidden/visibile for each dataset
+						for each(var hds:AirQualityDataSet in _dataSets){
+							if(dsn.indexOf(hds.name) != -1)
+								hds.hidden = Boolean(dsh[dsn.indexOf(hds.name)]);
+						}
+						
 						//set time bounds
 						timeline.xBottom = o.xBottom;
 						timeline.xTop = o.xTop;
@@ -492,10 +528,11 @@
 						timeline.refresh();
 					};
 
-				//get names, uris, and pollutants of datasets in state
+				//get names, uris, pollutants, and hidden status of datasets in state
 				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
 				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
-				var dsp:Array = (o.dataPollutants is String) ?(o.dataPollutants as String).split(',') : null;
+				var dsp:Array = (o.dataPollutants is String) ? (o.dataPollutants as String).split(',') : null;
+				var dsh:Array = (o.dataHidden is String) ? (o.dataHidden as String).split(',') : null;
 				
 				var loadingCount:int = 0;
 				

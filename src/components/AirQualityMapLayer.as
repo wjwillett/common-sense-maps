@@ -47,7 +47,8 @@ package components
 		protected var _cachedBitmapData:Object = {};
 		protected var _quadTree:QuadTree = new QuadTree(360,180,8);
 		
-		protected var _maxTime:Number; 				//latest time for which to points are displayed (typically paired with the playhead)
+		protected var _minTime:Number;				//earliest time for which points are displayed 
+		protected var _maxTime:Number; 				//latest time for which points are displayed (typically paired with the playhead)
 		
 		protected var _prevMaxPtNums:Object = {}; 	//last point number drawn by the last append pass (indexed by dataURI)
 		protected var _prevPos:Object = {} 			//position of the last point drawn (indexed by dataURI)
@@ -92,6 +93,16 @@ package components
 		}	
 		
 		
+		public function set minTime(m:Number):void{
+			if(m == _minTime) return;
+			dirty.dirty(DirtyFlag.DIRTY);  	//Changing minTime always needs a full redraw
+			_minTime = m;
+		}
+		public function get minTime():Number{
+			return !isNaN(_minTime) ? _minTime : NaN;
+		}
+		
+		
 		public function set maxTime(m:Number):void{
 			if(m == _maxTime) return;
 			if(m < _maxTime || isNaN(_maxTime))dirty.dirty(DirtyFlag.DIRTY);  	//If backtracking, need a full redraw
@@ -99,7 +110,7 @@ package components
 			_maxTime = m;
 		}
 		public function get maxTime():Number{
-			return !isNaN(_maxTime) ? _maxTime : -1;
+			return !isNaN(_maxTime) ? _maxTime : NaN;
 		}
 		
 		
@@ -192,7 +203,9 @@ package components
 			//for each of the sets of points...
 			for each(var ds:AirQualityDataSet in _dataSets){
 				//iterate through recorded points
-				if(!ds.data) continue;
+				
+				//don't draw if data is missing or hidden 
+				if(!ds.data || ds.hidden) continue;
 				
 				//start from the last drawn point if possible
 				var firstPoint:int = (dirty.check(DirtyFlag.APPEND) && _prevMaxPtNums[ds.dataURI]) ?  _prevMaxPtNums[ds.dataURI] : 0;
@@ -203,8 +216,10 @@ package components
 					//don't plot points without GPS data
 					if(!point.lat || point.lat == "None") continue;
 					
-					//don't plot points after the maxtime
-					if(maxTime > 0 && point.time > maxTime) break; 
+					//don't plot points before the mintime 
+					if(!isNaN(minTime) && point.time < minTime)continue;
+					//and finish drawing once we've hit the max time
+					if(!isNaN(maxTime) && point.time > maxTime)break; 
 					
 					//determine location
 					var dLoc:Location = new Location(point.lat,point.lon);

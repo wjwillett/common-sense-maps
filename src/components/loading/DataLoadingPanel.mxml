@@ -32,9 +32,17 @@
 	
 	<mx:RadioButton id="queryRadio" group="{radioGroup}" value="query" selected="false"  
 		label="Specify a Custom Query (Advanced)" fontSize="16"/>
-	<mx:TextInput width="100%" id="queryInput" text="{BASE_DB_QUERY_URL +
-		'?badge_id=00000000000A&amp;reading=mco&amp;start_time=' + '&amp;end_time='}" 
-		visible="{queryRadio.selected}" includeInLayout="{queryRadio.selected}"/>
+	<mx:Canvas width="100%" height="50" visible="{queryRadio.selected}" includeInLayout="{queryRadio.selected}">
+		<mx:TextInput id="queryInput" text="{BASE_DB_QUERY_URL +
+			'?badge_id=00000000000A&amp;reading=mco&amp;start_time=' + int((new Date().time) / 1000 - 3 * 3600) +
+			'&amp;end_time=' + int((new Date().time) / 1000)}" 
+			  bottom="0" left="49" right="0"/>
+		<mx:TextInput right="0" top="0" width="63" text="co" id="customReading"/>
+		<mx:TextInput top="0" left="49" right="135" text="Custom Query" id="customName"/>
+		<mx:Label text="Name" left="0" top="0" fontSize="12"/>
+		<mx:Label text="Reading" right="71" fontSize="12"/>
+		<mx:Label text="Query" bottom="0" left="0" fontSize="12"/>
+	</mx:Canvas>
 	<mx:HBox width="100%" horizontalAlign="right">
 		<mx:Button id="loadButton" label="Load" click="{onLoadClick()}" enabled="{!customRadio.selected || badgeIdList.selectedIndex &gt; -1 &amp;&amp;  pollutantList.selectedIndex &gt; -1}"/>
 		<mx:Button id="cancelButton" label="Cancel" click="{onCancelClick()}"/>
@@ -144,7 +152,9 @@
 					}
 				}
 				else if(radioGroup.selectedValue=='query'){
-					info.push({name:queryInput.text});
+					info.push({name:customName.text,
+							url:queryInput.text,
+							reading:customReading.text});
 				}
 				return info; 
 			}	
