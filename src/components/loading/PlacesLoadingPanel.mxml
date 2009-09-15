@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="700" styleName="cspopup" >
+	<mx:RadioButtonGroup id="radioGroup"/>
+	<mx:Label text="places" styleName="csH1"/>
+	<mx:HBox width="100%" verticalAlign="middle">
+		<mx:VBox width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+			<mx:Label text="Enter Street Address:"/>
+			<mx:TextInput id="streetAddress"/>
+			<mx:Label text="Enter badge number:"/>
+			<mx:ComboBox id="badgeCombo" dataProvider="{BADGES}" labelField="name"></mx:ComboBox>
+			<mx:Label text="Enter area radius around:"/>
+			<mx:ComboBox id="areaRadius" dataProvider="{AREARADII}" labelField="name"></mx:ComboBox>
+		</mx:VBox>
+		<mx:VBox height="100%" width="180">
+			<mx:DateChooser id="dateChooser" borderColor="#FFFFFF" selectedDate="{new Date()}"
+				allowMultipleSelection="true" allowDisjointSelection="false" showToday="false" width="180"/>
+			<mx:Text text="{(dateChooser.selectedRanges[0].rangeStart as Date).toLocaleDateString()
+			       } - {(dateChooser.selectedRanges[0].rangeEnd as Date).toLocaleDateString()}" width="177"/>
+		</mx:VBox>
+		
+	</mx:HBox>
+	<mx:HBox width="100%" horizontalAlign="right">
+		<mx:Button id="loadButton" label="Load" click="{geocodeAddress(event, streetAddress.text,areaRadius.selectedItem.id)}" enabled="{!badgeCombo.selectedIndex &gt; -1 &amp;&amp;  dateChooser.selectedRanges}"/>
+		<!--<mx:Button id="cancelButton" label="Cancel" click="{onCancelClick()}"/>-->
+	</mx:HBox>
+	
+	<mx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import etc.AirQualityColors;
+			import mx.collections.ArrayCollection;
+			
+			public static const GOOGLE_API_KEY:String = "ABQIAAAA_3td1tmQ7cbEqh_kQLucMRRl_cuzxjTWTH-RUAWem_qXsJGROBTgOLdo3jwgLuyWZ63_ndi7h3-PQg";
+			
+			public static const DATA_INDEX_XML_URL:String = "http://www.commonsensecommunity.com/data/recommended_datasets.json";
+			
+			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
+			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
+			
+			protected const DEFAULT_POLLUTANT:String = AirQualityColors.CO_8HR;
+			
+			protected const BADGES:Array = [
+				{name:"All Badges",id:'all'},
+				{name:"Badge 1",id:'000000000001'},
+				{name:"Badge 2",id:'000000000002'},
+				{name:"Badge 3",id:'000000000003'},
+				{name:"Badge 4",id:'000000000004'},
+				{name:"Badge 5",id:'000000000005'},
+				{name:"Badge 6",id:'000000000006'},
+				{name:"Badge 7",id:'000000000007'},
+				{name:"Badge 8",id:'000000000008'},
+				{name:"Badge 9",id:'000000000009'},
+				{name:"Badge 10",id:'00000000000A'},
+				{name:"Badge 11",id:'00000000000B'},
+				{name:"Badge 12",id:'00000000000C'},
+				{name:"Badge 13",id:'00000000000D'},
+				{name:"Badge 14",id:'00000000000E'},
+				{name:"Badge 15",id:'00000000000F'},
+				{name:"Badge 16",id:'000000000010'},
+				{name:"Badge 17",id:'000000000011'},
+				{name:"Badge 18",id:'000000000012'},
+				{name:"Badge 19",id:'000000000013'},
+				{name:"Badge 20",id:'000000000014'},
+				{name:"Badge 21",id:'000000000015'},
+				{name:"Badge 22",id:'000000000016'}];
+				
+			protected const AREARADII:Array = [
+				{name:"1 Mile",id:'1'},
+				{name:"2 Mile",id:'2'},
+				{name:"3 Mile",id:'3'}];
+				
+			protected const POLLUTANTS:Array = [
+				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
+				//{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
+				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
+				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:,multiplier:},
+				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:,multiplier:},
+				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
+				];
+				
+				
+			public var onLoadClick:Function;
+			public var onCancelClick:Function;
+			public var geocodedLatLonRange:Object;
+		
+			public function getSelectedInfo():Array{
+				var info:Array = []
+				// Variables from filled out loader panel
+				var b:Object = badgeCombo.selectedItem;
+				var l:Object = geocodedLatLonRange;
+				
+				info.push({name:buildName(b.name),
+					url:buildURL(b.id, l.latMin, l.latMax, l.lonMin, l.lonMax),
+					reading:DEFAULT_POLLUTANT});
+				
+				return info; 
+			}	
+					
+			
+			
+			protected function buildName(badgeName:String):String{
+				var name:String = badgeName + " " + DEFAULT_POLLUTANT;
+				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
+					name += (" (" + (dateChooser.selectedRanges[0].rangeStart as Date).toLocaleDateString() + " - " + 
+			       			(dateChooser.selectedRanges[0].rangeEnd as Date).toLocaleDateString() + ")");
+				}				 		
+				return name;
+			}
+			
+			
+			protected function buildURL(badgeId:String=null, latMin:String=null, latMax:String=null, lonMin:String=null, lonMax:String=null):String{
+				if(badgeId == "all"){
+					var url:String = BASE_DB_QUERY_URL + "?reading=" + "mco" + "&lat_min=" + latMin + "&lat_max=" + latMax + "&lon_min=" + lonMin + "&lon_max=" + lonMax;
+					//var url:String = BASE_DB_QUERY_URL + "?reading=" + "mco" + "&lat_min=" + latMax + "&lat_max=" + latMin + "&lon_min=" + lonMax + "&lon_max=" + lonMin;
+					//var url:String = BASE_DB_QUERY_URL + "?reading=" + "mco";
+				}
+				else
+					var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : badgeCombo.selectedItem.id) + "&reading=" + "mco" + "&lat_min=" + latMin + "&lat_max=" + latMax + "&lon_min=" + lonMin + "&lon_max=" + lonMax;
+					
+				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
+					url += "&start_time=" + ((dateChooser.selectedRanges[0].rangeStart as Date).time / 1000) +
+						"&end_time=" + ((dateChooser.selectedRanges[0].rangeEnd as Date).time / 1000 + 3600 * 24);
+				}
+				trace("query url will be: "+url);			 		
+				return url;
+			}
+			
+			// Added to provide geocoding abilities
+			protected function geocodeAddress(e:Event, streetAddress:String, areaRadius:String):void{
+				// Test data for now - replace with http request to Google Geocoder
+				// Calculate mins and maxes based off of what geocoder returns
+				// Test location: Downtown Berkeley: lat=37.8716667, lon=-122.2716667
+				var request:URLRequest = new URLRequest("http://maps.google.com/maps/geo?q=" + streetAddress + "&output=csv&oe=utf8&sensor=false&key=" + GOOGLE_API_KEY);
+				trace("Query to google: " + "http://maps.google.com/maps/geo?q=" + streetAddress + "&output=csv&oe=utf8&sensor=false&key=" + GOOGLE_API_KEY);
+				var loader:URLLoader = new URLLoader(request);
+				var geocodeReturn:Array;
+				loader.addEventListener(ProgressEvent.PROGRESS,function(pe:ProgressEvent):void{
+						//geocodeButton.label = "Searching...";					
+				});
+				loader.addEventListener(Event.COMPLETE, 
+				function(e:Event){
+					geocodeReturn = loader.data.split(',');
+					if(!(geocodeReturn[2] == '0' || geocodeReturn[3] == '0')){
+						trace(loader.data);
+						//geocodeButton.label = "Location Found!";
+						
+						geocodedLatLonRange = {latMin:Number(geocodeReturn[2])-(Number(areaRadius)/69.172), 
+											   latMax:Number(geocodeReturn[2])+(Number(areaRadius)/69.172), 
+											   lonMin:Number(geocodeReturn[3])-(Number(areaRadius)/69.172), 
+											   lonMax:Number(geocodeReturn[3])+(Number(areaRadius)/69.172)};
+						
+					   	onLoadClick(e,geocodeReturn, areaRadius);
+					} //else
+						//geocodeButton.label = "Location Invalid!";	
+				});
+			}
+			
+			
+			
+			
+		]]>
+	</mx:Script>
+	
+	
+</mx:VBox>
