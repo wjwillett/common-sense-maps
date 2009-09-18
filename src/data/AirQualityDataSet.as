@@ -30,6 +30,11 @@ package data
 		
 		public var hidden:Boolean = false;
 		
+		// Added to implement hotspots filtering
+		public var limitCO:Boolean = false;
+		public var minCOLevel:Number = 0.0;
+		public var maxCOLevel:Number = 0.0;
+		
 		/****************************** Data Loading Methods ************************************/
 		protected function loadData(source:Object):void{
 			//Handle embedded data		
@@ -66,12 +71,17 @@ package data
 						throw new Error("Row " + i + ":(" + entries[i] + ") from data source \"" + 
 							dataURI + "\" has a different number of elements than the header row:(" +
 							entries[0] + ").");  
-					}  
-					var pointData:Object = {}
-					for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
-					//annotate the point with a reference to its source
-					pointData.sourceURI = dataURI;
-					_data.push(pointData);
+					} 
+					// ADD CHECK FOR CO LEVEL HERE!!!
+					if(limitCO == true && (entry[5] < minCOLevel || entry[5] > maxCOLevel))
+						continue;
+					else{
+						var pointData:Object = {}
+						for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
+						//annotate the point with a reference to its source
+						pointData.sourceURI = dataURI;
+						_data.push(pointData);
+					}
 				}
 			}
 			
