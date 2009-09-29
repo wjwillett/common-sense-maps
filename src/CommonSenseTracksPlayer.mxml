@@ -639,10 +639,11 @@
 						if(info && info.length > 0){
 							
 							//DEBUG
+							/*
 							info[0] = {name:"Berkeley PM (7 July 2009)",
 								url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
 								reading:"pm25"};
-							
+							*/
 														
 							loadData(info[0].url,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
 						} 

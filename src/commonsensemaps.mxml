@@ -188,13 +188,13 @@
 				/*A set of different options for what to do on startup. 1-4 are helpful when debugging*/
 					
 				//0.Production startup. Requires a click-through disclaimer before using the site	
-				triggerDisclaimerPopup(runOnStartup);
+				//triggerDisclaimerPopup(runOnStartup);
 				
 				//1.Alternative startup. Jump straight into a load
 				//runOnStartup();
 				
 				//2.Alternative startup, loads a small test dataset
-				//quickStartup();
+				quickStartup();
 					
 				//3.Alternative startup, just pops up the loader
 				//triggerLoadingPopup();

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" 
-	width="700" styleName="cspopup" >
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:ns1="components.*"
+	width="950" styleName="cspopup" >
 	<mx:RadioButtonGroup id="radioGroup"/>
 	<mx:Label text="hotspots" styleName="csH1"/>
 	<mx:HBox width="100%" verticalAlign="middle">
@@ -9,10 +9,13 @@
 			<!--<mx:TextInput id="streetAddress"/>-->
 			<mx:Label text="Enter badge number:"/>
 			<mx:ComboBox id="badgeCombo" dataProvider="{BADGES}" labelField="name"></mx:ComboBox>
-			<mx:Label text="Enter minimum CO Level:" />
+			<!--<mx:Label text="Enter minimum CO Level:" />
 			<mx:TextInput id="minCOLevel" />
 			<mx:Label text="Enter maximum CO Level:" />
-			<mx:TextInput id="maxCOLevel" />
+			<mx:TextInput id="maxCOLevel" />-->
+			<mx:Label text="Select a CO Level Range:" />
+			<ns1:AirQualityLegend height="25" width="650"/>
+			<mx:HSlider id="coSlider" thumbCount="2" minimum="0" maximum="30" values="[0, 30]" tickInterval="1" width="650"/>
 			<!--<mx:Label text="Enter area radius around:"/>-->
 			<!--<mx:ComboBox id="areaRadius" dataProvider="{AREARADII}" labelField="name"></mx:ComboBox>-->
 		</mx:VBox>
@@ -25,7 +28,7 @@
 		
 	</mx:HBox>
 	<mx:HBox width="100%" horizontalAlign="right">
-		<mx:Button id="loadButton" label="Load" click="{geocodeAddress(event, 'West Oakland, CA','1', minCOLevel.text, maxCOLevel.text)}" enabled="{!badgeCombo.selectedIndex &gt; -1 &amp;&amp;  dateChooser.selectedRanges}"/>
+		<mx:Button id="loadButton" label="Load" click="{geocodeAddress(event, 'West Oakland, CA','1', coSlider.values[0], coSlider.values[1])}" enabled="{!badgeCombo.selectedIndex &gt; -1 &amp;&amp;  dateChooser.selectedRanges}"/>
 		<!--<mx:Button id="cancelButton" label="Cancel" click="{onCancelClick()}"/>-->
 	</mx:HBox>
 	
@@ -87,6 +90,9 @@
 			public var onLoadClick:Function;
 			public var onCancelClick:Function;
 			public var geocodedLatLonRange:Object;
+			
+			//public var minCOLevel:Number = coSlider.values[0];
+			//public var maxCOLevel:Number = coSlider.values[1];
 		
 			public function getSelectedInfo():Array{
 				var info:Array = []
@@ -131,9 +137,11 @@
 			}
 			
 			// Added to provide geocoding abilities
-			protected function geocodeAddress(e:Event, streetAddress:String, areaRadius:String, minCOLevel:String, maxCOLevel:String):void{
+			protected function geocodeAddress(e:Event, streetAddress:String, areaRadius:String, minCOLevel:Number, maxCOLevel:Number):void{
 				// Calculate mins and maxes based off of what geocoder returns
 				// Test location: Downtown Berkeley: lat=37.8716667, lon=-122.2716667
+				if(maxCOLevel == 30) maxCOLevel = Number.POSITIVE_INFINITY;
+				
 				var request:URLRequest = new URLRequest("http://maps.google.com/maps/geo?q=" + streetAddress + "&output=csv&oe=utf8&sensor=false&key=" + GOOGLE_API_KEY);
 				trace("Query to google: " + "http://maps.google.com/maps/geo?q=" + streetAddress + "&output=csv&oe=utf8&sensor=false&key=" + GOOGLE_API_KEY);
 				var loader:URLLoader = new URLLoader(request);
@@ -153,7 +161,8 @@
 											   lonMin:Number(geocodeReturn[3])-(Number(areaRadius)/69.172), 
 											   lonMax:Number(geocodeReturn[3])+(Number(areaRadius)/69.172)};
 						
-					   	onLoadClick(e,geocodeReturn, areaRadius, true, Number(minCOLevel), Number(maxCOLevel));
+						minCOLevel = Number(minCOLevel);
+					   	onLoadClick(e,geocodeReturn, areaRadius, true, minCOLevel, maxCOLevel);
 					} //else
 						//geocodeButton.label = "Location Invalid!";	
 				});
