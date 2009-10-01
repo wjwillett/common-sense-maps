@@ -147,13 +147,13 @@
 				else if(radioGroup.selectedValue=='custom'){
 					for each(var b:Object in badgeIdList.selectedItems){
 						info.push({name:buildName(b.name),
-							url:buildURL(b.id),
+							source:buildURL(b.id),
 							reading:pollutantList.selectedItem.abbreviation});
 					}
 				}
 				else if(radioGroup.selectedValue=='query'){
 					info.push({name:customName.text,
-							url:queryInput.text,
+							source:queryInput.text,
 							reading:customReading.text});
 				}
 				return info; 

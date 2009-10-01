@@ -39,6 +39,11 @@
 			toolTip="zoom in" width="25" paddingLeft="0" 
 			paddingRight="0" y="{margin}" x="{margin}"
 			visible="{useAdvancedControls}" />
+	<mx:Button id="zFull" click="{resetZoom()}" label="_" 
+			toolTip="zoom all the way out" width="25" paddingLeft="0" 
+			paddingRight="0" y="{margin+50}" x="{margin}"
+			visible="{useAdvancedControls}"
+			enabled="{_xBottom &gt; xMin || _xTop &lt; xMax}"/>
 
 	<mx:Button id="pauseBtn" x="{margin}" label="||" bottom="{margin}" enabled="{_playing}" 
 		paddingRight="0" paddingLeft="0" click="{stopPlayback(event)}" width="18" 
@@ -46,7 +51,7 @@
 	<mx:Button id="playBtn" x="{margin + 20}" label=">" bottom="{margin}" enabled="{!_playing}"
 		paddingRight="2" paddingLeft="2" click="{startPlayback(event)}" width="20"
 		toolTip="play"/>
-	<mx:VSlider id="playSlider" x="{margin }" y="{playBtn.y - 60}" height="50" value="3"
+	<mx:VSlider id="playSlider" x="{margin }" y="{playBtn.y - 60}" height="50" value="{Math.log(timeMultiplier)*Math.LOG10E}"
 		minimum="0.3" maximum="4" labels="{['.','..','...','....']}" dataTipFormatFunction="{playScrollDataTip}"
 		toolTip="{'playback speed: ' + int(Math.pow(10,playSlider.value)) + 'x'}" liveDragging="true"
 		change="{timeMultiplier=Math.pow(10,playSlider.value)}"/>
@@ -300,14 +305,14 @@
 							var dPt:Point = datapointToLocalPosition(point);
 							
 							//skip if position not different different from last plotted point
-							if(!selections.isSelected(point) && _prevPos[ds.dataURI]
+							if((!selections || !selections.isSelected(point)) && _prevPos[ds.dataURI]
 									&& Math.abs(_prevPos[ds.dataURI].x - dPt.x) < pointOverlapTolerance 
 									&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance){
 								continue;
 							}  
 							
 							//plot the point to the current bitmapdata
-							renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point),false,
+							renderer.plotPoint(point,dPt,ds.pollutant,selections && selections.isSelected(point),false,
 								(point.time > playheadPosition || ds.hidden));
 							_prevPos[ds.dataURI] = dPt;
 						}
@@ -399,6 +404,7 @@
 					
 					labels.addChild(l);
 					l.onRemoveClick = function(e:MouseEvent):void{
+							stopPlayback();
 							// a very shoddy way of finding the dataset to remove.
 							//  however, just using 'd' doesn't work because of a scoping issue
 							for each(var dr:AirQualityDataSet in _dataSets){
@@ -572,6 +578,23 @@
 				refresh();
 			}
 			
+			public function resetZoom():void{
+				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
+				
+				//reset top and bottom to max extent
+				_xBottom = xMin;
+				_xTop = xMax;
+				
+				//if playhead is at the right edge of the view, 
+				// leave it stuck to the right edge as we zoom
+				if(playheadRight) playheadPosition = xTop;
+				else playheadPosition = playheadPosition;
+
+				dispatchEvent(new TimelineEvent(TimelineEvent.TIMELINE_ZOOMED,playheadPosition));
+				dirty.dirty();
+				refresh();
+			}
+			
 			/****************************** Mouse Event Handling Methods ************************************/
 			
 			protected function handleMouseClick(me:MouseEvent):void{
@@ -660,9 +683,11 @@
 					var time:Number = Number(dataPoint.time * 1000);
 					var date:Date = new Date(time);
 					var value:Number = Number(dataPoint.value);
+					var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
 					_plotTip.text = date.toLocaleDateString() + "\n" +
 						date.toLocaleTimeString() + "\n" + value.toPrecision(5) + " (" + cat + ")" +
-						((dataPoint.lat == null || dataPoint.lat == "None") ? "\n!NO GPS DATA" : "");
+						((dataPoint.lat == null || dataPoint.lat == "None") ? "\n!NO GPS DATA" : "") + "\n" +
+						"[" + badgeName + "]";
 					var rightInset:Number = Math.max(0, ptPosition.x + _bitmap.x -
 						 container.localToGlobal(new Point(container.width - _plotTip.width)).x);
 					_plotTip.x = ptPosition.x + _bitmap.x - rightInset;
@@ -780,7 +805,8 @@
 			protected var _playheadDragging:Boolean = false;
 			protected var _timer:Timer;
 			
-			public var framerate:Number = 10; 	//as FPS	
+			public var framerate:Number = 10; 	//as FPS
+			[Bindable]	
 			public var timeMultiplier:Number = 1000;
 			
 			public function startPlayback(e:Event=null):void{

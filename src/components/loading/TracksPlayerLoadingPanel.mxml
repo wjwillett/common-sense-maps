@@ -62,7 +62,7 @@
 				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
 				//{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
 				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
-				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:,multiplier:},
+				{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:'',multiplier:1},
 				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:,multiplier:},
 				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
 				];
@@ -76,7 +76,7 @@
 				var info:Array = []
 				var b:Object = badgeCombo.selectedItem;
 				info.push({name:buildName(b.name),
-					url:buildURL(b.id),
+					source:buildURL(b.id),
 					reading:DEFAULT_POLLUTANT});
 				return info; 
 			}	

@@ -4,31 +4,33 @@
 	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*" 
 	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]">
 	
-	<mx:Canvas id="container" backgroundColor="0xffffff" 
-		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
-		left="10" top="10" right="10" bottom="30"/>
-	<!--<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
-		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">-->
-	<mx:HBox bottom="115" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
-		<mx:VBox cornerRadius="15" width="115">
-			<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
-			<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
-		</mx:VBox>
-		<mx:Button label="{timeline._playing ? '||' : '&gt;'}" height="100%" fontSize="23" id="bigPlayPause" 
-			click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
-	</mx:HBox>
-	<!--</mx:Canvas>-->
+	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
+		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"/>
 	
-	<ns1:AirQualityTimeLine id="timeline" height="80" creationComplete="{setup()}" 
-		bottom="30" left="10" right="10" margin="5" timeMultiplier="25" useAdvancedControls="false"/>
-	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
-		
-	<mx:ProgressBar id="progressBar" visible="true" includeInLayout="false" mode="manual" left="40" right="20" bottom="50"/>	
+	<mx:VDividedBox left="15" top="15" right="15" width="100" height="100%">
+		<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" creationComplete="{setup()}"/>
+		<mx:VBox width="100%">
+			<mx:HBox width="100%" verticalAlign="middle">
+				<mx:Button label="+ load additional data" click="{triggerLoadingPopup()}"  
+					height="25"/>
+				<mx:Button label="refresh" click="{reloadDataSets()}"  
+					toolTip="reloads all loaded datasets a any new data"
+					height="25"/>
+				<mx:Button label="center map on last point" click="{centermap()}"  
+					color="#62D000" fillAlphas="[1.0, 1.0]" fillColors="[#FFFFFF, #E6E6E6]"
+					height="25"/>
+				<mx:Canvas backgroundColor="#FFFFFF" borderStyle="solid" cornerRadius="5" width="135" borderColor="#FFFFFF" borderThickness="0" backgroundAlpha="0.75">
+					<mx:CheckBox label="follow playback" id="followPlayback" color="#000000" fontSize="10" x="12" y="1" selected="true" fontWeight="bold"/>
+				</mx:Canvas>
+				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>	
+			</mx:HBox>
+			<ns1:AirQualityLegend top="230" left="15" width="150" height="160"/>
+		</mx:VBox>
+	</mx:VDividedBox>
+	
 
 	<mx:Script>
 		<![CDATA[
-			//import components.loading.TracksPlayerLoadingPanel;
-			import components.loading.PlacesLoadingPanel;
 			import com.adobe.serialization.json.JSON;
 			import commentspace.events.EntityEvent;
 			import mx.events.CollectionEventKind;
@@ -71,12 +73,11 @@
 			[Embed(source="assets/cross.png")]
 			protected const CancelIcon:Class;
 			
-			
 			/******** Source Data **********************************************************/
-			//[Embed(source = "assets/2009-05-14 (West Oakland PM + GPS).csv", mimeType="application/octet-stream")]
-			//protected const Embedded20090514PMData:Class;
-			//protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv?";
-
+			[Embed(source = "assets/2009-03-31 (Berkeley - Pleasanton Drive).csv", mimeType="application/octet-stream")]
+			protected const EmbeddedCOData:Class;
+			[Embed(source = "assets/2009-07-07 (Berkeley PM + GPS).csv", mimeType="application/octet-stream")]
+			protected const EmbeddedPMData:Class;
 			
 			/******** Constants **********************************************************/
 			protected const CLICK_RADIUS:Number = 2;
@@ -138,14 +139,12 @@
 				_plotLayer.dataSets = _dataSets;
 				_plotLayer.selections = _selections;
 				
-				
 				map.addChild(_plotLayer);
-				//map.addChild(_flagsClip);
 				
 				map.addChild(new MapControls(map));
-				
+
 				//set the map center
-				map.setCenterZoom(new Location(37.803,-122.298),17);
+				map.setCenterZoom(new Location(37.803,-122.298),14);
 				
 				//Listeners for updating state 
 				map.addEventListener(MapEvent.STOP_PANNING, dispatchUpdated);
@@ -189,21 +188,36 @@
 					/* var quickdata:Object = {"name":"All Badges Carbon Monoxide (past 3 hours)",
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
 						"reading":"co"}; */
-					var quickdata:Object = {"name":"Badges 4 Carbon Monoxide (past 3 hours)",
-						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?badge=000000000004&reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
+					 var quickdata:Object = {"name":"Berkeley to Pleasanton CO",
+						"source":EmbeddedCOData,
 						"reading":"co"}; 
-					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();});
+					/* var quickdata:Object = {"name":"Berkeley PM2.5",
+						"source":EmbeddedPMData,
+						"reading":"pm25"}; */
+					loadData(quickdata.source,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();});
+					_plotLayer.pointDiameter = 20;
+					_plotLayer.pointOverlapTolerance = 15;
+					timeline.pointDiameter = 12;
+					timeline.timeMultiplier = 60;
+					map.setZoom(13);
 				}
+				
+				
+				/*A set of different options for what to do on startup. 1-4 are helpful when debugging*/
 					
-				//Requires a click-through disclaimer before using the site	
+				//0.Production startup. Requires a click-through disclaimer before using the site	
 				//triggerDisclaimerPopup(runOnStartup);
-				//Jump straight into a load
+				
+				//1.Alternative startup. Jump straight into a load
 				//runOnStartup();
-				//quickStartup();	
-				//Alternative startup, just pops up the loader
-				triggerLoadingPopup();
-				//plotExistingMarkers(); //probably removed forever?				
-				//let commentspace know we're loaded
+				
+				//2.Alternative startup, loads a small test dataset
+				quickStartup();
+					
+				//3.Alternative startup, just pops up the loader
+				//triggerLoadingPopup();
+				
+				//4. Do nothing. Just let commentspace know we're loaded
 				//dispatchComplete();	
 					
 			}
@@ -242,12 +256,20 @@
 						createMenu(de.mousePosition,de.dataPoint);
 					});
 				
-				//handler for dataset removal
-				timeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
+				//handlers for dataset removal and hide/unhide
+				var handleRemove:Function = function(de:DataSetEvent):void{			
 						_plotLayer.refresh(true);
 						timeline.refresh(true);
 						dispatchUpdated();
-					});
+					};
+				var handleHide:Function = function(de:DataSetEvent):void{			
+						timeline.refresh();
+						_plotLayer.refresh(true);
+						dispatchUpdated();
+					};
+				timeline.addEventListener(DataSetEvent.DATASET_REMOVED, handleRemove);
+				timeline.addEventListener(DataSetEvent.DATASET_HIDDEN, handleHide);
+				timeline.addEventListener(DataSetEvent.DATASET_UNHIDDEN, handleHide);
 					
 				//time scrubbing for map
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
@@ -258,7 +280,7 @@
 							//FIXME: This is a VERY quick implementation that loops through all the points every time.
 							// optimize the search for the last point(e.g. only check since the last update) and 
 							// smooth the playback	
-							if(_dataSets[0] && (_dataSets[0] as AirQualityDataSet).data){
+							if(followPlayback.selected && _dataSets.length > 0 && (_dataSets[0] as AirQualityDataSet).data){
 								var ds:AirQualityDataSet = (_dataSets[0] as AirQualityDataSet);
 								
 								//iterate through points
@@ -267,7 +289,7 @@
 									//Save the index of the last point drawn at/after the playhead 							
 									if(Number(point.time) > te.playheadTime && point.lat && point.lat != "None" && point.lat !=0){
 										//panAndZoomTo(new Location(point.lat, point.lon),map.getZoom());
-										//map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
+										map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),map.grid.zoomLevel);
 										break;
 									}
 								}
@@ -276,9 +298,16 @@
 						} 
 					});
 				
-				//Listeners for updating state on zoom and pan
-				timeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
-				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
+				//Listener for updating map min and max times on the map when timeline zooms and pans
+				var timelineMoveHandler:Function = function(te:TimelineEvent):void{
+						if(!isNaN(timeline.xTop)) _plotLayer.maxTime = timeline.xTop;
+						if(!isNaN(timeline.xBottom)) _plotLayer.minTime = timeline.xBottom;
+						_plotLayer.refresh();
+						dispatchUpdated();
+					};
+				timeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,timelineMoveHandler);
+				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLING,timelineMoveHandler);
+				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,timelineMoveHandler);
 				
 				//Update state whenever the timeline stops (do not try to update during playback)
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
@@ -298,16 +327,16 @@
 				
 				progressBar.visible = true;
 				progressBar.includeInLayout = true;
+				progressBar.minimum = 0;
+				progressBar.setProgress(0,1);
 				
 				var handleProgress:Function = function(pe:ProgressEvent):void{
-					progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
-					progressBar.label = (int(pe.bytesLoaded / pe.bytesTotal * 100) + 
-						"% (" + pe.bytesLoaded + " of " + pe.bytesTotal + " bytes)");
-				}
+						progressBar.setProgress(pe.bytesLoaded,pe.bytesTotal);
+						progressBar.label = (int(pe.bytesLoaded / pe.bytesTotal * 100) + 
+							"% (" + pe.bytesLoaded + " of " + pe.bytesTotal + " bytes)");
+					}
 				
-				var ds:AirQualityDataSet = new AirQualityDataSet(source,pollutant,name) 
-				ds.addEventListener(ProgressEvent.PROGRESS, handleProgress);
-				ds.addEventListener(Event.COMPLETE, function(e:Event):void{
+				var finishLoad:Function = function(e:Event=null):void{
 						progressBar.visible = false;
 						progressBar.setProgress(0,1);
 						progressBar.includeInLayout = false;
@@ -316,7 +345,14 @@
 						_plotLayer.refresh(true);
 						dispatchUpdated();
 						if(onComplete != null) onComplete();
-				});
+					};
+			
+				var ds:AirQualityDataSet = new AirQualityDataSet(source,pollutant,name);	
+				if(source is Class) finishLoad();
+				else{
+					ds.addEventListener(ProgressEvent.PROGRESS, handleProgress);
+					ds.addEventListener(Event.COMPLETE,finishLoad);
+				} 
 			}
 			
 			
@@ -336,6 +372,14 @@
 			 *   added to the display.
 			 */
 			protected function createMenu(mousePt:Point,dataPoint:Object):void{
+				
+				
+				//Short-term solution, always center on point click, bypassing the menu
+				if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
+				if(dataPoint.time) timeline.centerOn(dataPoint.time);
+				
+				
+				/* TODO: Bring all of this code back once commenting is avaliable. 
 				//set up menu XML
 				var menuXML:XML = XML(<root/>);
 				var centerXML:XML = XML(<item/>);
@@ -376,7 +420,7 @@
 							_plotLayer.refresh(true);
 							timeline.refresh(true);
 						}
-						//When Add is clicked - center both views on point
+						//When Center is clicked - center both views on point
 						else if(me.item.@event == 'center'){
 							if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
 							if(dataPoint.time) timeline.centerOn(dataPoint.time);
@@ -391,7 +435,7 @@
 						else menu.hide();
 					});
 					
-	            menu.show(mousePt.x, mousePt.y);
+	            menu.show(mousePt.x, mousePt.y);*/
 			}
 			
 			/**
@@ -461,6 +505,7 @@
 			protected function centermap():void{
 				var last:Object;
 				for each(var d:AirQualityDataSet in _dataSets){
+					if(d.hidden) continue;
 					for(var di:int=0; di < d.data.length; di++){
 						var dl:Object = d.data[di];
 						if((!last || last.time < dl.time) && dl.lat && dl.lon && dl.lat!="None") last = dl;
@@ -469,7 +514,7 @@
 				}
 				if(last) panAndZoomTo(new Location(last.lat,last.lon), map.getZoom());
 			}
-						
+			
 			
 			/******** Implements IStatefulVis *************************************************/	
 				
@@ -480,9 +525,10 @@
 			public function get state():Object{
 				var cz:Array = map.getCenterZoom();
 				var cl:Location = roundLocation(cz[0] as Location);
-				var ds:String;
-				var dsn:String;
-				var dsp:String;
+				var ds:String;	//dataset uris
+				var dsn:String;	//dataset names
+				var dsp:String;	//dataset pollutants
+				var dsh:String;	//dataset hidden status
 				var dsorted:Array = [];
 				for each(var d:AirQualityDataSet in _dataSets) dsorted.push(d);
 				dsorted.sortOn("dataURI"); 
@@ -490,6 +536,7 @@
 					ds = (ds == null ? di.dataURI : ds + "," + di.dataURI);
 					dsn = (dsn == null ? escape(di.name) : dsn + "," + escape(di.name));
 					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
+					dsh = (dsh == null ? di.hidden.toString() : dsh + "," + di.hidden.toString());
 				} 
 				return {centerLat:cl.lat,
 						centerLon:cl.lon,
@@ -497,6 +544,7 @@
 						dataSource:ds,
 						dataNames:dsn,
 						dataPollutants:dsp,
+						dataHidden:dsh,
 						xBottom:timeline.xBottom,
 						xTop:timeline.xTop,
 						playheadPosition:timeline.playheadPosition};
@@ -509,6 +557,12 @@
 						//pan and zoom appropriately
 						panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 						
+						//set hidden/visibile for each dataset
+						for each(var hds:AirQualityDataSet in _dataSets){
+							if(dsn.indexOf(hds.name) != -1)
+								hds.hidden = Boolean(dsh[dsn.indexOf(hds.name)]);
+						}
+						
 						//set time bounds
 						timeline.xBottom = o.xBottom;
 						timeline.xTop = o.xTop;
@@ -516,10 +570,11 @@
 						timeline.refresh();
 					};
 
-				//get names, uris, and pollutants of datasets in state
+				//get names, uris, pollutants, and hidden status of datasets in state
 				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
 				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
-				var dsp:Array = (o.dataPollutants is String) ?(o.dataPollutants as String).split(',') : null;
+				var dsp:Array = (o.dataPollutants is String) ? (o.dataPollutants as String).split(',') : null;
+				var dsh:Array = (o.dataHidden is String) ? (o.dataHidden as String).split(',') : null;
 				
 				var loadingCount:int = 0;
 				
@@ -632,46 +687,34 @@
 			 *  outside.
 			 */
 			protected function triggerLoadingPopup():void{
-				//var loadPanel:TracksPlayerLoadingPanel = new TracksPlayerLoadingPanel();
-				var loadPanel:PlacesLoadingPanel = new PlacesLoadingPanel();
+				var dataPanel:DataLoadingPanel = new DataLoadingPanel();
 				
 				//when the okay button is clicked
-				loadPanel.onLoadClick = function(e:Event=null, geocodeReturn:Array=null, areaRange:String="1"):void{
-					if(areaRange == "1")
-						map.setCenterZoom(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])),15); // need to make zoom level customizable!
-					else if(areaRange == "2")
-						map.setCenterZoom(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])),14);
-					else
-						map.setCenterZoom(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])),13);
-						
-						var info:Array = loadPanel.getSelectedInfo();
+				dataPanel.onLoadClick = function(e:Event=null):void{
+						var info:Array = dataPanel.getSelectedInfo();
 						if(info && info.length > 0){
 							
-							//DEBUG
-							/*
-							info[0] = {name:"Berkeley PM (7 July 2009)",
-								url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
-								reading:"pm25"};
-							*/
+							//clear the existing plots
+							for(var ds:String in _dataSets) delete _dataSets[ds];
+							_plotLayer.refresh(true);
+							timeline.refresh(true);
 							
-							loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
+							var pollutant:String = info[0].reading;
+							for each (var i:Object in info) loadData(i.source,pollutant,i.name);
 						} 
-						PopUpManager.removePopUp(loadPanel);
+						PopUpManager.removePopUp(dataPanel);
 					};
 					//when the cancel button is clicked
 					//when the okay button is clicked
-				loadPanel.onCancelClick = function(e:Event=null):void{
-						PopUpManager.removePopUp(loadPanel);
+				dataPanel.onCancelClick = function(e:Event=null):void{
+						PopUpManager.removePopUp(dataPanel);
 					};
-				PopUpManager.addPopUp(loadPanel,this,true);
-				PopUpManager.centerPopUp(loadPanel);
+				PopUpManager.addPopUp(dataPanel,this,true);
+				PopUpManager.centerPopUp(dataPanel);
 			}
 			
 		]]>
 	</mx:Script>
 	<mx:Style source="assets/commonsensestyles.css"/>
 	
-
-	
 </mx:Application>
-

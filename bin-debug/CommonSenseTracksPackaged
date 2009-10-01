@@ -7,17 +7,17 @@
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
 		left="10" top="10" right="10" bottom="30"/>
-	<!--<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
-		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">-->
-	<mx:HBox bottom="115" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
-		<mx:VBox cornerRadius="15" width="115">
-			<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
-			<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
-		</mx:VBox>
-		<mx:Button label="{timeline._playing ? '||' : '&gt;'}" height="100%" fontSize="23" id="bigPlayPause" 
-			click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
-	</mx:HBox>
-	<!--</mx:Canvas>-->
+	<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
+		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">
+		<mx:HBox bottom="85" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
+			<mx:VBox cornerRadius="15" width="115">
+				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
+				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
+			</mx:VBox>
+			<mx:Button label="{timeline._playing ? '||' : '&gt;'}" height="100%" fontSize="23" id="bigPlayPause" 
+				click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
+		</mx:HBox>
+	</mx:Canvas>
 	
 	<ns1:AirQualityTimeLine id="timeline" height="80" creationComplete="{setup()}" 
 		bottom="30" left="10" right="10" margin="5" timeMultiplier="25" useAdvancedControls="false"/>
@@ -27,8 +27,7 @@
 
 	<mx:Script>
 		<![CDATA[
-			//import components.loading.TracksPlayerLoadingPanel;
-			import components.loading.PlacesLoadingPanel;
+			import components.loading.TracksPlayerLoadingPanel;
 			import com.adobe.serialization.json.JSON;
 			import commentspace.events.EntityEvent;
 			import mx.events.CollectionEventKind;
@@ -142,8 +141,8 @@
 				map.addChild(_plotLayer);
 				//map.addChild(_flagsClip);
 				
-				map.addChild(new MapControls(map));
-				
+				//map.addChild(new MapControls(map));
+
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),17);
 				
@@ -267,7 +266,7 @@
 									//Save the index of the last point drawn at/after the playhead 							
 									if(Number(point.time) > te.playheadTime && point.lat && point.lat != "None" && point.lat !=0){
 										//panAndZoomTo(new Location(point.lat, point.lon),map.getZoom());
-										//map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
+										map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
 										break;
 									}
 								}
@@ -632,29 +631,20 @@
 			 *  outside.
 			 */
 			protected function triggerLoadingPopup():void{
-				//var loadPanel:TracksPlayerLoadingPanel = new TracksPlayerLoadingPanel();
-				var loadPanel:PlacesLoadingPanel = new PlacesLoadingPanel();
+				var loadPanel:TracksPlayerLoadingPanel = new TracksPlayerLoadingPanel();
 				
 				//when the okay button is clicked
-				loadPanel.onLoadClick = function(e:Event=null, geocodeReturn:Array=null, areaRange:String="1"):void{
-					if(areaRange == "1")
-						map.setCenterZoom(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])),15); // need to make zoom level customizable!
-					else if(areaRange == "2")
-						map.setCenterZoom(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])),14);
-					else
-						map.setCenterZoom(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])),13);
-						
+				loadPanel.onLoadClick = function(e:Event=null):void{
 						var info:Array = loadPanel.getSelectedInfo();
 						if(info && info.length > 0){
 							
 							//DEBUG
-							/*
 							info[0] = {name:"Berkeley PM (7 July 2009)",
 								url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
 								reading:"pm25"};
-							*/
 							
-							loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
+														
+							loadData(info[0].url,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
 						} 
 						PopUpManager.removePopUp(loadPanel);
 					};
@@ -674,4 +664,3 @@
 
 	
 </mx:Application>
-

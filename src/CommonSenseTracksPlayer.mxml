@@ -639,12 +639,16 @@
 						if(info && info.length > 0){
 							
 							//DEBUG
-							info[0] = {name:"Berkeley PM (7 July 2009)",
+							/* info[0] = {name:"Berkeley PM (7 July 2009)",
 								url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
+								reading:"pm25"}; */
+							info[0] = {name:"Berkeley PM (7 July 2009)",
+								//source:"http://www.commonsensecommunity.com/badgedata/?reading=mco&start_time=1252107680",
+								source:["http://www.commonsensecommunity.com/data/2009-07-13%20(Berkeley%20PM%20+%20GPS).csv",
+									"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv"],
 								reading:"pm25"};
-							
 														
-							loadData(info[0].url,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
+							loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
 						} 
 						PopUpManager.removePopUp(loadPanel);
 					};

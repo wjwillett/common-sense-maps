@@ -349,8 +349,10 @@ package components
 				var time:Number = Number(dataPoint.time * 1000);
 				var date:Date = new Date(time);
 				var value:Number = Number(dataPoint.value);
+				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
 				_plotTip.text = date.toLocaleDateString() + "\n" +
-					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + " (" + cat + ")";
+					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + " (" + cat + ")" + "\n" +
+					"[" + badgeName + "]";
 				_plotTip.x = ptPosition.x;
 				_plotTip.y = ptPosition.y;
 				

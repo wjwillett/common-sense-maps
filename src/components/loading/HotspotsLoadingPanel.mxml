@@ -95,7 +95,7 @@
 				var l:Object = geocodedLatLonRange;
 				
 				info.push({name:buildName(b.name),
-					url:buildURL(b.id, l.latMin, l.latMax, l.lonMin, l.lonMax),
+					source:buildURL(b.id, l.latMin, l.latMax, l.lonMin, l.lonMax),
 					reading:DEFAULT_POLLUTANT});
 				
 				return info; 

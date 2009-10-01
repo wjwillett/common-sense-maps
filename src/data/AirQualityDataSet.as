@@ -35,8 +35,14 @@ package data
 		public var minCOLevel:Number = 0.0;
 		public var maxCOLevel:Number = 0.0;
 		
+		protected var multipleSources:Boolean = false;
+		protected var numSourcesLoading:int = 0;
+		
 		/****************************** Data Loading Methods ************************************/
 		protected function loadData(source:Object):void{
+			//clear any old data
+			_data = new Vector.<Object>();
+			
 			//Handle embedded data		
 			if(source is Class) processLoaded(new (source as Class)());
 			//Load data from the web
@@ -51,6 +57,12 @@ package data
 						if(loader.data is String) processLoaded(loader.data as String);
 					});				
 			}
+			//if multiple sources are passed, handle each
+			else if(source is Array){
+				numSourcesLoading += ((source as Array).length + (multipleSources ? - 1 : 0));
+				multipleSources = true;
+				for each(var s:Object in source) loadData(s);
+			}
 			else throw new ArgumentError("Invalid data source. Source should either " + 
 					"be the URI of a text file containing data or a Class containing " + 
 					"an embedded text file.");
@@ -61,7 +73,6 @@ package data
 		protected function processLoaded(result:String):void{
 			var entries:Array = result.split(/\r|\n/gi);
 			
-			_data = new Vector.<Object>();
 			if(entries.length > 1){
 				var headers:Array = (entries[0] as String).split(',');
 				
@@ -85,7 +96,14 @@ package data
 				}
 			}
 			
-			dispatchEvent(new Event(Event.COMPLETE));
+			//sort and dispatch a complete event if were done loading everything
+			if(multipleSources) numSourcesLoading--;
+			if(!multipleSources || numSourcesLoading == 0){
+				_data.sort(function(x:Object, y:Object):Number{
+						return Number(x.time) - Number(y.time);
+					});
+				dispatchEvent(new Event(Event.COMPLETE));
+			}
 		}
 		
 		
