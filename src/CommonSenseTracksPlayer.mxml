@@ -326,7 +326,7 @@
 				var oldDataSets:Vector.<AirQualityDataSet> = new Vector.<AirQualityDataSet>();
 				while(_dataSets.length > 0) oldDataSets.push(_dataSets.pop());
 				for each(var d:AirQualityDataSet in oldDataSets){
-					loadData(d.dataURI,d.pollutant,d.name);					
+					loadData(d.sourceObject,d.pollutant,d.name);					
 				}
 			}
 			
@@ -638,14 +638,17 @@
 						var info:Array = loadPanel.getSelectedInfo();
 						if(info && info.length > 0){
 							
-							//DEBUG
-							info[0] = {name:"Berkeley PM (7 July 2009)",
-								//source:"http://www.commonsensecommunity.com/badgedata/?reading=mco&start_time=1252107680",
-								source:["http://www.commonsensecommunity.com/data/2009-07-13%20(Berkeley%20PM%20+%20GPS).csv"],
-									//"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv"],
-								reading:"pm25"};
+							//DEBUG - loads all files from the west oakland PM directory
+							var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+							var dirRequest:URLRequest = new URLRequest(pmRootDir);
+							var dirLoader:URLLoader = new URLLoader(dirRequest);
+							dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
+									var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
+									for(var i:int=0; i< pmSourceFiles.length; i++) pmSourceFiles[i] = pmRootDir + pmSourceFiles[i];
+									var info:Object = {name:"Berkeley PM (7 July 2009)", source:pmSourceFiles,reading:"pm25"};
 														
-							loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
+									loadData(info.source,info.reading,info.name,function():void{centermap();dispatchComplete();});
+								});
 						} 
 						PopUpManager.removePopUp(loadPanel);
 					};

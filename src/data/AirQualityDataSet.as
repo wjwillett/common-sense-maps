@@ -26,6 +26,7 @@ package data
 		public var pollutant:String;
 				
 		public function get data():Vector.<Object>{return _data;}
+		public function get sourceObject():Object{return _sourceObject;}
 		public function get dataURI():String{return _sourceObject.toString();} 
 		
 		public var hidden:Boolean = false;
