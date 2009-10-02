@@ -658,7 +658,7 @@
 							timeline.refresh(true);
 							
 							var pollutant:String = info[0].reading;
-							for each (var i:Object in info) loadData(i.source,pollutant,i.name);
+							for each (var i:Object in info) loadData(i.url,pollutant,i.name);
 						} 
 						PopUpManager.removePopUp(dataPanel);
 					};

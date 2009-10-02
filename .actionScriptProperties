@@ -5,7 +5,7 @@
 <libraryPath defaultLinkType="1">
 <libraryPathEntry kind="4" path=""/>
 <libraryPathEntry kind="1" linkType="1" path="libs"/>
-<libraryPathEntry kind="3" linkType="1" path="${DOCUMENTS}/commentspace.shared/bin/commentspace.shared.swc" useDefaultLinkType="false"/>
+<libraryPathEntry kind="3" linkType="1" path="/Users/neilkumar/Sites/Intel Lab/Common Sense/commentspace.shared/bin/commentspace.shared.swc" useDefaultLinkType="false"/>
 </libraryPath>
 <sourceAttachmentPath/>
 </compiler>
@@ -13,8 +13,13 @@
 <application path="CommonSenseHotspots.mxml"/>
 <application path="commonsensemaps.mxml"/>
 <application path="CommonSenseTracksPlayer.mxml"/>
+<<<<<<< HEAD:.actionScriptProperties
 <application path="CommonSenseMapsPackaged.mxml"/>
 <application path="CommonSensePlaces.mxml"/>
+=======
+<application path="CommonSensePlaces.mxml"/>
+<application path="CommonSenseHotspots.mxml"/>
+>>>>>>> 7cce79f83db7f627d9c9269908db181cc006f410:.actionScriptProperties
 </applications>
 <modules/>
 <buildCSSFiles/>
