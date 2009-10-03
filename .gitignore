@@ -1,2 +1,6 @@
-.* # Ignore all dotfiles...
-!.gitignore # except for .gitignore
+bin-debug/
+bin-release/
+# Ignore all dotfiles...
+.*
+# except for .gitignore
+!.gitignore
