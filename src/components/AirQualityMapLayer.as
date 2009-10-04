@@ -330,11 +330,11 @@ package components
 		public function drawDataTip(dataPoint:Object):void{
 			
 			//Determine position and only plot if we have a real GPS location.
-			var ptPosition:Point = map.locationPoint(new Location(dataPoint.lat,dataPoint.lon),map.stage); 
-			if(ptPosition.x == 0 || ptPosition.y == 0){
+			if(dataPoint.lat == "None" || dataPoint.lon == "None"){
 				discardActiveDataTip();
 				return;
-			} 
+			}
+			var ptPosition:Point = map.locationPoint(new Location(dataPoint.lat,dataPoint.lon),map.stage); 
 			
 			if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
 		

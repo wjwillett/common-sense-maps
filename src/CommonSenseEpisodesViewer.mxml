@@ -7,27 +7,17 @@
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
 		left="10" top="10" right="10" bottom="30"/>
-	<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
-		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">
-		<mx:HBox bottom="85" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
-			<mx:VBox cornerRadius="15" width="115">
-				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
-				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
-			</mx:VBox>
-			<mx:Button label="{timeline._playing ? '||' : '&gt;'}"
-				toolTip="{timeline._playing ? 'pause' : 'play'}" height="100%" fontSize="23" id="bigPlayPause" 
-				click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
-		</mx:HBox>
-	</mx:Canvas>
-	
-	<ns1:AirQualityTimeLine id="timeline" height="80" creationComplete="{setup()}" 
-		bottom="30" left="10" right="10" margin="5" timeMultiplier="25" useAdvancedControls="false"/>
+	<mx:VBox right="20" top="20" bottom="40" width="400" id="timelinesHolder"/>
 	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
 		
 	<mx:ProgressBar id="progressBar" visible="true" includeInLayout="false" mode="manual" left="40" right="20" bottom="50"/>	
 
 	<mx:Script>
 		<![CDATA[
+			import data.Stats;
+			import mx.controls.Label;
+			import mx.events.FlexEvent;
+			import components.AirQualityTimeLine;
 			import components.loading.TracksPlayerLoadingPanel;
 			import com.adobe.serialization.json.JSON;
 			import commentspace.events.EntityEvent;
@@ -72,12 +62,6 @@
 			protected const CancelIcon:Class;
 			
 			
-			/******** Source Data **********************************************************/
-			//[Embed(source = "assets/2009-05-14 (West Oakland PM + GPS).csv", mimeType="application/octet-stream")]
-			//protected const Embedded20090514PMData:Class;
-			//protected const outside20090514PMData:String = "http://www.eecs.berkeley.edu/~willettw//temp/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv?";
-
-			
 			/******** Constants **********************************************************/
 			protected const CLICK_RADIUS:Number = 2;
 			
@@ -109,13 +93,13 @@
 			//flag to prevent updated events from being dispatched during panAndZoomTo runs
 			protected var _isPanningAndZooming:Boolean = false; 
 			
-			protected var firstLoad:Boolean = false;
+			
+			protected var _timelines:Array = [];
+			
+			
 			protected function setup():void{
-				if(!firstLoad) firstLoad = true;
-				else{
-					setupMap();
-					setupTimeline();
-				}
+				setupMap();
+				//setupTimeline();
 			}
 			
 			/******** Mapping Methods **********************************************************/
@@ -138,14 +122,14 @@
 				_plotLayer.dataSets = _dataSets;
 				_plotLayer.selections = _selections;
 				
-				
-				map.addChild(_plotLayer);
-				//map.addChild(_flagsClip);
-				
-				//map.addChild(new MapControls(map));
+				//Add map controls
+				map.addChild(new MapControls(map));
 
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),17);
+
+				
+				map.addChild(_plotLayer);
 				
 				//Listeners for updating state 
 				map.addEventListener(MapEvent.STOP_PANNING, dispatchUpdated);
@@ -193,7 +177,7 @@
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?badge=000000000004&reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
 						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
-					var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandMostRecentPM/";
+					var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
@@ -218,9 +202,8 @@
 					
 			}
 			
-			protected function setupTimeline():void{
+			protected function setupTimeline(timeline:AirQualityTimeLine):void{
 
-				timeline.dataSets = _dataSets;
 				timeline.selections = _selections;
 				
 				//Add handlers for linked tooltipping between map and timeline
@@ -322,7 +305,8 @@
 						progressBar.setProgress(0,1);
 						progressBar.includeInLayout = false;
 						_dataSets.push(ds);
-						timeline.refresh(true);
+						var peaks:Array = ds.stats.getSpikes();
+						addTimelines(peaks.slice(0,Math.min(peaks.length,10)));
 						_plotLayer.refresh(true);
 						dispatchUpdated();
 						if(onComplete != null) onComplete();
@@ -339,6 +323,37 @@
 				for each(var d:AirQualityDataSet in oldDataSets){
 					loadData(d.sourceObject,d.pollutant,d.name);					
 				}
+			}
+			
+			
+			protected function addTimelines(episodes:Array):void{
+				var epIndex:Object = {};
+				for each(var e:Object in episodes){
+					var t:AirQualityTimeLine = new AirQualityTimeLine();
+					t.percentWidth = 100;
+					t.height = timelinesHolder.height * 0.9 / episodes.length;
+					t.margin = 4;
+					t.noControls = true;
+					t.dataSets = _dataSets;
+					t.xBottom = e.beginTime;
+					t.xTop = e.endTime;
+					_timelines.push(t);
+					timelinesHolder.addChild(t);
+					t.addEventListener(FlexEvent.CREATION_COMPLETE, function(fe:FlexEvent):void{
+							var tl:AirQualityTimeLine = fe.target as AirQualityTimeLine;
+							setupTimeline(tl);
+							tl.refresh();
+						});
+				}
+			}
+			
+			protected function removeTimelines():void{
+				_timelines.length = 0;
+				timelinesHolder.removeAllChildren();
+			}
+			
+			protected function refreshTimelines(force:Boolean=false):void{
+				for each(var t:AirQualityTimeLine in _timelines) t.refresh(force);
 			}
 			
 			
@@ -384,12 +399,12 @@
 						if(me.item.@event == 'add'){
 							var s:Object = _selections.addSelection(dataPoint.id);
 							_plotLayer.refresh(true);
-							timeline.refresh(true);
+							refreshTimelines(true);
 						}
 						//When Add is clicked - center both views on point
 						else if(me.item.@event == 'center'){
 							if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
-							if(dataPoint.time) timeline.centerOn(dataPoint.time);
+							//if(dataPoint.time) timeline.centerOn(dataPoint.time);
 						}
 						//When view is clicked, focus that selection
 						else if(me.item.@event == 'view'){
@@ -497,7 +512,7 @@
 				for each(var d:AirQualityDataSet in _dataSets) dsorted.push(d);
 				dsorted.sortOn("dataURI"); 
 				for each(var di:AirQualityDataSet in dsorted){
-					ds = (ds == null ? di.dataURI : ds + ";" + di.dataURI);
+					ds = (ds == null ? di.dataURI : ds + "," + di.dataURI);
 					dsn = (dsn == null ? escape(di.name) : dsn + "," + escape(di.name));
 					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
 				} 
@@ -506,10 +521,11 @@
 						zoom:cz[1],
 						dataSource:ds,
 						dataNames:dsn,
-						dataPollutants:dsp,
-						xBottom:timeline.xBottom,
+						dataPollutants:dsp//,
+						/* xBottom:timeline.xBottom,
 						xTop:timeline.xTop,
-						playheadPosition:timeline.playheadPosition};
+						playheadPosition:timeline.playheadPosition}; */
+					};
 			}
 			
 			public function set state(o:Object):void{
@@ -520,15 +536,14 @@
 						panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 						
 						//set time bounds
-						timeline.xBottom = o.xBottom;
+/* 						timeline.xBottom = o.xBottom;
 						timeline.xTop = o.xTop;
 						timeline.playheadPosition = o.playheadPosition;
 						timeline.refresh();
-					};
+ */					};
 
 				//get names, uris, and pollutants of datasets in state
-				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(';') : null;
-				for each(var dss:String in ds) if(dss.lastIndexOf(',') != -1) ds.splice(ds.indexOf(dss),1,dss.split(','));
+				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
 				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
 				var dsp:Array = (o.dataPollutants is String) ?(o.dataPollutants as String).split(',') : null;
 				

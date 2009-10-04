@@ -23,7 +23,8 @@
 		x="{container.x + container.width}" width="6" useHandCursor="true"
 		mouseChildren="false" buttonMode="true"
 		mouseDown="{startPlayHeadDrag(event)}" 
-		backgroundAlpha="0.4" backgroundColor="#FFFFFF">
+		backgroundAlpha="0.4" backgroundColor="#FFFFFF"
+		visible="{!noControls}">
 		<mx:VRule x="{playhead.width / 2}" height="100%"/>
 	</mx:Canvas>
 	
@@ -33,32 +34,33 @@
 	
 	<mx:Button id="zOut" click="{zoomOut()}" label="-" toolTip="zoom out" 
 			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0"
-			width="25" visible="{useAdvancedControls}"
-			enabled="{_xBottom &gt; xMin || _xTop &lt; xMax}"/>
+			width="25" visible="{!noControls &amp;&amp; useAdvancedControls}"
+			enabled="{_xBottom &gt; _xMin || _xTop &lt; _xMax}"/>
 	<mx:Button id="zIn" click="{zoomIn()}" label="+" 
 			toolTip="zoom in" width="25" paddingLeft="0" 
 			paddingRight="0" y="{margin}" x="{margin}"
-			visible="{useAdvancedControls}" />
+			visible="{!noControls &amp;&amp; useAdvancedControls}" />
 	<mx:Button id="zFull" click="{resetZoom()}" label="_" 
 			toolTip="zoom all the way out" width="25" paddingLeft="0" 
 			paddingRight="0" y="{margin+50}" x="{margin}"
-			visible="{useAdvancedControls}"
-			enabled="{_xBottom &gt; xMin || _xTop &lt; xMax}"/>
+			visible="{!noControls &amp;&amp; useAdvancedControls}"
+			enabled="{_xBottom &gt; _xMin || _xTop &lt; _xMax}"/>
 
 	<mx:Button id="pauseBtn" x="{margin}" label="||" bottom="{margin}" enabled="{_playing}" 
 		paddingRight="0" paddingLeft="0" click="{stopPlayback(event)}" width="18" 
-		toolTip="pause"/>
+		toolTip="pause" visible="{!noControls}"/>
 	<mx:Button id="playBtn" x="{margin + 20}" label=">" bottom="{margin}" enabled="{!_playing}"
 		paddingRight="2" paddingLeft="2" click="{startPlayback(event)}" width="20"
-		toolTip="play"/>
+		toolTip="play" visible="{!noControls}"/>
 	<mx:VSlider id="playSlider" x="{margin }" y="{playBtn.y - 60}" height="50" value="{Math.log(timeMultiplier)*Math.LOG10E}"
 		minimum="0.3" maximum="4" labels="{['.','..','...','....']}" dataTipFormatFunction="{playScrollDataTip}"
 		toolTip="{'playback speed: ' + int(Math.pow(10,playSlider.value)) + 'x'}" liveDragging="true"
-		change="{timeMultiplier=Math.pow(10,playSlider.value)}"/>
+		change="{timeMultiplier=Math.pow(10,playSlider.value)}" visible="{!noControls}"/>
 	
 	
 	<mx:Script>
 		<![CDATA[
+			import mx.binding.utils.BindingUtils;
 			import etc.DirtyFlag;
 			import events.TimelineEvent;
 			import mx.messaging.AbstractConsumer;
@@ -89,7 +91,11 @@
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
 			
-			
+			/** 
+			 * Determines whether or not any of the controls are shown
+			 * */
+			[Bindable]
+			public var noControls:Boolean = false;
 			/**
 			 * Controls whether or not additional features (zooming, 
 			 *  panning, and recentering the timeline) are turned on 
@@ -98,6 +104,8 @@
 			 * */
 			[Bindable]
 			public var useAdvancedControls:Boolean = true;
+			
+			
 			
 			//public var numMouseOverAdjacents:uint = 15;
 			
@@ -154,8 +162,6 @@
 			[Bindable]
 			public var playheadDate:Date;
 			
-			
-			
 			/**
 			 * The value from the xDataField corresponding
 			 *  to the right edge of the currently visible section of the timeline.
@@ -165,6 +171,7 @@
 				_xBottom = value;
 				dirty.dirty();
 			}
+			
 			/**
 			 * The value from the xDataField corresponding
 			 *  to the right edge of the currently visible section of the timeline.
@@ -175,6 +182,19 @@
 				dirty.dirty();
 			}
 			
+			
+			public function get yMin():Number { return isNaN(_yMinManual) ? _yMin : _yMinManual; }
+			public function set yMin(val:Number):void{_yMinManual = val; dirty.dirty();}
+			public function get yMax():Number { return isNaN(_yMaxManual) ? _yMax : _yMaxManual; }
+			public function set yMax(val:Number):void{_yMaxManual = val; dirty.dirty();}
+			
+			public function clearLimits():void{
+				yMin = NaN;
+				yMax = NaN;
+				
+				dirty.dirty();
+			}
+			
 			/** Margin around the edge of the timeline **/
 			[Bindable]
 			public function get margin():Number{ return _margin;}
@@ -182,17 +202,20 @@
 			
 			//------------- Data Management variables -----------------------------------------------
 			protected var _dataSets:Vector.<AirQualityDataSet>;
-			protected var yMin:Number;		//the lowest data value on the y axis
-			protected var yMax:Number; 		//the highest data value on the y axis
-			[Bindable]
-			protected var xMin:Number;		//the lowest data value on the x axis
-			[Bindable]
-			protected var xMax:Number;		//the lowest data value on the x axis
+			protected var _yMin:Number;			//the lowest data value on the y axis
+			protected var _yMax:Number; 		//the highest data value on the y axis
+			protected var _yMinManual:Number = NaN; //a manually specified lower y bound
+			protected var _yMaxManual:Number = NaN; //a manually specified upper y bound
 			
 			[Bindable]
-			protected var _xBottom:Number;	//the bottom end of the current display x-axis
+			protected var _xMin:Number;			//the lowest data value on the x axis
 			[Bindable]
-			protected var _xTop:Number;		//the top end of the current display x-axis
+			protected var _xMax:Number;			//the lowest data value on the x axis
+			
+			[Bindable]
+			protected var _xBottom:Number;		//the bottom end of the current display x-axis
+			[Bindable]
+			protected var _xTop:Number;			//the top end of the current display x-axis
 			
 			protected var _playheadPosition:Number; //the position of the playhead on the x axis.
 			
@@ -221,7 +244,7 @@
 
 			public function refresh(force:Boolean=false):void{
 				if(force) calculateMinMax();
-				if(isNaN(yMin) || isNaN(yMax)) return;
+				if(isNaN(_yMin) || isNaN(_yMax)) return;
 				else plotData();
 			}
 			
@@ -252,7 +275,10 @@
 				var plotBitmapData:BitmapData
 				if(dirty.check(DirtyFlag.DIRTY) || !_bitmap){
 					if(plotBitmapData) plotBitmapData.dispose();
+					try{
 					plotBitmapData = new BitmapData(container.width * 2,container.height,true,0x00FFFFFF);
+					}
+					catch(e:Error){ return;}
 				} 
 				else plotBitmapData = _bitmap.bitmapData;
 				var renderer:PointRenderer = new PointRenderer(plotBitmapData,pointDiameter,pointOverlapTolerance);
@@ -260,8 +286,8 @@
 				//draw outside the current range so that scrolling 
 				// cuts less abruptly
 				var curRange:Number = _xTop - _xBottom;
-				var xbd:Number = Math.max(xMin,_xBottom - curRange);
-				var xtd:Number = Math.min(xMax,_xTop + curRange);
+				var xbd:Number = Math.max(_xMin,_xBottom - curRange);
+				var xtd:Number = Math.min(_xMax,_xTop + curRange);
 				
 				//allocate space for each point set
 				_dSetBounds = {};
@@ -279,7 +305,7 @@
 						
 						//set bounds for the set
 						_dSetBounds[ds.dataURI] = psBounds.clone();
-						if(dirty.check(DirtyFlag.DIRTY)) plotAxes(plotBitmapData,psBounds);
+						if(dirty.check(DirtyFlag.DIRTY)) plotAxes(plotBitmapData,psBounds,ds);
 						psBounds.y += (psHeight + spacing);
 						
 						//skip if no data
@@ -342,7 +368,7 @@
 			 * Plots the X and Y axes and gridlines for all 
 			 *  of the datasets shown in the timeline.
 			 */
-			protected function plotAxes(bd:BitmapData,bounds:Rectangle):void{
+			protected function plotAxes(bd:BitmapData,bounds:Rectangle,ds:AirQualityDataSet):void{
 				var plotShape:Shape = new Shape();
 				
 				//plot x baseline
@@ -350,6 +376,14 @@
 				plotShape.graphics.moveTo(0,bounds.bottom);
 				plotShape.graphics.lineTo(bd.width,bounds.bottom);
 				
+				//plot AQI cutoffs
+				for each(var c:Number in AirQualityColors.POLLUTANT_INDEX[ds.pollutant]){
+					var cp:Point = dataspaceToLocal(new Point(0,c),ds);
+					plotShape.graphics.lineStyle(0.5,AirQualityColors.getColorForValue(ds.pollutant,c),0.3)	;
+					plotShape.graphics.moveTo(0,cp.y);
+					plotShape.graphics.lineTo(bd.width,cp.y);
+				}
+							
 				var startDate:Date = new Date(_xBottom * 1000);
 				startDate.setFullYear(startDate.fullYear,startDate.month,startDate.day + 1);
 				startDate.setHours(0,0,0,0);
@@ -400,7 +434,7 @@
 					if(d.name) l.labelText = d.name;
 					l.y = _dSetBounds[d.dataURI].top + margin;
 					
-					if(!useAdvancedControls) l.visible = false;
+					if(noControls || !useAdvancedControls) l.visible = false;
 					
 					labels.addChild(l);
 					l.onRemoveClick = function(e:MouseEvent):void{
@@ -456,10 +490,12 @@
 				_hScroll.x = -(pointDiameter / 2);
 				_hScroll.y = container.height - _hScroll.height + SCROLLBAR_HEIGHT;
 				_hScroll.width = container.width + pointDiameter;
+				BindingUtils.bindSetter(function(value:Boolean):void{_hScroll.visible = !value},this,"noControls");
+				
 				
 				var range:Number = _xTop - _xBottom;
 				
-				_hScroll.setScrollProperties(range,xMin,xMax-range,range / 10);
+				_hScroll.setScrollProperties(range,_xMin,_xMax-range,range / 10);
 				_hScroll.scrollPosition = _xBottom;
 				
 				if(!_hScroll.hasEventListener(ScrollEvent.SCROLL)){
@@ -478,8 +514,8 @@
 				
 				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
 				
-				_xBottom = Math.max(_hScroll.scrollPosition,xMin);
-				_xTop = Math.min(_xBottom + range ,xMax);
+				_xBottom = Math.max(_hScroll.scrollPosition,_xMin);
+				_xTop = Math.min(_xBottom + range ,_xMax);
 				
 				//if playhead is at the right edge of the view, 
 				// leave it stuck to the right edge as we move
@@ -519,12 +555,12 @@
 			 */
 			public function centerOn(midPoint:Number):void{
 				var range:Number = _xTop - _xBottom;
-				if(range < xMax - xMin){
+				if(range < _xMax - _xMin){
 					
 					var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
 					
-					_xBottom = Math.max(xMin,int(midPoint - range / 2));
-					_xTop = Math.min(xMax,int(midPoint + range / 2));
+					_xBottom = Math.max(_xMin,int(midPoint - range / 2));
+					_xTop = Math.min(_xMax,int(midPoint + range / 2));
 					
 					//if playhead is at the right edge of the view, 
 					// leave it stuck to the right edge as we recenter
@@ -545,8 +581,8 @@
 				var midPoint:Number = midPointVal != Number.POSITIVE_INFINITY ? midPointVal : _xBottom + (_xTop - _xBottom) / 2;
 				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
 				
-				_xBottom = Math.max(xMin,int(midPoint - zoomRange / 2));
-				_xTop = Math.min(xMax,int(midPoint + zoomRange / 2));
+				_xBottom = Math.max(_xMin,int(midPoint - zoomRange / 2));
+				_xTop = Math.min(_xMax,int(midPoint + zoomRange / 2));
 				
 				//if playhead is at the right edge of the view, 
 				// leave it stuck to the right edge as we zoom
@@ -565,8 +601,8 @@
 				var midPoint:Number = _xBottom + (_xTop - _xBottom) / 2;
 				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
 				
-				_xBottom = Math.max(xMin,midPoint - zoomRange / 2);
-				_xTop = Math.min(xMax,midPoint + zoomRange / 2);
+				_xBottom = Math.max(_xMin,midPoint - zoomRange / 2);
+				_xTop = Math.min(_xMax,midPoint + zoomRange / 2);
 				
 				//if playhead is at the right edge of the view, 
 				// leave it stuck to the right edge as we zoom
@@ -582,8 +618,8 @@
 				var playheadRight:Boolean = (playheadPosition >= xTop); //is playhead all the way right?
 				
 				//reset top and bottom to max extent
-				_xBottom = xMin;
-				_xTop = xMax;
+				_xBottom = _xMin;
+				_xTop = _xMax;
 				
 				//if playhead is at the right edge of the view, 
 				// leave it stuck to the right edge as we zoom
@@ -611,7 +647,7 @@
 			
 			protected function handleDoubleClick(me:MouseEvent):void{
 				//skip if not using advanced controls
-				if(!useAdvancedControls)return;
+				if(noControls || !useAdvancedControls)return;
 				
 				//if we've clicked on some other child (like the scrollbar) do nothing
 				if(me.target != container) return;
@@ -668,8 +704,11 @@
 			 */
 			public function drawDataTip(dataPoint:Object):void{
 				
+				//don't tooltip points outside the current window 			
+				if(Number(dataPoint.time) < xBottom || Number(dataPoint.time) > xTop) return;
 				var ptPosition:Point = datapointToLocalPosition(dataPoint);
 				if(!ptPosition) return;
+				
 				ptPosition = container.localToGlobal(ptPosition);
 				if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
 			
@@ -716,7 +755,7 @@
 						trace(rightInset);
 					}
 					PointRenderer.drawPointToGraphics(_plotTip.graphics,dataPoint,new Point(rightInset,0),
-						dataSets[0].pollutant,selections.isSelected(dataPoint),true,false,pointDiameter);
+						dataSets[0].pollutant,selections && selections.isSelected(dataPoint),true,false,pointDiameter);
 					//Plot an accentuated version of the point as part of the tooltip
 					/*_plotTip.graphics.lineStyle(2,0xffffff,0.7);
 					_plotTip.graphics.beginFill(color,1);
@@ -745,7 +784,7 @@
 			protected var _brushing:Boolean = false;
 			
 			protected function startBrushing(brushStart:Point):void{
-				if(!useAdvancedControls) return; //allow brushing only if advanced controls are on
+				if(noControls || !useAdvancedControls) return; //allow brushing only if advanced controls are on
 				_brushStart = brushStart;
 				_brushing = true;
 			}
@@ -760,8 +799,8 @@
 				var xe:Number = xBottom + (xTop - xBottom) * right/brushLayer.width
 				
 				if(Math.abs(xs - xe) > BRUSHING_THRESHOLD){
-					_xBottom = Math.max(xMin,xs);
-					_xTop = Math.min(xMax,xe);
+					_xBottom = Math.max(_xMin,xs);
+					_xTop = Math.min(_xMax,xe);
 				}
 								
 				_brushStart = null;
@@ -861,24 +900,24 @@
 			
 			protected function calculateMinMax():void{
 				
-				xMin = yMin = _xBottom = Number.POSITIVE_INFINITY; 
-				xMax = yMax = _xTop = Number.NEGATIVE_INFINITY;
+				_xMin = _yMin = _xBottom = Number.POSITIVE_INFINITY; 
+				_xMax = _yMax = _xTop = Number.NEGATIVE_INFINITY;
 				
 				for each(var ds:AirQualityDataSet in dataSets){
 					//Find mins and maxes
 					for each(var o:Object in ds.data){
 
 						var xVal:Number = Number(o[xDataField]);
-						if(isNaN(xMin) || xVal < xMin) xMin = xVal;
-						if(isNaN(xMax) || xVal > xMax) xMax = xVal;
+						if(isNaN(_xMin) || xVal < _xMin) _xMin = xVal;
+						if(isNaN(_xMax) || xVal > _xMax) _xMax = xVal;
 
 						var yVal:Number = Number(o[yDataField]);
-						if(isNaN(yMin) || yVal < yMin) yMin = yVal;
-						if(isNaN(yMax) || yVal > yMax) yMax = yVal;
+						if(isNaN(_yMin) || yVal < _yMin) _yMin = yVal;
+						if(isNaN(_yMax) || yVal > _yMax) _yMax = yVal;
 					}
 				}
-				_xBottom = xMin;
-				_xTop = xMax;
+				_xBottom = _xMin;
+				_xTop = _xMax;
 				
 				dirty.dirty();
 			}
@@ -896,7 +935,7 @@
 				
 				var dPos:Point = position.clone();
 				dPos.x = _xBottom + dPos.x * (_xTop - _xBottom) / bounds.width;
-				dPos.y = yMin + (bounds.y + bounds.height - dPos.y) * (yMax - yMin) / bounds.height;
+				dPos.y = _yMin + (bounds.y + bounds.height - dPos.y) * (_yMax - _yMin) / bounds.height;
 				return dPos;
 			}
 			
@@ -912,7 +951,7 @@
 				
 				var dv:Point = value.clone();
 				dv.x = (dv.x - xBottom) / (xTop - xBottom) * bounds.width;
-				dv.y = (yMax - dv.y) / yMax * bounds.height;				 
+				dv.y = (_yMax - dv.y) / _yMax * bounds.height;				 
 				return dv;
 			}
 			
@@ -926,8 +965,8 @@
 				
 				return new Point((pointData[xDataField] - _xBottom) * sBounds.width /
 						 	(_xTop - _xBottom) + sBounds.width / 2,
-						 sBounds.height * (1 - (pointData[yDataField] - yMin) /
-						 	(yMax - yMin)) + sBounds.y); 
+						 sBounds.height * (1 - (pointData[yDataField] - _yMin) /
+						 	(_yMax - _yMin)) + sBounds.y); 
 			}
 			
 			
