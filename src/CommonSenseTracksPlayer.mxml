@@ -14,7 +14,8 @@
 				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
 				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
 			</mx:VBox>
-			<mx:Button label="{timeline._playing ? '||' : '&gt;'}" height="100%" fontSize="23" id="bigPlayPause" 
+			<mx:Button label="{timeline._playing ? '||' : '&gt;'}"
+				toolTip="{timeline._playing ? 'pause' : 'play'}" height="100%" fontSize="23" id="bigPlayPause" 
 				click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
 		</mx:HBox>
 	</mx:Canvas>
@@ -188,19 +189,29 @@
 					/* var quickdata:Object = {"name":"All Badges Carbon Monoxide (past 3 hours)",
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
 						"reading":"co"}; */
-					var quickdata:Object = {"name":"Badges 4 Carbon Monoxide (past 3 hours)",
+					/* var quickdata:Object = {"name":"Badges 4 Carbon Monoxide (past 3 hours)",
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?badge=000000000004&reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
 						"reading":"co"}; 
-					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();});
+					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
+					var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandMostRecentPM/";
+					var dirRequest:URLRequest = new URLRequest(pmRootDir);
+					var dirLoader:URLLoader = new URLLoader(dirRequest);
+					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
+							var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
+							for(var i:int=0; i< pmSourceFiles.length; i++) pmSourceFiles[i] = pmRootDir + pmSourceFiles[i];
+							var info:Object = {name:"West Oakland PM", source:pmSourceFiles,reading:"pm25"};
+												
+							loadData(info.source,info.reading,info.name,function():void{centermap();dispatchComplete();});
+						});
 				}
 					
 				//Requires a click-through disclaimer before using the site	
 				//triggerDisclaimerPopup(runOnStartup);
 				//Jump straight into a load
 				//runOnStartup();
-				//quickStartup();	
+				quickStartup();	
 				//Alternative startup, just pops up the loader
-				triggerLoadingPopup();
+				//triggerLoadingPopup();
 				//plotExistingMarkers(); //probably removed forever?				
 				//let commentspace know we're loaded
 				//dispatchComplete();	
@@ -486,7 +497,7 @@
 				for each(var d:AirQualityDataSet in _dataSets) dsorted.push(d);
 				dsorted.sortOn("dataURI"); 
 				for each(var di:AirQualityDataSet in dsorted){
-					ds = (ds == null ? di.dataURI : ds + "," + di.dataURI);
+					ds = (ds == null ? di.dataURI : ds + ";" + di.dataURI);
 					dsn = (dsn == null ? escape(di.name) : dsn + "," + escape(di.name));
 					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
 				} 
@@ -516,7 +527,8 @@
 					};
 
 				//get names, uris, and pollutants of datasets in state
-				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
+				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(';') : null;
+				for each(var dss:String in ds) if(dss.lastIndexOf(',') != -1) ds.splice(ds.indexOf(dss),1,dss.split(','));
 				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
 				var dsp:Array = (o.dataPollutants is String) ?(o.dataPollutants as String).split(',') : null;
 				
