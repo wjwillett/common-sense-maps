@@ -36,6 +36,9 @@ package data
 		public var minCOLevel:Number = 0.0;
 		public var maxCOLevel:Number = 0.0;
 		
+		// Added to implement spike episodes storage
+		public var stats:Stats
+		
 		protected var multipleSources:Boolean = false;
 		protected var numSourcesLoading:int = 0;
 		
@@ -84,7 +87,7 @@ package data
 							dataURI + "\" has a different number of elements than the header row:(" +
 							entries[0] + ").");  
 					} 
-					// ADD CHECK FOR CO LEVEL HERE!!!
+					// Check if CO Level is limited (for hotspots view specifically)
 					if(limitCO == true && (entry[5] < minCOLevel || entry[5] > maxCOLevel))
 						continue;
 					else{
@@ -95,6 +98,15 @@ package data
 						_data.push(pointData);
 					}
 				}
+				// execute stats object update now that data is available
+				stats = new Stats(_data, headers);
+				/*
+				// Note the example below on how to iterate through spikes in the data
+				var episodesArray:Array = stats.getSpikes();
+				for(var k:Number = 0; k < episodesArray.length; k++){
+					trace("behold the spike episodes"+"("+episodesArray[k].beginTime+", "+episodesArray[k].endTime+")");
+				}
+				*/
 			}
 			
 			//sort and dispatch a complete event if were done loading everything
