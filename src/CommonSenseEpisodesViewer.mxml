@@ -7,13 +7,14 @@
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
 		left="10" top="10" right="10" bottom="30"/>
-	<mx:VBox right="10" top="10" bottom="30" width="400" id="timelinesHolder"/>
+	<mx:VBox right="20" top="20" bottom="40" width="400" id="timelinesHolder"/>
 	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
 		
 	<mx:ProgressBar id="progressBar" visible="true" includeInLayout="false" mode="manual" left="40" right="20" bottom="50"/>	
 
 	<mx:Script>
 		<![CDATA[
+			import data.Stats;
 			import mx.controls.Label;
 			import mx.events.FlexEvent;
 			import components.AirQualityTimeLine;
@@ -203,7 +204,6 @@
 			
 			protected function setupTimeline(timeline:AirQualityTimeLine):void{
 
-				timeline.dataSets = _dataSets;
 				timeline.selections = _selections;
 				
 				//Add handlers for linked tooltipping between map and timeline
@@ -305,7 +305,8 @@
 						progressBar.setProgress(0,1);
 						progressBar.includeInLayout = false;
 						_dataSets.push(ds);
-						addTimelines([[1246982700,1246982800],[1246982750,1246982850],[1246982850,1246982950]]);
+						var peaks:Array = ds.stats.getSpikes();
+						addTimelines(peaks.slice(0,Math.min(peaks.length,10)));
 						_plotLayer.refresh(true);
 						dispatchUpdated();
 						if(onComplete != null) onComplete();
@@ -327,30 +328,23 @@
 			
 			protected function addTimelines(episodes:Array):void{
 				var epIndex:Object = {};
-				for(var ei:int=0;ei < episodes.length; ei++){
+				for each(var e:Object in episodes){
 					var t:AirQualityTimeLine = new AirQualityTimeLine();
-					epIndex[t] = episodes[ei];
 					t.percentWidth = 100;
-					t.height = 100;
+					t.height = timelinesHolder.height * 0.9 / episodes.length;
 					t.margin = 4;
 					t.noControls = true;
+					t.dataSets = _dataSets;
+					t.xBottom = e.beginTime;
+					t.xTop = e.endTime;
 					_timelines.push(t);
 					timelinesHolder.addChild(t);
 					t.addEventListener(FlexEvent.CREATION_COMPLETE, function(fe:FlexEvent):void{
 							var tl:AirQualityTimeLine = fe.target as AirQualityTimeLine;
-							tl.dataSets = _dataSets;
 							setupTimeline(tl);
-							tl.xBottom = epIndex[t][0];
-							tl.xTop = epIndex[t][1];
 							tl.refresh();
 						});
 				}
-				var refreshButton:mx.controls.Button = new mx.controls.Button();
-					refreshButton.label = "refresh";
-					timelinesHolder.addChild(refreshButton);
-					refreshButton.addEventListener(MouseEvent.CLICK,function(e:Event):void{
-							refreshTimelines();
-						});
 			}
 			
 			protected function removeTimelines():void{

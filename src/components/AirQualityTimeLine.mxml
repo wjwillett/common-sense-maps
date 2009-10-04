@@ -305,7 +305,7 @@
 						
 						//set bounds for the set
 						_dSetBounds[ds.dataURI] = psBounds.clone();
-						if(dirty.check(DirtyFlag.DIRTY)) plotAxes(plotBitmapData,psBounds);
+						if(dirty.check(DirtyFlag.DIRTY)) plotAxes(plotBitmapData,psBounds,ds);
 						psBounds.y += (psHeight + spacing);
 						
 						//skip if no data
@@ -368,7 +368,7 @@
 			 * Plots the X and Y axes and gridlines for all 
 			 *  of the datasets shown in the timeline.
 			 */
-			protected function plotAxes(bd:BitmapData,bounds:Rectangle):void{
+			protected function plotAxes(bd:BitmapData,bounds:Rectangle,ds:AirQualityDataSet):void{
 				var plotShape:Shape = new Shape();
 				
 				//plot x baseline
@@ -376,6 +376,14 @@
 				plotShape.graphics.moveTo(0,bounds.bottom);
 				plotShape.graphics.lineTo(bd.width,bounds.bottom);
 				
+				//plot AQI cutoffs
+				for each(var c:Number in AirQualityColors.POLLUTANT_INDEX[ds.pollutant]){
+					var cp:Point = dataspaceToLocal(new Point(0,c),ds);
+					plotShape.graphics.lineStyle(0.5,AirQualityColors.getColorForValue(ds.pollutant,c),0.3)	;
+					plotShape.graphics.moveTo(0,cp.y);
+					plotShape.graphics.lineTo(bd.width,cp.y);
+				}
+							
 				var startDate:Date = new Date(_xBottom * 1000);
 				startDate.setFullYear(startDate.fullYear,startDate.month,startDate.day + 1);
 				startDate.setHours(0,0,0,0);
@@ -696,8 +704,11 @@
 			 */
 			public function drawDataTip(dataPoint:Object):void{
 				
+				//don't tooltip points outside the current window 			
+				if(Number(dataPoint.time) < xBottom || Number(dataPoint.time) > xTop) return;
 				var ptPosition:Point = datapointToLocalPosition(dataPoint);
 				if(!ptPosition) return;
+				
 				ptPosition = container.localToGlobal(ptPosition);
 				if(!_plotTip)_plotTip = ToolTipManager.createToolTip(dataPoint.value,ptPosition.x,ptPosition.y) as ToolTip;
 			
