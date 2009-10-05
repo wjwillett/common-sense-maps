@@ -338,6 +338,12 @@
 			 *   added to the display.
 			 */
 			protected function createMenu(mousePt:Point,dataPoint:Object):void{
+				
+				//Short-term solution, always center on point click, bypassing the menu
+				if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
+				if(dataPoint.time) timeline.centerOn(dataPoint.time);
+				
+				/*
 				//set up menu XML
 				var menuXML:XML = XML(<root/>);
 				var centerXML:XML = XML(<item/>);
@@ -393,7 +399,7 @@
 						else menu.hide();
 					});
 					
-	            menu.show(mousePt.x, mousePt.y);
+	            menu.show(mousePt.x, mousePt.y);*/
 			}
 			
 			/**

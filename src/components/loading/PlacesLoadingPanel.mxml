@@ -4,12 +4,12 @@
 	<mx:RadioButtonGroup id="radioGroup"/>
 	<mx:Label text="places" styleName="csH1"/>
 	<mx:HBox width="100%" verticalAlign="middle">
-		<mx:VBox width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
-			<mx:Label text="Enter Street Address:"/>
-			<mx:TextInput id="streetAddress" width="200"/>
+		<mx:VBox width="100%" height="100%" verticalAlign="middle" horizontalAlign="left">
+			<mx:Label text="Enter a street Address:" fontSize="14"/>
+			<mx:TextInput id="streetAddress" width="100%" text="14th and Wood, Oakland, CA" fontSize="14"/>
 			<mx:Label text="(e.g. 2520 Shattuck Ave, Berkeley)" alpha=".5" />
-			<mx:Label text="Enter area radius around:"/>
-			<mx:ComboBox id="areaRadius" dataProvider="{AREARADII}" labelField="name"></mx:ComboBox>
+			<mx:Label text="Enter area radius around:" fontSize="14" visible="false"/>
+			<mx:ComboBox id="areaRadius" dataProvider="{AREARADII}" labelField="name" visible="false"></mx:ComboBox>
 			<!-- DISABLED badgeCombo for demo -->
 			<!--<mx:Label text="Enter badge number:"/>-->
 			<mx:ComboBox id="badgeCombo" enabled="false" alpha="0"  dataProvider="{BADGES}" labelField="name"></mx:ComboBox>

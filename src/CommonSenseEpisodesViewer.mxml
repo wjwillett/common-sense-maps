@@ -308,7 +308,7 @@
 						progressBar.includeInLayout = false;
 						_dataSets.push(ds);
 						var peaks:Array = ds.stats.getSpikes();
-						addTimelines(peaks.slice(0,Math.min(peaks.length,10)));
+						addTimelines(peaks.slice(Math.max(peaks.length-11,0),Math.max(peaks.length-1,0)));
 						_plotLayer.refresh(true);
 						dispatchUpdated();
 						if(onComplete != null) onComplete();
