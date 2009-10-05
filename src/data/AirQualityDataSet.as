@@ -98,15 +98,6 @@ package data
 						_data.push(pointData);
 					}
 				}
-				// execute stats object update now that data is available
-				stats = new Stats(_data, headers);
-				/*
-				// Note the example below on how to iterate through spikes in the data
-				var episodesArray:Array = stats.getSpikes();
-				for(var k:Number = 0; k < episodesArray.length; k++){
-					trace("behold the spike episodes"+"("+episodesArray[k].beginTime+", "+episodesArray[k].endTime+")");
-				}
-				*/
 			}
 			
 			//sort and dispatch a complete event if were done loading everything
@@ -115,6 +106,16 @@ package data
 				_data.sort(function(x:Object, y:Object):Number{
 						return Number(x.time) - Number(y.time);
 					});
+				// execute stats object update now that data is available
+				stats = new Stats(_data, headers);
+				
+				// Note the example below on how to iterate through spikes in the data
+				/*
+				var episodesArray:Array = stats.getSpikes();
+				for(var k:Number = 0; k < episodesArray.length; k++){
+					trace("behold the spike episodes"+"("+episodesArray[k].beginTime+", "+episodesArray[k].endTime+")");
+				}
+				*/
 				dispatchEvent(new Event(Event.COMPLETE));
 			}
 		}

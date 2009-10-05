@@ -8,10 +8,11 @@
 			<mx:Label text="Enter Street Address:"/>
 			<mx:TextInput id="streetAddress" width="200"/>
 			<mx:Label text="(e.g. 2520 Shattuck Ave, Berkeley)" alpha=".5" />
-			<mx:Label text="Enter badge number:"/>
-			<mx:ComboBox id="badgeCombo" dataProvider="{BADGES}" labelField="name"></mx:ComboBox>
 			<mx:Label text="Enter area radius around:"/>
 			<mx:ComboBox id="areaRadius" dataProvider="{AREARADII}" labelField="name"></mx:ComboBox>
+			<!-- DISABLED badgeCombo for demo -->
+			<!--<mx:Label text="Enter badge number:"/>-->
+			<mx:ComboBox id="badgeCombo" enabled="false" alpha="0"  dataProvider="{BADGES}" labelField="name"></mx:ComboBox>
 		</mx:VBox>
 		<mx:VBox height="100%" width="180">
 			<mx:DateChooser id="dateChooser" borderColor="#FFFFFF" selectedDate="{new Date()}"

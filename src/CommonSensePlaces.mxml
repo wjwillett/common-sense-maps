@@ -656,7 +656,21 @@
 								reading:"pm25"};
 							*/
 							
-							loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
+							// Load PM Data from files only!
+							var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+							var dirRequest:URLRequest = new URLRequest(pmRootDir);
+							var dirLoader:URLLoader = new URLLoader(dirRequest);
+							dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
+									var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
+									for(var i:int=0; i< pmSourceFiles.length; i++) pmSourceFiles[i] = pmRootDir + pmSourceFiles[i];
+									var info:Object = {name:"West Oakland PM", source:pmSourceFiles,reading:"pm25"};
+									// Removed point centering of centermap()				
+									loadData(info.source,info.reading,info.name,function():void{dispatchComplete();});
+								});
+							
+							// Load CO data or potentially other data from the database.
+							// Note that centermap() actually centers on the last point (even though we already centered on location)
+							//loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
 						} 
 						PopUpManager.removePopUp(loadPanel);
 					};
