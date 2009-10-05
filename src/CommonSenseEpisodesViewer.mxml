@@ -6,8 +6,8 @@
 	
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
-		left="10" top="10" right="10" bottom="30"/>
-	<mx:VBox right="20" top="20" bottom="40" width="400" id="timelinesHolder"/>
+		left="10" top="10" right="310" bottom="10"/>
+	<mx:VBox right="0" top="10" bottom="40" width="300" id="timelinesHolder" backgroundColor="#FFFFFF" backgroundAlpha="1.0"/>
 	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
 		
 	<mx:ProgressBar id="progressBar" visible="true" includeInLayout="false" mode="manual" left="40" right="20" bottom="50"/>	
@@ -125,7 +125,7 @@
 				//Add map controls
 				var controls:MapControls = new MapControls(map);
 				map.addChild(controls);
-				controls.y = -15;
+				controls.y = -35;
 
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),17);
@@ -329,6 +329,7 @@
 			
 			
 			protected function addTimelines(episodes:Array):void{
+				episodes = episodes.reverse();
 				var epIndex:Object = {};
 				for each(var e:Object in episodes){
 					var t:AirQualityTimeLine = new AirQualityTimeLine();
@@ -347,6 +348,17 @@
 							t.setStyle("borderColor",0xFFFFFFFF);
 							tl.refresh();
 						});
+					t.addEventListener(MouseEvent.MOUSE_OVER, function(fme:Event):void{
+							var tm:AirQualityTimeLine = fme.currentTarget as AirQualityTimeLine;
+							_plotLayer.minTime = tm.xBottom;
+							_plotLayer.maxTime = tm.xTop;
+							_plotLayer.refresh();
+						});
+					t.addEventListener(MouseEvent.MOUSE_OUT, function(foe:Event):void{
+							_plotLayer.minTime = int.MIN_VALUE;
+							_plotLayer.maxTime = int.MAX_VALUE;
+							_plotLayer.refresh();
+						});		
 				}
 			}
 			
