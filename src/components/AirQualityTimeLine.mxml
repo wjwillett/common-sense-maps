@@ -6,8 +6,8 @@
 	
 	<mx:VRule id="tipLine" top="{margin}" bottom="{margin}" visible="false"/>
 	
-	<mx:Canvas id="container"  x="{margin + 45}" width="{width - (2 * margin) - 45}" 
-		top="{margin}" height="{height - 2 * margin - SCROLLBAR_HEIGHT}" resize="{dirty.dirty();refresh()}" 
+	<mx:Canvas id="container"  x="{margin + (noControls ? 0 : 45)}" width="{width - (2 * margin) - (noControls ? 0 : 45)}" 
+		top="{margin}" height="{height - 2 * margin - (noControls ? 0 : SCROLLBAR_HEIGHT)}" resize="{dirty.dirty();refresh()}" 
 		mouseOver="{handleMouseMove(event)}" mouseOut="{handleMouseOut(event)}" 
 		mouseMove="{handleMouseMove(event); playHeadDrag(event)}" click="{handleMouseClick(event)}" 
 		mouseDown="{handleMouseDown(event)}" mouseUp="{handleMouseUp(event)}"
@@ -15,8 +15,8 @@
 		horizontalScrollPolicy="off" verticalScrollPolicy="off"
 		doubleClickEnabled="true" color="#aa2222"/>
 	
-	<mx:Canvas id="brushLayer"  x="{margin + 45}" width="{width - (2 * margin) - 45}" 
-		top="{margin}" height="{height - 2 * margin - SCROLLBAR_HEIGHT}" resize="{dirty.dirty();refresh()}" 
+	<mx:Canvas id="brushLayer"  x="{margin + (noControls ? 0 : 45)}" width="{width - (2 * margin) - (noControls ? 0 : 45)}" 
+		top="{margin}" height="{height - 2 * margin - (noControls ? 0 : SCROLLBAR_HEIGHT)}" resize="{dirty.dirty();refresh()}" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" mouseEnabled="false"/>
 	
 	<mx:Canvas id="playhead" top="{margin}" bottom="{margin + SCROLLBAR_HEIGHT}" 
@@ -371,10 +371,11 @@
 			protected function plotAxes(bd:BitmapData,bounds:Rectangle,ds:AirQualityDataSet):void{
 				var plotShape:Shape = new Shape();
 				
-				//plot x baseline
-				plotShape.graphics.lineStyle(0.5,0x999999);
-				plotShape.graphics.moveTo(0,bounds.bottom);
-				plotShape.graphics.lineTo(bd.width,bounds.bottom);
+				//plot x & y baselines
+				plotShape.graphics.lineStyle(0.5,0x99999999);
+				plotShape.graphics.moveTo(1,bounds.top);
+				plotShape.graphics.lineTo(1,bounds.bottom - 1);
+				plotShape.graphics.lineTo(bd.width,bounds.bottom - 1);
 				
 				//plot AQI cutoffs
 				for each(var c:Number in AirQualityColors.POLLUTANT_INDEX[ds.pollutant]){
@@ -939,7 +940,6 @@
 				return dPos;
 			}
 			
-			
 			/**
 			 * Converts a coordinate in the data space
 			 *  into a point in the coordinate space of the 
@@ -968,7 +968,6 @@
 						 sBounds.height * (1 - (pointData[yDataField] - _yMin) /
 						 	(_yMax - _yMin)) + sBounds.y); 
 			}
-			
 			
 			/**
 			 * Returns the datapoint closest to a given position 
