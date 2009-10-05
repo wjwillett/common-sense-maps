@@ -62,11 +62,10 @@ package data
 					startPos = i;
 				}
 			}
-			
+			spikeEpisodes = spikeEpisodes.sortOn('windowAverage');
 			// Debugging stuff
 			/*
 			trace("new stuff");
-			spikeEpisodes = spikeEpisodes.sortOn('windowAverage');
 			for(i=0; i < spikeEpisodes.length; i++){
 				trace("average of this window = "+spikeEpisodes[i]['windowAverage']);
 			}
