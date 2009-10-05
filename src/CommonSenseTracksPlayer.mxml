@@ -118,6 +118,9 @@
 				}
 			}
 			
+			//tracks last point drawn on playback
+			protected var _lastDrawn:int = 0;
+			
 			/******** Mapping Methods **********************************************************/
 			protected function setupMap():void{
 				
@@ -263,21 +266,33 @@
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
 						if(te.playheadTime){
 							_plotLayer.maxTime = te.playheadTime;
-							
+																					
 							//Centers map on the last point
 							//FIXME: This is a VERY quick implementation that loops through all the points every time.
 							// optimize the search for the last point(e.g. only check since the last update) and 
-							// smooth the playback	
+							// smooth the playback
+							var endTimes:Object = (_dataSets[0] as AirQualityDataSet).stats.getEpisodeEndTimes();
+								
 							if(_dataSets[0] && (_dataSets[0] as AirQualityDataSet).data){
 								var ds:AirQualityDataSet = (_dataSets[0] as AirQualityDataSet);
 								
 								//iterate through points
-								for(var i:int=0; i < ds.data.length; i++){
+								for(var i:int=_lastDrawn+1; i < ds.data.length; i++){
 									var point:Object = ds.data[i]; 
+									
+									//pause and trigger a prompt if this window is above average
+									if(endTimes[point.time] > 0.025){
+										timeline.stopPlayback();
+										_lastDrawn = i;
+										dispatchEvent(new Event("aboveThreshold",true));
+									}
+									
 									//Save the index of the last point drawn at/after the playhead 							
-									if(Number(point.time) > te.playheadTime && point.lat && point.lat != "None" && point.lat !=0){
-										//panAndZoomTo(new Location(point.lat, point.lon),map.getZoom());
-										map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
+									if(Number(point.time) > te.playheadTime){
+										//recenter 
+										if(point.lat && point.lat != "None" && point.lat !=0){
+											map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
+										}
 										break;
 									}
 								}
@@ -346,6 +361,12 @@
 			 *   added to the display.
 			 */
 			protected function createMenu(mousePt:Point,dataPoint:Object):void{
+				
+				//Short-term solution, always center on point click, bypassing the menu
+				if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
+				if(dataPoint.time) timeline.centerOn(dataPoint.time);
+				
+				/*
 				//set up menu XML
 				var menuXML:XML = XML(<root/>);
 				var centerXML:XML = XML(<item/>);
@@ -401,7 +422,7 @@
 						else menu.hide();
 					});
 					
-	            menu.show(mousePt.x, mousePt.y);
+	            menu.show(mousePt.x, mousePt.y);*/
 			}
 			
 			/**

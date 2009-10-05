@@ -123,7 +123,9 @@
 				_plotLayer.selections = _selections;
 				
 				//Add map controls
-				map.addChild(new MapControls(map));
+				var controls:MapControls = new MapControls(map);
+				map.addChild(controls);
+				controls.y = -15;
 
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),17);
@@ -306,7 +308,7 @@
 						progressBar.includeInLayout = false;
 						_dataSets.push(ds);
 						var peaks:Array = ds.stats.getSpikes();
-						addTimelines(peaks.slice(0,Math.min(peaks.length,10)));
+						addTimelines(peaks.slice(Math.max(peaks.length-11,0),Math.max(peaks.length-1,0)));
 						_plotLayer.refresh(true);
 						dispatchUpdated();
 						if(onComplete != null) onComplete();
@@ -332,7 +334,6 @@
 					var t:AirQualityTimeLine = new AirQualityTimeLine();
 					t.percentWidth = 100;
 					t.height = timelinesHolder.height * 0.9 / episodes.length;
-					t.margin = 4;
 					t.noControls = true;
 					t.dataSets = _dataSets;
 					t.xBottom = e.beginTime;
@@ -342,6 +343,8 @@
 					t.addEventListener(FlexEvent.CREATION_COMPLETE, function(fe:FlexEvent):void{
 							var tl:AirQualityTimeLine = fe.target as AirQualityTimeLine;
 							setupTimeline(tl);
+							t.setStyle("borderStyle","solid");
+							t.setStyle("borderColor",0xFFFFFFFF);
 							tl.refresh();
 						});
 				}
@@ -361,7 +364,11 @@
 			 *   added to the display.
 			 */
 			protected function createMenu(mousePt:Point,dataPoint:Object):void{
-				//set up menu XML
+				
+				//Short-term solution, always center on point click, bypassing the menu
+				if(dataPoint.lat && dataPoint.lat != "None") panAndZoomTo(new Location(dataPoint.lat, dataPoint.lon),map.getZoom());
+				
+				/*//set up menu XML
 				var menuXML:XML = XML(<root/>);
 				var centerXML:XML = XML(<item/>);
 				centerXML.@label = 'Center Views on This Point';	
@@ -416,7 +423,7 @@
 						else menu.hide();
 					});
 					
-	            menu.show(mousePt.x, mousePt.y);
+	            menu.show(mousePt.x, mousePt.y);*/
 			}
 			
 			/**
