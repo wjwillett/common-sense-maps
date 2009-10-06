@@ -663,7 +663,8 @@
 							*/
 							
 							// Load PM Data from files only!
-							var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+							//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+							var pmRootDir:String = "http://www.wjwillett.net/temp/WestOaklandPM/";
 							var dirRequest:URLRequest = new URLRequest(pmRootDir);
 							var dirLoader:URLLoader = new URLLoader(dirRequest);
 							dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{

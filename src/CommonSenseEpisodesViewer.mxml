@@ -6,8 +6,9 @@
 	
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
-		left="10" top="10" right="310" bottom="10"/>
-	<mx:VBox right="0" top="10" bottom="40" width="300" id="timelinesHolder" backgroundColor="#FFFFFF" backgroundAlpha="1.0"/>
+		left="10" top="10" right="310" bottom="10" clipContent="true"/>
+	<mx:VBox right="0" top="10" bottom="40" width="300" id="timelinesHolder" 
+		backgroundColor="#FFFFFF" backgroundAlpha="1.0" verticalGap="0"/>
 	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
 		
 	<mx:ProgressBar id="progressBar" visible="true" includeInLayout="false" mode="manual" left="40" right="20" bottom="50"/>	
@@ -179,7 +180,8 @@
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?badge=000000000004&reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
 						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
-					var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+					var pmRootDir:String = "http://www.wjwillett.net/temp/WestOaklandPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
@@ -334,12 +336,22 @@
 				for each(var e:Object in episodes){
 					var t:AirQualityTimeLine = new AirQualityTimeLine();
 					t.percentWidth = 100;
-					t.height = timelinesHolder.height * 0.9 / episodes.length;
+					t.height = timelinesHolder.height * 0.75 / episodes.length;
 					t.noControls = true;
 					t.dataSets = _dataSets;
 					t.xBottom = e.beginTime;
 					t.xTop = e.endTime;
 					_timelines.push(t);
+					
+					//label
+					var l:Label = new Label();
+					l.text = (new Date(e.beginTime*1000)).toLocaleString();
+					l.setStyle("paddingTop",2);
+					l.setStyle("paddingBottom",-4);
+					l.setStyle("fontWeight","bold");
+					l.setStyle("color","0x999999");
+					timelinesHolder.addChild(l);
+					
 					timelinesHolder.addChild(t);
 					t.addEventListener(FlexEvent.CREATION_COMPLETE, function(fe:FlexEvent):void{
 							var tl:AirQualityTimeLine = fe.target as AirQualityTimeLine;
@@ -348,17 +360,21 @@
 							t.setStyle("borderColor",0xFFFFFFFF);
 							tl.refresh();
 						});
-					t.addEventListener(MouseEvent.MOUSE_OVER, function(fme:Event):void{
+					/* t.addEventListener(MouseEvent.MOUSE_OVER, function(fme:Event):void{
 							var tm:AirQualityTimeLine = fme.currentTarget as AirQualityTimeLine;
 							_plotLayer.minTime = tm.xBottom;
 							_plotLayer.maxTime = tm.xTop;
-							_plotLayer.refresh();
 						});
 					t.addEventListener(MouseEvent.MOUSE_OUT, function(foe:Event):void{
 							_plotLayer.minTime = int.MIN_VALUE;
 							_plotLayer.maxTime = int.MAX_VALUE;
 							_plotLayer.refresh();
 						});		
+						
+					t.addEventListener(DataPointEvent.HOVER, function(fde:DataPointEvent):void{
+							panAndZoomTo(new Location(fde.dataPoint.lat, fde.dataPoint.lon),map.getZoom());
+						});	 */	
+						
 				}
 			}
 			
@@ -485,8 +501,15 @@
 							trace("Error: Center and Zoom still are not correct after realign!");
 						}
 						
-						_isPanningAndZooming = false;
-						map.dispatchEvent(new CSEvent(CSEvent.PAN_AND_ZOOM_COMPLETE));
+						//FIXME: A total hack - introduces a delay to prevent 
+						// problems that keep cropping up in the underlying tween library
+						var delayTimer:Timer = new Timer(200,1);
+						delayTimer.addEventListener(TimerEvent.TIMER,function(e:Event):void{
+								_isPanningAndZooming = false;
+								map.dispatchEvent(new CSEvent(CSEvent.PAN_AND_ZOOM_COMPLETE));	
+							});
+						delayTimer.start();
+						
 					}				
 							
 				//Add Listeners
@@ -621,9 +644,8 @@
 			public function onResize(event:Event):void
 			{	
 				var mc:Location = map.getCenter(); 
-				map.setSize(this.width, this.height);
+				map.setSize(container.width, container.height);
 				map.setCenter(mc);
-				
 			}	
 			
 			/**Checks if two locations are equal to some level of precision */

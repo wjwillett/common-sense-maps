@@ -196,7 +196,8 @@
 						"url":DataLoadingPanel.BASE_DB_QUERY_URL +"?badge=000000000004&reading=mco&start_time=" + int((new Date().time) / 1000 - 3 * 3600),
 						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
-					var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandMostRecentPM/";
+					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandMostRecentPM/";
+					var pmRootDir:String = "http://www.wjwillett.net/temp/WestOaklandMostRecentPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
@@ -281,7 +282,7 @@
 									var point:Object = ds.data[i]; 
 									
 									//pause and trigger a prompt if this window is above average
-									if(endTimes[point.time] > 0.025){
+									if(endTimes[point.time] > 0.010){
 										timeline.stopPlayback();
 										_lastDrawn = i;
 										dispatchEvent(new Event("aboveThreshold",true));
