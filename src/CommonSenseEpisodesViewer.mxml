@@ -6,8 +6,8 @@
 	
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
-		left="10" top="10" right="310" bottom="10" clipContent="true"/>
-	<mx:VBox right="0" top="10" bottom="40" width="300" id="timelinesHolder" 
+		left="310" top="10" right="10" bottom="10" clipContent="true"/>
+	<mx:VBox left="0" top="10" bottom="40" width="300" id="timelinesHolder" 
 		backgroundColor="#FFFFFF" backgroundAlpha="1.0" verticalGap="0"/>
 	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
 		
