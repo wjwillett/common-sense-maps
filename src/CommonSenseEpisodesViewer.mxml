@@ -6,7 +6,7 @@
 	
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
-		left="310" top="10" right="10" bottom="10" clipContent="true"/>
+		left="310" top="10" right="10" bottom="10" clipContent="true" resize="{onResize(event)}"/>
 	<mx:VBox left="0" top="10" bottom="40" width="300" id="timelinesHolder" 
 		backgroundColor="#FFFFFF" backgroundAlpha="1.0" verticalGap="0"/>
 	<ns1:AirQualityLegend height="25" bottom="5" left="10" right="10"/>
@@ -181,7 +181,8 @@
 						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
 					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
-					var pmRootDir:String = "http://www.wjwillett.net/temp/WestOaklandPM/";
+					//var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
+					var pmRootDir:String = "http://exp.sense.us/data/westoaklandpm/WestOaklandPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
@@ -554,7 +555,7 @@
 				for each(var d:AirQualityDataSet in _dataSets) dsorted.push(d);
 				dsorted.sortOn("dataURI"); 
 				for each(var di:AirQualityDataSet in dsorted){
-					ds = (ds == null ? di.dataURI : ds + "," + di.dataURI);
+					ds = (ds == null ? di.dataURI : ds + ";" + di.dataURI);
 					dsn = (dsn == null ? escape(di.name) : dsn + "," + escape(di.name));
 					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
 				} 
@@ -566,8 +567,7 @@
 						dataPollutants:dsp//,
 						/* xBottom:timeline.xBottom,
 						xTop:timeline.xTop,
-						playheadPosition:timeline.playheadPosition}; */
-					};
+						playheadPosition:timeline.playheadPosition */};
 			}
 			
 			public function set state(o:Object):void{
@@ -578,14 +578,15 @@
 						panAndZoomTo(new Location(o.centerLat,o.centerLon),o.zoom);
 						
 						//set time bounds
-/* 						timeline.xBottom = o.xBottom;
+						/* timeline.xBottom = o.xBottom;
 						timeline.xTop = o.xTop;
 						timeline.playheadPosition = o.playheadPosition;
-						timeline.refresh();
- */					};
+						timeline.refresh(); */
+					};
 
 				//get names, uris, and pollutants of datasets in state
-				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
+				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(';') : null;
+				for each(var dss:String in ds) if(dss.lastIndexOf(',') != -1) ds.splice(ds.indexOf(dss),1,dss.split(','));
 				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
 				var dsp:Array = (o.dataPollutants is String) ?(o.dataPollutants as String).split(',') : null;
 				
@@ -619,7 +620,6 @@
 					}					
 				}
 				if(loadingCount == 0)onceLoaded();
-				
 			}
 			
 			protected function dispatchComplete(e:Event = null):void{
@@ -643,6 +643,7 @@
 				
 			public function onResize(event:Event):void
 			{	
+				if(!map) return;
 				var mc:Location = map.getCenter(); 
 				map.setSize(container.width, container.height);
 				map.setCenter(mc);

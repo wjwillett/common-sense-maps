@@ -2,10 +2,9 @@
 <mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" 
 	width="700" styleName="cspopup" >
 	<mx:RadioButtonGroup id="radioGroup"/>
-	<mx:Label text="places" styleName="csH1"/>
+	<mx:Label text="Enter a street Address and Dates:" fontSize="14"/>
 	<mx:HBox width="100%" verticalAlign="middle">
-		<mx:VBox width="100%" height="100%" verticalAlign="middle" horizontalAlign="left">
-			<mx:Label text="Enter a street Address:" fontSize="14"/>
+		<mx:VBox width="100%" height="100%" verticalAlign="top" horizontalAlign="left">
 			<mx:TextInput id="streetAddress" width="100%" text="14th and Wood, Oakland, CA" fontSize="14"/>
 			<mx:Label text="(e.g. 2520 Shattuck Ave, Berkeley)" alpha=".5" />
 			<mx:Label text="Enter area radius around:" fontSize="14" visible="false"/>
@@ -156,6 +155,17 @@
 					} //else
 						//geocodeButton.label = "Location Invalid!";	
 				});
+				//FIXME:quick default handler which catches the errors thrown when running on the web
+				// (Flash's security model won't allow access to the google API) and defaults to a set location.
+				loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(e:Event){
+					geocodeReturn = [0,0,37.813191355256826, -122.2976803779602];
+					geocodedLatLonRange = {latMin:Number(geocodeReturn[2])-(Number(areaRadius)/69.172), 
+										   latMax:Number(geocodeReturn[2])+(Number(areaRadius)/69.172), 
+										   lonMin:Number(geocodeReturn[3])-(Number(areaRadius)/69.172), 
+										   lonMax:Number(geocodeReturn[3])+(Number(areaRadius)/69.172)};
+					
+				   	onLoadClick(e,geocodeReturn, areaRadius);
+				}); 
 			}
 			
 			

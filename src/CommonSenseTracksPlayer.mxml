@@ -7,9 +7,9 @@
 	<mx:Canvas id="container" backgroundColor="0xffffff" 
 		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"
 		left="10" top="10" right="10" bottom="30"/>
-	<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
-		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">
-		<mx:HBox bottom="85" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
+	<!--<mx:Canvas id="glassPane" horizontalScrollPolicy="off" verticalScrollPolicy="off"  
+		left="10" top="10" right="10" bottom="30" backgroundAlpha="0.01" backgroundColor="0xffffff">-->
+		<mx:HBox bottom="115" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
 			<mx:VBox cornerRadius="15" width="115">
 				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
 				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
@@ -18,7 +18,7 @@
 				toolTip="{timeline._playing ? 'pause' : 'play'}" height="100%" fontSize="23" id="bigPlayPause" 
 				click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
 		</mx:HBox>
-	</mx:Canvas>
+<!--	</mx:Canvas>-->
 	
 	<ns1:AirQualityTimeLine id="timeline" height="80" creationComplete="{setup()}" 
 		bottom="30" left="10" right="10" margin="5" timeMultiplier="25" useAdvancedControls="false"/>
@@ -80,6 +80,9 @@
 			
 			/******** Constants **********************************************************/
 			protected const CLICK_RADIUS:Number = 2;
+			
+			protected const POPUP_THRESHOLD:Number = 0.020;
+			
 			
 			protected static const DESATURATION_MATRIX:Array = [
 					0.3, 0.59, 0.3, 0, 0,
@@ -148,7 +151,7 @@
 				//map.addChild(new MapControls(map));
 
 				//set the map center
-				map.setCenterZoom(new Location(37.803,-122.298),17);
+				map.setCenterZoom(new Location(37.803,-122.298),18);
 				
 				//Listeners for updating state 
 				map.addEventListener(MapEvent.STOP_PANNING, dispatchUpdated);
@@ -197,7 +200,8 @@
 						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
 					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandMostRecentPM/";
-					var pmRootDir:String = "http://www.wjwillett.net/temp/WestOaklandMostRecentPM/";
+					var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandMostRecentPM/";
+					//var pmRootDir:String = "http://exp.sense.us/data/westoaklandpm/WestOaklandMostRecentPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
@@ -282,7 +286,7 @@
 									var point:Object = ds.data[i]; 
 									
 									//pause and trigger a prompt if this window is above average
-									if(endTimes[point.time] > 0.010){
+									if(endTimes[point.time] > POPUP_THRESHOLD){
 										timeline.stopPlayback();
 										_lastDrawn = i;
 										dispatchEvent(new Event("aboveThreshold",true));
@@ -292,7 +296,7 @@
 									if(Number(point.time) > te.playheadTime){
 										//recenter 
 										if(point.lat && point.lat != "None" && point.lat !=0){
-											map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
+											map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),18);
 										}
 										break;
 									}
