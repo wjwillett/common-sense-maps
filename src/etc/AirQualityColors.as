@@ -59,7 +59,10 @@ package etc
 			co     : [0,	4,		9,		12,		15,		30],
 			
 			//Sulfur Dioxide (24-hour) ppm
-			so2    : [0,	0.03,	0.14,	0.22,	0.3,	0.6]
+			so2    : [0,	0.03,	0.14,	0.22,	0.3,	0.6],
+			
+			//AQI (corresponding indices for above breakpoints)
+			aqi    : [0,	51,		101,	151,	201,	301]
 		};
 		
 		protected static const AQI_CAT_TO_COLOR_LOOKUP:Object = {
@@ -92,6 +95,62 @@ package etc
 			else if(value >= POLLUTANT_INDEX[pollutant][4] && value < POLLUTANT_INDEX[pollutant][5]) return VERY_UNHEALTHY;
 			else if(value >= POLLUTANT_INDEX[pollutant][5]) return HAZARDOUS;
 			else return 'null';
+		}
+		
+		public static function getAQIValueForValue(pollutant:String, value:Number):Number{
+			var C_p:Number = value;
+			var I_p:Number;
+			var I_Hi:Number;
+			var I_Lo:Number;
+			var BP_Hi:Number;
+			var BP_Lo:Number;
+			
+			if(value >= POLLUTANT_INDEX[pollutant][0] && value < POLLUTANT_INDEX[pollutant][1]){
+				BP_Lo = POLLUTANT_INDEX[pollutant][0];
+				BP_Hi = POLLUTANT_INDEX[pollutant][1];
+				I_Lo = POLLUTANT_INDEX["aqi"][0];
+				I_Hi = POLLUTANT_INDEX["aqi"][1];
+			}
+			else if(value >= POLLUTANT_INDEX[pollutant][1] && value < POLLUTANT_INDEX[pollutant][2]){
+				BP_Lo = POLLUTANT_INDEX[pollutant][1];
+				BP_Hi = POLLUTANT_INDEX[pollutant][2];
+				I_Lo = POLLUTANT_INDEX["aqi"][1];
+				I_Hi = POLLUTANT_INDEX["aqi"][2];
+			}
+				
+			else if(value >= POLLUTANT_INDEX[pollutant][2] && value < POLLUTANT_INDEX[pollutant][3]){
+				BP_Lo = POLLUTANT_INDEX[pollutant][2];
+				BP_Hi = POLLUTANT_INDEX[pollutant][3];
+				I_Lo = POLLUTANT_INDEX["aqi"][2];
+				I_Hi = POLLUTANT_INDEX["aqi"][3];
+			}
+				
+			else if(value >= POLLUTANT_INDEX[pollutant][3] && value < POLLUTANT_INDEX[pollutant][4]){
+				BP_Lo = POLLUTANT_INDEX[pollutant][3];
+				BP_Hi = POLLUTANT_INDEX[pollutant][4];
+				I_Lo = POLLUTANT_INDEX["aqi"][3];
+				I_Hi = POLLUTANT_INDEX["aqi"][4];				
+			}
+				
+			else if(value >= POLLUTANT_INDEX[pollutant][4] && value < POLLUTANT_INDEX[pollutant][5]){
+				BP_Lo = POLLUTANT_INDEX[pollutant][4];
+				BP_Hi = POLLUTANT_INDEX[pollutant][5];
+				I_Lo = POLLUTANT_INDEX["aqi"][4];
+				I_Hi = POLLUTANT_INDEX["aqi"][5];			
+			}
+				
+			else if(value >= POLLUTANT_INDEX[pollutant][5]){
+				BP_Lo = POLLUTANT_INDEX[pollutant][4];
+				BP_Hi = POLLUTANT_INDEX[pollutant][5];
+				I_Lo = POLLUTANT_INDEX["aqi"][4];
+				I_Hi = POLLUTANT_INDEX["aqi"][5];	
+			}
+			else
+				return -1;
+			
+			I_p = ((I_Hi - I_Lo)/(BP_Hi - BP_Lo))*(C_p - BP_Lo) + I_Lo;
+			
+			return I_p;
 		}
 	}
 }

@@ -8,12 +8,14 @@ package data
 		//private var topTenEpisodes:Array; // for internal debugging if required
 		private var episodeEndTimes:Object;
 		private var windowStaggering:Number = 30; // hard coded start time staggering for windows.
+		private var myExposureAverage:Number;
 		
 		public function Stats(_data:Vector.<Object>, headers:Array){ // Constructor
 			spikeEpisodes = new Array();
 			episodeEndTimes = new Object();
 			//topTenEpisodes = new Array();
 			processSpikes(_data, headers);
+			calculateAverage(_data, headers);
 		}
 		
 		private function processSpikes(_data:Vector.<Object>, headers:Array):void{
@@ -80,12 +82,33 @@ package data
 			*/
 		}
 		
+		public function calculateAverage(_data:Vector.<Object>, headers:Array):void{
+			trace("data length="+_data.length);
+			var sum:Number = 0;
+			
+			for(var i:Number = 0; i < _data.length; i++){
+				sum += Number(_data[i][headers[3]]);
+			}
+			trace("sum="+sum);
+			myExposureAverage = sum / _data.length;
+			trace("myExposure = "+myExposureAverage);
+		}
+		
+		public function calculateAverageAQI(average:Number):void{
+			// Calculation specific to PM data for now
+			
+		}
+		
 		public function getSpikes():Array{
 			return spikeEpisodes;
 		}
 		
 		public function getEpisodeEndTimes():Object{
 			return episodeEndTimes;
+		}
+		
+		public function getMyExposureAverage():Number{
+			return myExposureAverage;
 		}
 	}
 }
