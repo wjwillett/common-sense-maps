@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" 
+	initialize="{initScript()}" xmlns:entity="commentspace.components.entity.*" 
+	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]" xmlns:commentspace="commentspace.*" currentState="Tracks">
+	
+	<mx:states>
+		<mx:State name="Split">
+			<mx:AddChild position="lastChild">
+				<commentspace:VisLoader id="mainVis" left="0" width="100%" height="100%" visEntityName="Main Map View">
+				</commentspace:VisLoader>
+			</mx:AddChild>
+			<mx:AddChild position="lastChild">
+				<mx:HBox width="100%">
+				</mx:HBox>
+			</mx:AddChild>
+			<mx:AddChild relativeTo="{mainVis}" position="before">
+				<mx:HBox width="100%" horizontalGap="0" verticalAlign="bottom">
+				 	<mx:VRule height="70" strokeColor="#73C400"/>
+				 	<mx:VBox id="vbox1" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+				 	 	<mx:LinkButton label="tracks" click="{currentState='Tracks'}" id="linkbutton3" fontSize="15" fontFamily="Verdana" color="#73C400"/>
+				 	 	<mx:Text text="see the air quality &#xd;data that you've collected&#xd;" fontWeight="normal" fontSize="9" id="text1" paddingLeft="10"/>
+				 	</mx:VBox>
+				 	<mx:VRule height="70" strokeColor="#73C400"/>
+				 	<mx:VBox id="vbox2" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+				 	 	<mx:LinkButton label="places" click="{currentState='Places'}" id="linkbutton2" fontSize="15" fontFamily="Verdana" color="#73C400"/>
+				 	 	<mx:Text text="see air quality &#xd;at a given address " fontWeight="normal" fontSize="9" id="text2" paddingLeft="10"/>
+				 	</mx:VBox>
+				 	<mx:VRule height="70" strokeColor="#73C400"/>
+				 	<mx:VBox id="vbox3" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+				 	 	<mx:LinkButton label="compare" click="{currentState='Compare'}" id="linkbutton0" fontSize="15" fontFamily="Verdana" color="#73C400"/>
+				 	 	<mx:Text text="compare air quality readings&#xd;from the worst points" fontWeight="normal" fontSize="9" id="text3" paddingLeft="10"/>
+				 	</mx:VBox>
+				 	<mx:VRule height="70" strokeColor="#73C400"/>
+				</mx:HBox>
+			</mx:AddChild>
+			<mx:AddChild relativeTo="{mainVis}" position="before">
+				<mx:HRule width="100%" strokeColor="#80DC57"/>
+			</mx:AddChild>
+			<mx:SetStyle name="verticalGap" value="0"/>
+		</mx:State>
+		
+		<mx:State name="Tracks" basedOn="Split" enterState="{mainVis.source = TRACKS_SOURCE;}">
+			<mx:SetProperty target="{linkbutton3}" name="enabled" value="true"/>
+			<mx:SetStyle target="{vbox1}" name="backgroundColor" value="#73C400"/>
+			<mx:SetStyle target="{text1}" name="color" value="#FFFFFF"/>
+			<mx:SetStyle target="{linkbutton3}" name="color" value="#FFFFFF"/>
+			<mx:SetProperty target="{vbox1}" name="enabled" value="false"/>
+		</mx:State>
+		
+		<mx:State name="Places" basedOn="Split" enterState="{mainVis.source = PLACES_SOURCE; }">
+			<mx:SetProperty target="{linkbutton2}" name="enabled" value="true"/>
+			<mx:SetStyle target="{linkbutton2}" name="color" value="#FFFFFF"/>
+			<mx:SetStyle target="{text2}" name="color" value="#FFFFFF"/>
+			<mx:SetStyle target="{vbox2}" name="backgroundColor" value="#73C400"/>
+			<mx:SetProperty target="{vbox2}" name="enabled" value="false"/>
+		</mx:State>
+		
+		
+		<mx:State name="Compare" basedOn="Split" enterState="{mainVis.source = COMPARE_SOURCE; }">
+			<mx:SetProperty target="{linkbutton0}" name="enabled" value="true"/>
+			<mx:SetStyle target="{linkbutton0}" name="color" value="#FFFFFF"/>
+			<mx:SetStyle target="{text3}" name="color" value="#FFFFFF"/>
+			<mx:SetStyle target="{vbox3}" name="backgroundColor" value="#73C400"/>
+			<mx:SetProperty target="{vbox3}" name="enabled" value="false"/>
+		</mx:State>
+		
+		
+	</mx:states>
+	
+	
+ 	
+ 	<mx:Script>
+ 		<![CDATA[
+ 			import commentspace.managers.VisBindingManager;
+ 			import commentspace.data.LoginManager;
+ 			import commentspace.Tags;
+ 			import commentspace.data.EntityFactory;
+ 			import commentspace.data.WorkspaceManager;
+ 			import commentspace.events.EntityEvent;
+ 		
+ 			/** -------- Login Info ---------- */
+			private const DEFAULT_WORKSPACE:String = "CommonSenseTest";
+			private const DEFAULT_LOGIN:String = "interviewee@woeip.org";
+			private const DEFAULT_PASS:String = "Interviewee";
+			//private const DEFAULT_LOGIN:String = "vis1@eecs.berkeley.edu";
+			//private const DEFAULT_PASS:String = "pass";
+ 		
+ 			//private const COMMENT_VIS_SOURCE:String = 'commentspace.components.commentvis.CommentNavigatorVis';
+ 			private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
+ 			//private const COMMONSENSE_SOURCE:String = 'http://www.eecs.berkeley.edu/~willettw/temp/commonsensemaps.swf';
+			//private const COMMONSENSE_SOURCE:String = '../../commonsensemaps/bin-debug/commonsensemaps.swf';
+			private const TRACKS_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSenseTracksPlayer.swf';
+			private const PLACES_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSensePlaces.swf';
+			private const HOTSPOTS_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSenseHotspots.swf';
+			private const COMPARE_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSenseEpisodesViewer.swf';
+ 		
+ 			protected var paired:Boolean = false;
+ 			
+ 			protected var portalFilters:Array = [new GlowFilter(0xFF66FF00,0.6,15,15)];
+ 		
+ 			/** -------- Methods ------------- */
+ 			protected function initScript():void{
+ 				
+ 				/* Security settings - should be constrained before deployment!
+				 *  These settings allow this code to be loaded into and accessed by 
+				 *  a Flash movie on ANY external server. *****************************/
+				Security.allowDomain("*");
+				Security.allowInsecureDomain("*");
+				
+				//Login and set workspace
+				WorkspaceManager.instance.workspace = DEFAULT_WORKSPACE;
+				LoginManager.instance.login(DEFAULT_LOGIN,DEFAULT_PASS);
+			}
+			
+			
+			protected function initState():void{
+				
+			}
+
+ 			protected function initTracks():void{
+ 				initState();
+ 			}
+ 			
+ 			protected function initPlaces():void{
+ 				initState();
+ 			}
+ 			
+ 			protected function initCompare():void{
+ 				initState();
+ 			}
+ 			
+ 			
+ 			
+ 			
+ 		]]>
+ 	</mx:Script>	
+</mx:Application>
