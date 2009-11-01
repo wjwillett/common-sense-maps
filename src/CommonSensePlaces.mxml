@@ -662,6 +662,7 @@
 								reading:"pm25"};
 							*/
 							
+							/*
 							// Load PM Data from files only!
 							//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
 							//var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
@@ -675,10 +676,11 @@
 									// Removed point centering of centermap()				
 									loadData(info.source,info.reading,info.name,function():void{dispatchComplete();});
 								});
+							*/
 							
 							// Load CO data or potentially other data from the database.
 							// Note that centermap() actually centers on the last point (even though we already centered on location)
-							//loadData(info[0].source,info[0].reading,info[0].name,function():void{centermap();dispatchComplete();});
+							loadData(info[0].source,info[0].reading,info[0].name,function():void{dispatchComplete();});
 						} 
 						PopUpManager.removePopUp(loadPanel);
 					};

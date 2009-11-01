@@ -94,11 +94,6 @@ package data
 			trace("myExposure = "+myExposureAverage);
 		}
 		
-		public function calculateAverageAQI(average:Number):void{
-			// Calculation specific to PM data for now
-			
-		}
-		
 		public function getSpikes():Array{
 			return spikeEpisodes;
 		}

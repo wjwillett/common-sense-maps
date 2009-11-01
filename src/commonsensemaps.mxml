@@ -656,9 +656,13 @@
 							for(var ds:String in _dataSets) delete _dataSets[ds];
 							_plotLayer.refresh(true);
 							timeline.refresh(true);
-							
+							/*
+							erroneous loading logic
 							var pollutant:String = info[0].reading;
 							for each (var i:Object in info) loadData(i.url,pollutant,i.name);
+							*/
+							trace(info[0].source);
+							for each (var i:Object in info) loadData(i.source,i.reading,i.name);
 						} 
 						PopUpManager.removePopUp(dataPanel);
 					};

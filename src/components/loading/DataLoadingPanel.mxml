@@ -62,36 +62,36 @@
 			
 			protected const recommendedQueries:Array = [
 				{name:"Badge 6 CO (since July 10th)",
-					url:BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800", 
+					source:BASE_DB_QUERY_URL + "?badge_id=000000000006&reading=mco&start_time=1247212800", 
 					reading:"co"},
 				{name:"Badge 9 CO (since July 10th)",
-					url:BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800",
+					source:BASE_DB_QUERY_URL + "?badge_id=000000000009&reading=mco&start_time=1247212800",
 					reading:"co"},
 				{name:"Badge 17 CO (since July 10th)",
-					url:BASE_DB_QUERY_URL + "?badge_id=000000000011&reading=mco&start_time=1247212800",
+					source:BASE_DB_QUERY_URL + "?badge_id=000000000011&reading=mco&start_time=1247212800",
 					reading:"co"},
 				{name:"Badge 4 CO (since June 29th)",
-					url:BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800",
+					source:BASE_DB_QUERY_URL + "?badge_id=000000000004&reading=mco&start_time=1246258800",
 					reading:"co"},
 				{name:"Badge 10 CO (since June 29th)",
-					url:BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800",
+					source:BASE_DB_QUERY_URL + "?badge_id=00000000000A&reading=mco&start_time=1246258800",
 					reading:"co"},
 				{name:"All Badges CO (past 24 hours)",
-					url:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
+					source:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
 						int((new Date().time) / 1000 - 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
 					reading:"co"},
 				{name:"All Badges CO (past week)",
-					url:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
+					source:BASE_DB_QUERY_URL + "?reading=mco&start_time=" + 
 						int((new Date().time) / 1000 - 7 * 24 * 3600) + "&end_time=" + int(new Date().time / 1000),
 					reading:"co"},
 				{name:"West Oakland PM (15 May 2009)",
-					url:"http://www.commonsensecommunity.com/data/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv",
+					source:"http://www.commonsensecommunity.com/data/2009-05-14%20(West%20Oakland%20PM%20+%20GPS).csv",
 					reading:"pm25"},
 				{name:"Berkeley PM (7 July 2009)",
-					url:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
+					source:"http://www.commonsensecommunity.com/data/2009-07-07%20(Berkeley%20PM%20+%20GPS).csv",
 					reading:"pm25"},
 				{name:"Berkeley PM (13 July 2009)",
-					url:"http://www.commonsensecommunity.com/data/2009-07-13%20(Berkeley%20PM%20+%20GPS).csv",
+					source:"http://www.commonsensecommunity.com/data/2009-07-13%20(Berkeley%20PM%20+%20GPS).csv",
 					reading:"pm25"}
 				];					
 					
