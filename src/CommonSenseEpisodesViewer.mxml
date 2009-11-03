@@ -181,8 +181,8 @@
 						"reading":"co"}; 
 					loadData(quickdata.url,quickdata.reading,quickdata.name,function():void{centermap();dispatchComplete();}); */
 					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
-					//var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
-					var pmRootDir:String = "http://exp.sense.us/data/westoaklandpm/WestOaklandPM/";
+					var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
+					//var pmRootDir:String = "http://exp.sense.us/data/westoaklandpm/WestOaklandPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
