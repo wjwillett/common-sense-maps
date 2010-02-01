@@ -50,6 +50,8 @@
 	
 	<mx:Script>
 		<![CDATA[
+			import components.AirQualityTimeLine;
+			import com.modestmaps.TweenMap;
 			import com.adobe.serialization.json.JSON;
 			import etc.AirQualityColors;
 			import mx.collections.ArrayCollection;
@@ -135,7 +137,7 @@
 			public var onCancelClick:Function;
 		
 		
-			public function getSelectedInfo():Array{
+			public function getSelectedInfo(map:TweenMap, timeline:AirQualityTimeLine):Array{
 				var info:Array = []
 				if(radioGroup.selectedValue=='recommended'){
 					if(grid.selectedItems){
@@ -145,9 +147,10 @@
 					}
 				}
 				else if(radioGroup.selectedValue=='custom'){
+					// sending map and timeline into url builder...
 					for each(var b:Object in badgeIdList.selectedItems){
 						info.push({name:buildName(b.name),
-							source:buildURL(b.id),
+							source:buildURL(map, timeline, b.id),
 							reading:pollutantList.selectedItem.abbreviation});
 					}
 				}
@@ -171,13 +174,22 @@
 			}
 			
 			
-			protected function buildURL(badgeId:String=null):String{
+			protected function buildURL(map:TweenMap, timeline:AirQualityTimeLine, badgeId:String=null):String{
 				var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : badgeIdList.selectedItem.id) + 
 				 		"&reading=" + pollutantList.selectedItem.db; 
 				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
 					url += "&start_time=" + (dateChooser.selectedRanges[0].rangeStart as Date).time / 1000 +
-						"&end_time=" + (dateChooser.selectedRanges[0].rangeEnd as Date).time / 1000 + 3600 * 24;
-				}				 		
+						"&end_time=" + ((dateChooser.selectedRanges[0].rangeEnd as Date).time / 1000 + 3600 * 24) +					
+						"&lat_min=" + map.getExtent().south +
+						"&lat_max=" + map.getExtent().north +
+						"&lon_min=" + map.getExtent().west + 
+						"&lon_max=" + map.getExtent().east +
+						"&window_width=" + map.width + 
+						"&window_height=" + map.height +
+						"&timeline_length=" + timeline.width +
+						"&timeline_height=" + timeline.height;
+				}
+				trace(url);		 		
 				return url;
 			}
 			

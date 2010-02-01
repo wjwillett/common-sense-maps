@@ -649,7 +649,8 @@
 				
 				//when the okay button is clicked
 				dataPanel.onLoadClick = function(e:Event=null):void{
-						var info:Array = dataPanel.getSelectedInfo();
+						// added map and timeline as arguments so we can get dimensions etc.
+						var info:Array = dataPanel.getSelectedInfo(map, timeline);
 						if(info && info.length > 0){
 							
 							//clear the existing plots
