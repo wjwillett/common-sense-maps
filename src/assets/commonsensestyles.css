@@ -40,3 +40,10 @@ LinkButton.removeButton
 {
 	color: #000000;
 }
+
+.windowShadeStyle{
+	drop-shadow-enabled: true;
+	corner-radius: 10;
+	border-style: solid;
+	backgroundColor: #FFFFFF
+}
