@@ -25,8 +25,10 @@
 			
 		</mx:VBox>
 	</mx:VDividedBox>-->
-	
-	
+	<mx:VBox right="15" top="0" bottom="390" width="300" id="timelinesHolder" 
+		backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
+		
+	<mx:HBox width="100%">
 	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Badge" width="275" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
@@ -35,19 +37,20 @@
 		</flexlib:headerRenderer>
 		<mx:Text text="see the air quality &#xd;data that you've collected&#xd;" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{BADGES}" id="badgeIdList" 
-			labelField="name" width="82" height="100%" allowMultipleSelection="true" />
+			labelField="name" width="230" height="90" allowMultipleSelection="true" />
 		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList" 
-			labelField="pollutant" height="100%" selectedIndex="0" />
+			labelField="pollutant" height="60" selectedIndex="0"  width="230"/>
 		<mx:Text text="file list for west oakland pm" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileList" allowMultipleSelection="true"
-			labelField="name" height="100%" selectedIndex="0" />
+			labelField="name" height="90" width="230" selectedIndex="0" />
 		
 		<mx:Button label="refresh/load" click="{selectorHandler()}"  
 			toolTip="reloads all loaded datasets or loads any new data"
 			height="25"/>
 	</flexlib:WindowShade>
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="locationSelector" label="Location" x="{badgeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="locationSelector" label="Location" 
+		x="{badgeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -58,7 +61,8 @@
 		<mx:Button label="Go" click="{locationHandler()}" />
 	</flexlib:WindowShade>
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" 
+		x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -73,7 +77,8 @@
 	</flexlib:WindowShade>
 	
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="275" styleName="windowShadeStyle" opened="false">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" 
+		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -84,9 +89,9 @@
 		<mx:Button label="Mark the 10 highest" click="{episodesHandler()}" />
 		
 	</flexlib:WindowShade>
+	</mx:HBox>
 	
-	<mx:VBox right="15" top="0" bottom="390" width="300" id="timelinesHolder" 
-		backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
+	
 	
 	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
 	<mx:ProgressBar id="progressBar" bottom="230" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>

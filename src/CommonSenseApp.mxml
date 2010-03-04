@@ -1,137 +1,132 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" 
-	initialize="{initScript()}" xmlns:entity="commentspace.components.entity.*" 
-	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]" xmlns:commentspace="commentspace.*" currentState="Tracks">
-	
-	<mx:states>
-		<mx:State name="Split">
-			<mx:AddChild position="lastChild">
-				<commentspace:VisLoader id="mainVis" left="0" width="100%" height="100%" visEntityName="Main Map View">
-				</commentspace:VisLoader>
-			</mx:AddChild>
-			<mx:AddChild position="lastChild">
-				<mx:HBox width="100%">
-				</mx:HBox>
-			</mx:AddChild>
-			<mx:AddChild relativeTo="{mainVis}" position="before">
-				<mx:HBox width="100%" horizontalGap="0" verticalAlign="bottom">
-				 	<mx:VRule height="70" strokeColor="#73C400"/>
-				 	<mx:VBox id="vbox1" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
-				 	 	<mx:LinkButton label="tracks" click="{currentState='Tracks'}" id="linkbutton3" fontSize="15" fontFamily="Verdana" color="#73C400"/>
-				 	 	<mx:Text text="see the air quality &#xd;data that you've collected&#xd;" fontWeight="normal" fontSize="9" id="text1" paddingLeft="10"/>
-				 	</mx:VBox>
-				 	<mx:VRule height="70" strokeColor="#73C400"/>
-				 	<mx:VBox id="vbox2" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
-				 	 	<mx:LinkButton label="places" click="{currentState='Places'}" id="linkbutton2" fontSize="15" fontFamily="Verdana" color="#73C400"/>
-				 	 	<mx:Text text="see air quality &#xd;at a given address " fontWeight="normal" fontSize="9" id="text2" paddingLeft="10"/>
-				 	</mx:VBox>
-				 	<mx:VRule height="70" strokeColor="#73C400"/>
-				 	<mx:VBox id="vbox3" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
-				 	 	<mx:LinkButton label="compare" click="{currentState='Compare'}" id="linkbutton0" fontSize="15" fontFamily="Verdana" color="#73C400"/>
-				 	 	<mx:Text text="compare air quality readings&#xd;from the worst points" fontWeight="normal" fontSize="9" id="text3" paddingLeft="10"/>
-				 	</mx:VBox>
-				 	<mx:VRule height="70" strokeColor="#73C400"/>
-				</mx:HBox>
-			</mx:AddChild>
-			<mx:AddChild relativeTo="{mainVis}" position="before">
-				<mx:HRule width="100%" strokeColor="#80DC57"/>
-			</mx:AddChild>
-			<mx:SetStyle name="verticalGap" value="0"/>
-		</mx:State>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" xmlns:flex="flare.flex.*" 
+	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]"
+	initialize="{initScript()}"	xmlns:entity="commentspace.components.entity.*" xmlns:commentspace="commentspace.*" xmlns:site="site.*">
 		
-		<mx:State name="Tracks" basedOn="Split" enterState="{mainVis.source = TRACKS_SOURCE;}">
-			<mx:SetProperty target="{linkbutton3}" name="enabled" value="true"/>
-			<mx:SetStyle target="{vbox1}" name="backgroundColor" value="#73C400"/>
-			<mx:SetStyle target="{text1}" name="color" value="#FFFFFF"/>
-			<mx:SetStyle target="{linkbutton3}" name="color" value="#FFFFFF"/>
-			<mx:SetProperty target="{vbox1}" name="enabled" value="false"/>
-		</mx:State>
-		
-		<mx:State name="Places" basedOn="Split" enterState="{mainVis.source = PLACES_SOURCE; }">
-			<mx:SetProperty target="{linkbutton2}" name="enabled" value="true"/>
-			<mx:SetStyle target="{linkbutton2}" name="color" value="#FFFFFF"/>
-			<mx:SetStyle target="{text2}" name="color" value="#FFFFFF"/>
-			<mx:SetStyle target="{vbox2}" name="backgroundColor" value="#73C400"/>
-			<mx:SetProperty target="{vbox2}" name="enabled" value="false"/>
-		</mx:State>
-		
-		
-		<mx:State name="Compare" basedOn="Split" enterState="{mainVis.source = COMPARE_SOURCE; }">
-			<mx:SetProperty target="{linkbutton0}" name="enabled" value="true"/>
-			<mx:SetStyle target="{linkbutton0}" name="color" value="#FFFFFF"/>
-			<mx:SetStyle target="{text3}" name="color" value="#FFFFFF"/>
-			<mx:SetStyle target="{vbox3}" name="backgroundColor" value="#73C400"/>
-			<mx:SetProperty target="{vbox3}" name="enabled" value="false"/>
-		</mx:State>
-		
-		
-	</mx:states>
-	
-	
+	<mx:HDividedBox width="100%" height="100%">
+		<commentspace:VisLoader id="mainVis" left="0" width="100%" height="100%" visEntityName="Main Visualzation" 
+			visReloaded="{setupPairing()}"
+			creationComplete="{mainVis.source = mainVisSource}"  />
+		<mx:VBox id="leftBar" width="410" height="100%" verticalGap="1">
+		 	<commentspace:VisLoader id="commentVis" width="100%" height="100%" 
+		 		horizontalScrollPolicy="off" verticalScrollPolicy="off" 
+		 		visReloaded="{setupPairing()}"
+				creationComplete="{commentVis.source = COMMENT_VIS_SOURCE;
+					commentVis.namingToolbar.visible=false;
+					commentVis.namingToolbar.includeInLayout=false;}" />
+		</mx:VBox>		
+ 	</mx:HDividedBox>
+ 	
+ 	<mx:Canvas width="100%" height="100%" visible="{!(WorkspaceManager.instance.isWorkspaceLoaded)}" 
+ 		backgroundColor="#FFFFFF" backgroundAlpha="0.95">
+		<mx:ProgressBar horizontalCenter="0" verticalCenter="0" 
+			labelPlacement="left" indeterminate="true" 
+			label="{'LOADING WORKSPACE: ' + WorkspaceManager.instance.workspace}"/>
+	</mx:Canvas>
  	
  	<mx:Script>
  		<![CDATA[
- 			import commentspace.managers.VisBindingManager;
+ 			import mx.controls.ComboBox;
+ 			import mx.events.ListEvent;
+ 			import commentspace.events.LoginEvent;
+ 			import commentspace.events.EntityEvent;
+ 			import mx.controls.Alert;
+ 			import commentspace.managers.MasterSettingsManager;
+ 			import commentspace.etc.LoginPanel;
  			import commentspace.data.LoginManager;
  			import commentspace.Tags;
  			import commentspace.data.EntityFactory;
  			import commentspace.data.WorkspaceManager;
- 			import commentspace.events.EntityEvent;
  		
  			/** -------- Login Info ---------- */
-			private const DEFAULT_WORKSPACE:String = "CommonSenseTest";
-			private const DEFAULT_LOGIN:String = "interviewee@woeip.org";
-			private const DEFAULT_PASS:String = "Interviewee";
-			//private const DEFAULT_LOGIN:String = "vis1@eecs.berkeley.edu";
-			//private const DEFAULT_PASS:String = "pass";
- 		
- 			//private const COMMENT_VIS_SOURCE:String = 'commentspace.components.commentvis.CommentNavigatorVis';
- 			private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
- 			//private const COMMONSENSE_SOURCE:String = 'http://www.eecs.berkeley.edu/~willettw/temp/commonsensemaps.swf';
-			//private const COMMONSENSE_SOURCE:String = '../../commonsensemaps/bin-debug/commonsensemaps.swf';
-			private const TRACKS_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSenseTracksPlayer.swf';
-			private const PLACES_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSensePlaces.swf';
-			private const HOTSPOTS_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSenseHotspots.swf';
-			private const COMPARE_SOURCE:String = '../../commonsensemaps/bin-debug/CommonSenseEpisodesViewer.swf';
- 		
- 			protected var paired:Boolean = false;
  			
- 			protected var portalFilters:Array = [new GlowFilter(0xFF66FF00,0.6,15,15)];
- 		
+			MasterSettingsManager.taggingEnabled = true;
+ 			//MasterSettingsManager.editingEnabled = false;
+ 			
+ 			//For some reason running locally with the remote version of CommentVis fails, but
+ 			// works when run from the server.
+ 			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis(FullIds).swf"
+ 			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis.swf"
+ 			private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
+ 			
+ 			private const DEFAULT_WORKSPACE:String = "CommonSense";//"Empty";//"OlympicsTest";//"TimeUse";
+			private const DEFAULT_VIS:String = "../../commonsensemaps/bin-debug/commonsensemaps.swf";//"";//"http://exp.sense.us/media/swf/olympics/CountryMedalsTotalVis.swf";
+ 			
+ 			//For testing purposes, we can set a default vis and workspace. 
+ 			// These will be replaced if a 'vis' or 'workspace' argument is 
+ 			// supplied via the query string.
+ 			public var mainVisSource:String = DEFAULT_VIS; 			
+ 			public var workspace:String = DEFAULT_WORKSPACE;
+ 			
+ 			protected var paired:Boolean = false;
+ 			 						
  			/** -------- Methods ------------- */
  			protected function initScript():void{
  				
  				/* Security settings - should be constrained before deployment!
 				 *  These settings allow this code to be loaded into and accessed by 
 				 *  a Flash movie on ANY external server. *****************************/
-				Security.allowDomain("*");
-				Security.allowInsecureDomain("*");
+				//Security.allowDomain("*");
+				//Security.allowInsecureDomain("*");
 				
-				//Login and set workspace
-				WorkspaceManager.instance.workspace = DEFAULT_WORKSPACE;
-				LoginManager.instance.login(DEFAULT_LOGIN,DEFAULT_PASS);
-			}
-			
-			
-			protected function initState():void{
+				//get FlashVars
+				var fv:Object = Application.application.parameters;
 				
+				//If the nest level is less than 4, assume this is being loaded 
+				// as a standalone movie rather than in a scaffold - Login and set workspace
+				if(nestLevel < 4){
+					//show login panel unless hidden in flashvars
+					if(!fv.hideLogin){
+						var lp:LoginPanel = new LoginPanel();
+						lp.percentWidth = 100;
+						leftBar.addChildAt(lp,0);
+					}
+					//look for args from the address bar 
+					var url:String = ExternalInterface.call("window.location.search.toString");
+					if(url.length > 0) url=url.substr(1);
+					var args:Object = {};
+					for each(var a:String in url.split("&")){
+						var aa:Array = a.split("=");
+						if(aa.length == 2 && aa[0].length > 0) args[aa[0].toLowerCase()] = aa[1];
+					}
+					
+					//set the vis and workspace from the flashvars or from url args if specified
+					if(fv.vis) mainVisSource = fv.vis;
+					else if(args.vis) mainVisSource = args.vis;
+					if(fv.workspace) workspace = fv.workspace;
+					else if(args.workspace) workspace = args.workspace;
+					
+					//set the workspace
+					WorkspaceManager.instance.workspace = workspace;
+					MasterSettingsManager.taggingEnabled = false;
+				}
 			}
 
- 			protected function initTracks():void{
- 				initState();
- 			}
- 			
- 			protected function initPlaces():void{
- 				initState();
- 			}
- 			
- 			protected function initCompare():void{
- 				initState();
- 			}
- 			
- 			
- 			
- 			
+ 			protected function setupPairing():void{
+				if(mainVis.isLoaded && commentVis.isLoaded && !paired){
+					commentVis.statefulVis.pairedVisEntity = mainVis;
+
+					mainVis.addEventListener(EntityEvent.ID_CHANGE,function(e:EntityEvent):void{
+							if(mainVis.workspaceMatch) commentVis.statefulVis.pairedIds = [mainVis.workspaceMatch.id];
+							else commentVis.statefulVis.pairedIds = [];
+						});
+					
+					if(mainVis.workspaceMatch)	commentVis.statefulVis.pairedIds = [mainVis.workspaceMatch.id];
+					
+					//Listener to focus the 
+					commentVis.statefulVis.addEventListener(EntityEvent.ENTITY_FOCUSED,function(e:EntityEvent):void{
+							WorkspaceManager.instance.log("loaded vis from comment:",(e.entity && e.entity.id ? e.entity.id : null));
+							mainVis.data = e.entity;
+						});
+					
+					paired = true;
+					
+					commentVis.statefulVis.displayPromptPopUp("Levels of CO are much higher here than earlier in the track. " + 
+							"Did you notice any different here?");
+				} 
+			}
+			
+			
  		]]>
  	</mx:Script>	
 </mx:Application>

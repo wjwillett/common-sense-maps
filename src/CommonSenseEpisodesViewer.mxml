@@ -632,6 +632,10 @@
 				dispatchEvent(new StatefulVisEvent(StatefulVisEvent.VIS_UPDATE,true));
 			}
 			
+			public function getThumbnail():BitmapData{ // needed for new version of commentspace...
+				return null;
+			}
+			
 			/* Security settings - should be constrained before deployment!
 			 *  These settings allow this code to be loaded into and accessed by 
 			 *  a Flash movie on ANY external server. *****************************/
