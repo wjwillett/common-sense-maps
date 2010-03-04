@@ -87,7 +87,7 @@
 			public var yDataField:String = 'value';
 			
 			public var spacing:Number = 5;
-			public var pointDiameter:Number = 6;
+			public var pointDiameter:Number = 8; // *** Adjust this to change size of timeline points.
 			public var pointOverlapTolerance:Number = 6;
 			public var zoomPercentage:Number = 0.6;
 			

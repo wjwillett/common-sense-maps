@@ -765,6 +765,10 @@
 				dispatchEvent(new StatefulVisEvent(StatefulVisEvent.VIS_UPDATE,true));
 			}
 			
+			public function getThumbnail():BitmapData{ // needed for new version of commentspace...
+				return null;
+			}
+			
 			/* Security settings - should be constrained before deployment!
 			 *  These settings allow this code to be loaded into and accessed by 
 			 *  a Flash movie on ANY external server. *****************************/
@@ -877,14 +881,17 @@
 				
 				if(pollutantList.selectedItem.abbreviation == "pm25"){
 					//DEBUG - loads all files from the west oakland PM directory
-					var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+					var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
 					var dirLoader:URLLoader = new URLLoader(dirRequest);
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
 							var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
-							for(var i:int=0; i< pmSourceFiles.length; i++) pmSourceFiles[i] = pmRootDir + pmSourceFiles[i];
+							for(var i:int=0; i< pmSourceFiles.length; i++) 
+								pmSourceFiles[i] = pmRootDir + pmSourceFiles[i];
 							var info:Object = {name:"West Oakland PM", source:pmSourceFiles,reading:"pm25"};
-												
+											
+							// TODO - populate an additional list in the Badge menu 
 							loadData(info.source,info.reading,info.name,function():void{centermap();dispatchComplete();});
 					});
 				}
