@@ -38,6 +38,9 @@
 			labelField="name" width="82" height="100%" allowMultipleSelection="true" />
 		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList" 
 			labelField="pollutant" height="100%" selectedIndex="0" />
+		<mx:Text text="file list for west oakland pm" fontWeight="normal" fontSize="9" />
+		<mx:List dataProvider="{FILES}" id="fileList" allowMultipleSelection="true"
+			labelField="name" height="100%" selectedIndex="0" />
 		
 		<mx:Button label="refresh/load" click="{selectorHandler()}"  
 			toolTip="reloads all loaded datasets or loads any new data"
@@ -183,6 +186,8 @@
 				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
 				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
 				];
+			
+			protected var FILES:Array = [];
 				
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
@@ -877,25 +882,42 @@
 				_plotLayer.refresh(true);
 				timeline.refresh(true);
 				
-				var info:Array = []
-				
-				if(pollutantList.selectedItem.abbreviation == "pm25"){
-					//DEBUG - loads all files from the west oakland PM directory
-					//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
-					var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
-					var dirRequest:URLRequest = new URLRequest(pmRootDir);
-					var dirLoader:URLLoader = new URLLoader(dirRequest);
-					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
-							var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
-							for(var i:int=0; i< pmSourceFiles.length; i++) 
-								pmSourceFiles[i] = pmRootDir + pmSourceFiles[i];
-							var info:Object = {name:"West Oakland PM", source:pmSourceFiles,reading:"pm25"};
-											
-							// TODO - populate an additional list in the Badge menu 
-							loadData(info.source,info.reading,info.name,function():void{centermap();dispatchComplete();});
-					});
+				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
+					if(FILES.length == 0){
+						//DEBUG - loads all files from the west oakland PM directory
+						//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+						var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
+						var dirRequest:URLRequest = new URLRequest(pmRootDir);
+						var dirLoader:URLLoader = new URLLoader(dirRequest);
+						dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
+								var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
+								for(var i:int=0; i< pmSourceFiles.length; i++) {
+									// TODO - populate an additional list in the Badge menu
+									FILES.push({name:pmSourceFiles[i], path:pmRootDir + pmSourceFiles[i]});
+								}
+								fileList.dataProvider = FILES;
+						});
+					}
+					else{
+						// If we already have the file list... take the selected ones and load them up
+						var pmSourceFiles:Array = [];
+						for each(var filepath:Object in fileList.selectedItems){
+							pmSourceFiles.push(filepath.path);
+						}
+						
+						// Load each file in its own dataset
+						var loaderArray:Array = [];
+						var fileInfo:Object = {name:"West Oakland PM", source:loaderArray,reading:"pm25"};
+						for each(var path:String in pmSourceFiles){
+							loaderArray.push(path);
+							loadData(fileInfo.source, fileInfo.reading, fileInfo.name, function():void{centermap();dispatchComplete();});
+							loaderArray.pop();
+						}
+						
+					}
 				}
 				else{
+					var info:Array = []
 					for each(var b:Object in badgeIdList.selectedItems){
 						info.push({name:buildName(b.name),
 								   source:buildURL(map, timeline, b.id),
