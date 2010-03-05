@@ -8,7 +8,7 @@
 	
 	
 	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
-		horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="{setup()}"/>
+		horizontalScrollPolicy="off" verticalScrollPolicy="auto" creationComplete="{setup()}"/>
 	
 	<!--<mx:VDividedBox left="15" top="15" right="15" width="100" height="100%">
 		<mx:VBox width="100%">
@@ -25,7 +25,8 @@
 			
 		</mx:VBox>
 	</mx:VDividedBox>-->
-	<mx:VBox right="15" top="0" bottom="390" width="300" id="timelinesHolder" 
+	
+		<mx:VBox right="15" top="0" bottom="390" width="300" id="timelinesHolder" 
 		backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
@@ -90,9 +91,7 @@
 		
 	</flexlib:WindowShade>
 	</mx:HBox>
-	
-	
-	
+
 	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
 	<mx:ProgressBar id="progressBar" bottom="230" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
 	<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
@@ -196,6 +195,9 @@
 				
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
+			public static const PM_DATA_DIR:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+			//public static const PM_DATA_DIR:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
+		
 			
 			/******** Local Vars **********************************************************/
 			protected var maxPoints:int = 1000;
@@ -889,9 +891,7 @@
 				
 				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
 					if(FILES.length == 0){
-						//DEBUG - loads all files from the west oakland PM directory
-						//var pmRootDir:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
-						var pmRootDir:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
+						var pmRootDir:String = PM_DATA_DIR;
 						var dirRequest:URLRequest = new URLRequest(pmRootDir);
 						var dirLoader:URLLoader = new URLLoader(dirRequest);
 						dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{

@@ -16,13 +16,14 @@
 					commentVis.namingToolbar.includeInLayout=false;}" />
 		</mx:VBox>		
  	</mx:HDividedBox>
- 	
+ 					
  	<mx:Canvas width="100%" height="100%" visible="{!(WorkspaceManager.instance.isWorkspaceLoaded)}" 
  		backgroundColor="#FFFFFF" backgroundAlpha="0.95">
 		<mx:ProgressBar horizontalCenter="0" verticalCenter="0" 
 			labelPlacement="left" indeterminate="true" 
 			label="{'LOADING WORKSPACE: ' + WorkspaceManager.instance.workspace}"/>
 	</mx:Canvas>
+	<mx:Label text="linked" bottom="0" fontSize="9" fontStyle="italic" color="#EAEAEA" visible="{paired}"/>
  	
  	<mx:Script>
  		<![CDATA[
@@ -47,10 +48,13 @@
  			// works when run from the server.
  			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis(FullIds).swf"
  			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis.swf"
- 			private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
+ 			//private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
+ 			private const COMMENT_VIS_SOURCE:String = 'CommentVis.swf';
  			
  			private const DEFAULT_WORKSPACE:String = "CommonSense";//"Empty";//"OlympicsTest";//"TimeUse";
-			private const DEFAULT_VIS:String = "../../commonsensemaps/bin-debug/commonsensemaps.swf";//"";//"http://exp.sense.us/media/swf/olympics/CountryMedalsTotalVis.swf";
+			//private const DEFAULT_VIS:String = "";
+ 			//private const DEFAULT_VIS:String = "../../commonsensemaps/bin-debug/commonsensemaps.swf";
+ 			private const DEFAULT_VIS:String = "commonsensemaps.swf";
  			
  			//For testing purposes, we can set a default vis and workspace. 
  			// These will be replaced if a 'vis' or 'workspace' argument is 
@@ -58,6 +62,7 @@
  			public var mainVisSource:String = DEFAULT_VIS; 			
  			public var workspace:String = DEFAULT_WORKSPACE;
  			
+ 			[Bindable]
  			protected var paired:Boolean = false;
  			 						
  			/** -------- Methods ------------- */
@@ -66,8 +71,8 @@
  				/* Security settings - should be constrained before deployment!
 				 *  These settings allow this code to be loaded into and accessed by 
 				 *  a Flash movie on ANY external server. *****************************/
-				//Security.allowDomain("*");
-				//Security.allowInsecureDomain("*");
+				Security.allowDomain("*");
+				Security.allowInsecureDomain("*");
 				
 				//get FlashVars
 				var fv:Object = Application.application.parameters;
@@ -121,8 +126,8 @@
 					
 					paired = true;
 					
-					commentVis.statefulVis.displayPromptPopUp("Levels of CO are much higher here than earlier in the track. " + 
-							"Did you notice any different here?");
+					//commentVis.statefulVis.displayPromptPopUp("Levels of CO are much higher here than earlier in the track. " + 
+					//		"Did you notice any different here?");
 				} 
 			}
 			
