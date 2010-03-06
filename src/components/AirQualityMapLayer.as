@@ -10,7 +10,7 @@ package components
 	import data.AirQualityDataSet;
 	import data.SelectionSet;
 	
-	import etc.AirQualityColors;
+	import etc.AirQualityConstants;
 	import etc.DirtyFlag;
 	import etc.PointRenderer;
 	
@@ -359,8 +359,12 @@ package components
 			if(dataPoint.value){
 				
 				//FIXME: Currently defaulting to pollutant from the first dataset, should be able to support per-track
-				var cat:String = AirQualityColors.getAQICategoryForValue(dataSets[0].pollutant,dataPoint.value);
-				var color:uint = AirQualityColors.getColorForAQICategory(cat);
+				var pollutant:String = dataSets[0].pollutant;
+					
+				var cat:String = AirQualityConstants.getAQICategoryForValue(pollutant,dataPoint.value);
+				var color:uint = AirQualityConstants.getColorForAQICategory(cat);
+				var pollutantUnits:String = AirQualityConstants.POLLUTANT_UNITS[pollutant];
+				
 				_plotTip.setStyle("backgroundColor",color);
 				_plotTip.setStyle("backgroundAlpha",0.7);
 				var time:Number = Number(dataPoint.time * 1000);
@@ -368,7 +372,9 @@ package components
 				var value:Number = Number(dataPoint.value);
 				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
 				_plotTip.text = date.toLocaleDateString() + "\n" +
-					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + " (" + cat + ")" + "\n" +
+					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
+					" " + pollutantUnits + 
+					" (" + cat + ")" + "\n" +
 					"[" + badgeName + "]";
 				_plotTip.x = ptPosition.x;
 				_plotTip.y = ptPosition.y;

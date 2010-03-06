@@ -31,7 +31,7 @@ package etc
 
 		public function plotPoint(point:Object, position:Point, pollutant:String, isSelected:Boolean=false, isHovered:Boolean=false, isFaded:Boolean=false):void{
 			
-			if(!point.cat)point.cat = AirQualityColors.getAQICategoryForValue(pollutant,point.value);
+			if(!point.cat)point.cat = AirQualityConstants.getAQICategoryForValue(pollutant,point.value);
 					
 			drawPointToGraphics(plotShape.graphics,point,null,pollutant,isSelected,isHovered,isFaded,pointDiameter);
 			
@@ -51,7 +51,7 @@ package etc
 			if(!position)position = defaultPosition;
 							
 			//draw the point
-			var color:uint = AirQualityColors.getColorForValue(pollutant,point.value);
+			var color:uint = AirQualityConstants.getColorForValue(pollutant,point.value);
 			graphics.clear();
 			//Highlight selected points
 			if(isSelected){

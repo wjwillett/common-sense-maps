@@ -53,7 +53,7 @@
 			import components.AirQualityTimeLine;
 			import com.modestmaps.TweenMap;
 			import com.adobe.serialization.json.JSON;
-			import etc.AirQualityColors;
+			import etc.AirQualityConstants;
 			import mx.collections.ArrayCollection;
 		
 			public static const DATA_INDEX_XML_URL:String = "http://www.commonsensecommunity.com/data/recommended_datasets.json";

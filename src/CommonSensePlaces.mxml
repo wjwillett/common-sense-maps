@@ -44,7 +44,7 @@
 			import mx.managers.PopUpManager;
 			import components.loading.DataLoadingPanel;
 			import components.AirQualityMapLayer;
-			import etc.AirQualityColors;
+			import etc.AirQualityConstants;
 			import mx.messaging.AbstractConsumer;
 			import mx.effects.Zoom;
 			import com.modestmaps.mapproviders.microsoft.MicrosoftHybridMapProvider;

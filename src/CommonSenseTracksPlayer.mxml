@@ -52,7 +52,7 @@
 			import mx.managers.PopUpManager;
 			import components.loading.DataLoadingPanel;
 			import components.AirQualityMapLayer;
-			import etc.AirQualityColors;
+			import etc.AirQualityConstants;
 			import mx.messaging.AbstractConsumer;
 			import mx.effects.Zoom;
 			import com.modestmaps.mapproviders.microsoft.MicrosoftHybridMapProvider;
@@ -356,10 +356,10 @@
 						if(onComplete != null) onComplete();
 						
 						// Calculated Average for My Exposure box
-						myExposureBox.setStyle("backgroundColor", AirQualityColors.getColorForValue("pm25", ds.stats.getMyExposureAverage()));
-						myExposureBox.setStyle("borderColor", AirQualityColors.getColorForValue("pm25", ds.stats.getMyExposureAverage()));
-						var exposure:String = AirQualityColors.getAQICategoryForValue("pm25", ds.stats.getMyExposureAverage());
-						var aqivalue:String = String(Math.round(2 * AirQualityColors.getAQIValueForValue("pm25", ds.stats.getMyExposureAverage())) / 2);
+						myExposureBox.setStyle("backgroundColor", AirQualityConstants.getColorForValue("pm25", ds.stats.getMyExposureAverage()));
+						myExposureBox.setStyle("borderColor", AirQualityConstants.getColorForValue("pm25", ds.stats.getMyExposureAverage()));
+						var exposure:String = AirQualityConstants.getAQICategoryForValue("pm25", ds.stats.getMyExposureAverage());
+						var aqivalue:String = String(Math.round(2 * AirQualityConstants.getAQIValueForValue("pm25", ds.stats.getMyExposureAverage())) / 2);
 						myExposureA.text = exposure.toUpperCase(); 
 						myExposureB.htmlText = "Your Air Quality Index over the\n last 24-hours was <b>" + aqivalue + "</b>";
 				});

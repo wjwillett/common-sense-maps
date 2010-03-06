@@ -35,7 +35,7 @@
 	<mx:Script>
 		<![CDATA[
 			import com.adobe.serialization.json.JSON;
-			import etc.AirQualityColors;
+			import etc.AirQualityConstants;
 			import mx.collections.ArrayCollection;
 			
 			public static const GOOGLE_API_KEY:String = "ABQIAAAA_3td1tmQ7cbEqh_kQLucMRRl_cuzxjTWTH-RUAWem_qXsJGROBTgOLdo3jwgLuyWZ63_ndi7h3-PQg";
@@ -45,7 +45,7 @@
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
 			
-			protected const DEFAULT_POLLUTANT:String = AirQualityColors.CO_8HR;
+			protected const DEFAULT_POLLUTANT:String = AirQualityConstants.CO_8HR;
 			
 			protected const BADGES:Array = [
 				{name:"All Badges",id:'all'},

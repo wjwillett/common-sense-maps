@@ -2,17 +2,17 @@
 <mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="0xCCCCCC" backgroundAlpha="0.80" >
 	<mx:Script>
 		<![CDATA[
-			import etc.AirQualityColors;
+			import etc.AirQualityConstants;
 			
 			[Bindable]
-			public var pollutant:String = AirQualityColors.PM_25_24HR;
+			public var pollutant:String = AirQualityConstants.PM_25_24HR;
 		]]>
 	</mx:Script>
 
 	<mx:Legend height="100%" width="100%" >
 				<mx:LegendItem label="Good" fontWeight="bold">
 		           <mx:fill>
-		            <mx:SolidColor color="{AirQualityColors.GOOD_COLOR}"/>
+		            <mx:SolidColor color="{AirQualityConstants.GOOD_COLOR}"/>
 		           </mx:fill>
 		           <mx:stroke>
 		            <mx:Stroke color="0xCCCCCC" weight="2"/>
@@ -21,7 +21,7 @@
 	       		
 	       		<mx:LegendItem label="Moderate" fontWeight="bold">
 		           <mx:fill>
-		            <mx:SolidColor color="{AirQualityColors.MODERATE_COLOR}"/>
+		            <mx:SolidColor color="{AirQualityConstants.MODERATE_COLOR}"/>
 		           </mx:fill>
 		           <mx:stroke>
 		            <mx:Stroke color="0xCCCCCC" weight="2"/>
@@ -30,7 +30,7 @@
 	       		
 	       		<mx:LegendItem label="Unhealthy for Some" fontWeight="bold">
 		           <mx:fill>
-		            <mx:SolidColor color="{AirQualityColors.UNHEALTHY_SENSITIVE_COLOR}"/>
+		            <mx:SolidColor color="{AirQualityConstants.UNHEALTHY_SENSITIVE_COLOR}"/>
 		           </mx:fill>
 		           <mx:stroke>
 		            <mx:Stroke color="0xCCCCCC" weight="2"/>
@@ -39,7 +39,7 @@
 	       		
 	       		<mx:LegendItem label="Unhealthy" fontWeight="bold">
 		           <mx:fill>
-		            <mx:SolidColor color="{AirQualityColors.UNHEALTHY_COLOR}"/>
+		            <mx:SolidColor color="{AirQualityConstants.UNHEALTHY_COLOR}"/>
 		           </mx:fill>
 		           <mx:stroke>
 		            <mx:Stroke color="0xCCCCCC" weight="2"/>
@@ -48,7 +48,7 @@
 	       		
 	       		<mx:LegendItem label="Very Unhealthy" fontWeight="bold">
 		           <mx:fill>
-		            <mx:SolidColor color="{AirQualityColors.VERY_UNHEALTHY_COLOR}"/>
+		            <mx:SolidColor color="{AirQualityConstants.VERY_UNHEALTHY_COLOR}"/>
 		           </mx:fill>
 		           <mx:stroke>
 		            <mx:Stroke color="0xCCCCCC" weight="2"/>
@@ -57,7 +57,7 @@
 	       		
 	       		<mx:LegendItem label="Hazardous" fontWeight="bold">
 		           <mx:fill>
-		            <mx:SolidColor color="{AirQualityColors.HAZARDOUS_COLOR}"/>
+		            <mx:SolidColor color="{AirQualityConstants.HAZARDOUS_COLOR}"/>
 		           </mx:fill>
 		           <mx:stroke>
 		            <mx:Stroke color="0xCCCCCC" weight="2"/>

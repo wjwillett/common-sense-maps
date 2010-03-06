@@ -115,7 +115,7 @@
 			import mx.managers.PopUpManager;
 			import components.loading.DataLoadingPanel;
 			import components.AirQualityMapLayer;
-			import etc.AirQualityColors;
+			import etc.AirQualityConstants;
 			import mx.messaging.AbstractConsumer;
 			import mx.effects.Zoom;
 			import com.modestmaps.mapproviders.microsoft.MicrosoftHybridMapProvider;
@@ -938,12 +938,9 @@
 					// If we already have the file list... take the selected ones and load them up
 					if(FILES.length > 0){
 						var fileInfo:Object;
-						var loaderArray:Array = [];
 						for each(var file:Object in fileList.selectedItems){
-							loaderArray.push(file.path);
-							fileInfo = {name:file.name, source:loaderArray, reading:"pm25"};
+							fileInfo = {name:file.name, source:file.path, reading:"pm25"};
 							loadData(fileInfo.source, fileInfo.reading, fileInfo.name, function():void{centermap();dispatchComplete();});
-							loaderArray.pop();
 						}
 					} else{
 						trace("file list not populated, cannot load anything from it.");
