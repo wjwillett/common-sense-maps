@@ -337,6 +337,11 @@
 								continue;
 							}  
 							
+							// Added this such that the air quality slider now affects what is re-plotted on the timeline
+							if(!(point.value >= this.yMin && point.value <= this.yMax)){
+								continue;
+							}
+							
 							//plot the point to the current bitmapdata
 							renderer.plotPoint(point,dPt,ds.pollutant,selections && selections.isSelected(point),false,
 								(point.time > playheadPosition || ds.hidden));

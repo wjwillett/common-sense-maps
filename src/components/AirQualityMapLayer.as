@@ -60,6 +60,16 @@ package components
 		public var pointDiameter:Number = 12;
 		public var numMouseOverAdjacents:uint = 15;
 		
+		protected var _yMin:Number;			//the lowest data value on the y axis
+		protected var _yMax:Number; 		//the highest data value on the y axis
+		protected var _yMinManual:Number = NaN; //a manually specified lower y bound
+		protected var _yMaxManual:Number = NaN; //a manually specified upper y bound
+		
+		public function get yMin():Number { return isNaN(_yMinManual) ? _yMin : _yMinManual; }
+		public function set yMin(val:Number):void{_yMinManual = val; dirty.dirty();}
+		public function get yMax():Number { return isNaN(_yMaxManual) ? _yMax : _yMaxManual; }
+		public function set yMax(val:Number):void{_yMaxManual = val; dirty.dirty();}
+		
 		
 		/**
 		 * A set of objects that contain lists of datapoints, along with
@@ -232,7 +242,14 @@ package components
 							&& Math.abs(_prevPos[ds.dataURI].x - dPt.x) < pointOverlapTolerance 
 							&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance){
 						continue;
-					} 
+					}
+					
+					// Added to skip this point based off of air quality slider state
+					if(!(isNaN(this.yMin) || isNaN(this.yMax))){
+						if(!(point.value >= this.yMin && point.value <= this.yMax)){
+							continue;
+						}
+					}
 		
 					//plot the point to the current bitmapdata
 					renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point));

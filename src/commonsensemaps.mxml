@@ -35,11 +35,11 @@
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
 			</mx:Component>
 		</flexlib:headerRenderer>
-		<mx:Text text="see the air quality &#xd;data that you've collected&#xd;" fontWeight="normal" fontSize="9" />
+		<mx:Text text="see the air quality data you've collected&#xd;" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{BADGES}" id="badgeIdList" 
 			labelField="name" width="230" height="90" allowMultipleSelection="true" />
 		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList" 
-			labelField="pollutant" height="60" selectedIndex="0"  width="230"/>
+			labelField="pollutant" height="60" selectedIndex="0"  width="230" itemClick="{fileListHandler()}" />
 		<mx:Text text="file list for west oakland pm" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileList" allowMultipleSelection="true"
 			labelField="name" height="90" width="230" selectedIndex="0" />
@@ -85,7 +85,7 @@
 			</mx:Component>
 		</flexlib:headerRenderer>
 		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
-		<mx:HSlider width ="250" thumbCount="2" />
+		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
 		<mx:Button label="Mark the 10 highest" click="{episodesHandler()}" />
 		
 	</flexlib:WindowShade>
@@ -110,6 +110,7 @@
 			import data.AirQualityDataSet;
 			import __AS3__.vec.Vector;
 			import components.DisclaimerPanel;
+			import components.InputErrorPanel;
 			import events.CSEvent;
 			import events.DataPointEvent;
 			import mx.managers.PopUpManager;
@@ -507,7 +508,14 @@
 						timeline.refresh(true);
 						_plotLayer.refresh(true);
 						dispatchUpdated();
-						if(onComplete != null) onComplete();
+						if(onComplete != null){
+							// We can set up the airQualitySlider here
+							airQualitySlider.minimum = timeline.yMin;
+							airQualitySlider.maximum = timeline.yMax;
+							airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
+							airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
+							onComplete();
+						} 
 				});
 			}
 			
@@ -842,6 +850,16 @@
 				PopUpManager.centerPopUp(disclaimer);
 			}
 			
+			protected function triggerInputErrorPopup(onOkay:Function=null):void{
+				var errorPanel:InputErrorPanel = new InputErrorPanel();
+				errorPanel.onOkay = function():void{
+						if(onOkay != null) onOkay();
+						PopUpManager.removePopUp(errorPanel);
+					};
+				PopUpManager.addPopUp(errorPanel,this,true);
+				PopUpManager.centerPopUp(errorPanel);
+			}
+			
 			/**
 			 * Triggers a popup display that allows data to be loaded from
 			 *  outside.
@@ -881,12 +899,8 @@
 			/**
 			 * Handles changes in the selection criteria for the various selector menus
 			 */
-			protected function selectorHandler():void{
-				//clear the existing plots... (why do we do this?)
-				for(var ds:String in _dataSets) delete _dataSets[ds];
-				_plotLayer.refresh(true);
-				timeline.refresh(true);
-				
+			 
+			protected function fileListHandler():void{
 				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
 					if(FILES.length == 0){
 						//DEBUG - loads all files from the west oakland PM directory
@@ -903,34 +917,50 @@
 								fileList.dataProvider = FILES;
 						});
 					}
-					else{
-						// If we already have the file list... take the selected ones and load them up
-						var pmSourceFiles:Array = [];
-						for each(var filepath:Object in fileList.selectedItems){
-							pmSourceFiles.push(filepath.path);
-						}
-						
-						// Load each file in its own dataset
+				}
+				else{
+					FILES = [];
+					fileList.dataProvider = FILES;
+				}
+			}
+			
+			protected function selectorHandler():void{
+				//clear the existing plots... (why do we do this?)
+				for(var ds:String in _dataSets) delete _dataSets[ds];
+				_plotLayer.refresh(true);
+				timeline.refresh(true);
+			
+				// TODO will eventually integrate pm data so its from a badge, just like co data...
+				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
+					
+					// If we already have the file list... take the selected ones and load them up
+					if(FILES.length > 0){
+						var fileInfo:Object;
 						var loaderArray:Array = [];
-						var fileInfo:Object = {name:"West Oakland PM", source:loaderArray,reading:"pm25"};
-						for each(var path:String in pmSourceFiles){
-							loaderArray.push(path);
+						for each(var file:Object in fileList.selectedItems){
+							loaderArray.push(file.path);
+							fileInfo = {name:file.name, source:loaderArray, reading:"pm25"};
 							loadData(fileInfo.source, fileInfo.reading, fileInfo.name, function():void{centermap();dispatchComplete();});
 							loaderArray.pop();
 						}
-						
+					} else{
+						trace("file list not populated, cannot load anything from it.");
 					}
 				}
 				else{
 					var info:Array = []
-					for each(var b:Object in badgeIdList.selectedItems){
+					if(badgeIdList.selectedItems.length > 0 && pollutantList.selectedItems.length > 0){
+						for each(var b:Object in badgeIdList.selectedItems){
 						info.push({name:buildName(b.name),
 								   source:buildURL(map, timeline, b.id),
 								   reading:pollutantList.selectedItem.abbreviation});
+						}
+						// alright, we're ready to load everything for each badge!
+						trace(info[0].source);
+						for each (var i:Object in info) loadData(i.source,i.reading,i.name);
+					} else{
+						triggerInputErrorPopup();
 					}
-					// alright, we're ready to load everything for each badge!
-					trace(info[0].source);
-					for each (var i:Object in info) loadData(i.source,i.reading,i.name);
 				}
 			}
 			
@@ -967,8 +997,20 @@
 				});
 			}
 			
+			protected function airQualitySliderHandler():void{
+				// update the timeline
+				timeline.yMin = airQualitySlider.values[0];
+				timeline.yMax = airQualitySlider.values[1];
+				timeline.refresh(false); // we choose false to avoid the timeline recalculating the min/maxes for us
+				
+				// update the _plotlayer
+				_plotLayer.yMin = airQualitySlider.values[0];
+				_plotLayer.yMax = airQualitySlider.values[1];
+				_plotLayer.refresh(false); // we choose false to avoid rebuilding the quadtree
+			}
+			
 			protected function episodesHandler():void{
-				var ds:AirQualityDataSet = _dataSets[0];
+				var ds:AirQualityDataSet = _dataSets[0]; // FIXME only looks at the first plotted data set right now
 				var peaks:Array = ds.stats.getSpikes();
 				addTimelines(peaks.slice(Math.max(peaks.length-11,0),Math.max(peaks.length-1,0)));
 			}

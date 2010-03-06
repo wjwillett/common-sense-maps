@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#FFFFFF" 
+	borderStyle="solid" cornerRadius="10" borderColor="#FFFFFF" 
+	paddingBottom="25" paddingLeft="25" paddingRight="25" paddingTop="25" width="400" styleName="VBox.cspopup">
+
+	<mx:Label text="oops!" color="#62D000" fontFamily="Helvetica" fontSize="30" styleName="Label.csH1"/>
+	<mx:Text x="10" y="10" text="make sure you selected a badge as well as the pollutant!" width="100%"/>
+	
+	<mx:HBox width="100%" horizontalAlign="right">
+		<mx:Button id="okayButton" label="Okay" click="{onOkay()}" />
+	</mx:HBox>
+	
+	<mx:Script>
+		<![CDATA[
+			
+			public var onOkay:Function;
+			
+		]]>
+	</mx:Script>
+</mx:VBox>
+	
