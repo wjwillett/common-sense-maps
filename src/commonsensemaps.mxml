@@ -247,6 +247,8 @@
 				map.panDuration = 0.6;
 				map.zoomDuration = 0.5;
 				map.panAndZoomDuration = 0.6;
+				map.useHandCursor = map.buttonMode = true;
+				
 				
 				_plotLayer = new AirQualityMapLayer(map);
 				_plotLayer.dataSets = _dataSets;
