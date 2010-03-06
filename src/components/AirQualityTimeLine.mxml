@@ -88,7 +88,7 @@
 			
 			public var spacing:Number = 5;
 			public var pointDiameter:Number = 8; // *** Adjust this to change size of timeline points.
-			public var pointOverlapTolerance:Number = 6;
+			public var pointOverlapTolerance:Number = 8; // *** Adjust this to change size of timeline points.
 			public var zoomPercentage:Number = 0.6;
 			
 			/** 
@@ -437,37 +437,30 @@
 					if(!_dSetBounds[d.dataURI]) continue;
 					if(!_dSetLabels[d.dataURI]) _dSetLabels[d.dataURI] = new TimelineLabel();
 					var l:TimelineLabel = _dSetLabels[d.dataURI];
+					l.dataSet = d;
 					l.labelText = "<b>" + d.name + "</b>" + (' - '  +
 						AirQualityConstants.POLLUTANT_NAMES[d.pollutant] + AirQualityConstants.POLLUTANT_UNITS[d.pollutant]);
 					l.y = _dSetBounds[d.dataURI].top + margin;
 					
 					if(noControls || !useAdvancedControls) l.visible = false;
 					
+					
+					
 					labels.addChild(l);
 					l.onRemoveClick = function(e:MouseEvent):void{
 							stopPlayback();
-							// a very shoddy way of finding the dataset to remove.
-							//  however, just using 'd' doesn't work because of a scoping issue
-							for each(var dr:AirQualityDataSet in _dataSets){
-								if(dr.name == (e.target.parent as TimelineLabel).labelText){
-									if(_dataSets.lastIndexOf(dr) != -1){
-										_dataSets.splice(_dataSets.lastIndexOf(dr),1);
-										dispatchEvent(new DataSetEvent(DataSetEvent.DATASET_REMOVED,dr));
-									}
-								}								
+							var dr:AirQualityDataSet = (e.target.parent as TimelineLabel).dataSet;
+							if(_dataSets.lastIndexOf(dr) != -1){
+								_dataSets.splice(_dataSets.lastIndexOf(dr),1);
+								dispatchEvent(new DataSetEvent(DataSetEvent.DATASET_REMOVED,dr));
 							}
 						};
 					l.onHiddenClick = function(e:MouseEvent):void{
 							var isHidden:Boolean = TimelineLabel(e.currentTarget.parent).hidden;
-							// a very shoddy way of finding the dataset to hide/show.
-							//  however, just using 'd' doesn't work because of a scoping issue
-							for each(var dr:AirQualityDataSet in _dataSets){
-								if(dr.name == (e.target.parent as TimelineLabel).labelText){
-									if(_dataSets.lastIndexOf(dr) != -1){
-										_dataSets[_dataSets.lastIndexOf(dr)].hidden = isHidden;
-										dispatchEvent(isHidden ? new DataSetEvent(DataSetEvent.DATASET_HIDDEN,dr) : new DataSetEvent(DataSetEvent.DATASET_UNHIDDEN,dr));
-									}
-								}								
+							var dr:AirQualityDataSet = (e.target.parent as TimelineLabel).dataSet;
+							if(_dataSets.lastIndexOf(dr) != -1){
+								_dataSets[_dataSets.lastIndexOf(dr)].hidden = isHidden;
+								dispatchEvent(isHidden ? new DataSetEvent(DataSetEvent.DATASET_HIDDEN,dr) : new DataSetEvent(DataSetEvent.DATASET_UNHIDDEN,dr));
 							}
 						};
 				}	

@@ -9,11 +9,13 @@
 	
 	<mx:Script>
 		<![CDATA[
+			import data.AirQualityDataSet;
 			
 			[Bindable]
 			public var labelText:String
 			public var onRemoveClick:Function;
 			public var onHiddenClick:Function;
+			public var dataSet:AirQualityDataSet;
 			
 			[Bindable]
 			public var hidden:Boolean = false;
