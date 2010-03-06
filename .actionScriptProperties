@@ -10,13 +10,12 @@
     <sourceAttachmentPath/>
   </compiler>
   <applications>
-    <application path="CommonSenseApp.mxml"/>
-    <application path="CommonSenseHotspots.mxml"/>
-    <application path="commonsensemaps.mxml"/>
+    <application path="CommonSensePlaces.mxml"/>
     <application path="CommonSenseEpisodesViewer.mxml"/>
     <application path="CommonSenseTracksPlayer.mxml"/>
+    <application path="commonsensemaps.mxml"/>
     <application path="CommonSenseMapsPackaged.mxml"/>
-    <application path="CommonSensePlaces.mxml"/>
+    <application path="CommonSenseApp.mxml"/>
   </applications>
   <modules/>
   <buildCSSFiles/>

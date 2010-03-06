@@ -386,8 +386,8 @@
 				for each(var c:Number in AirQualityConstants.POLLUTANT_INDEX[ds.pollutant]){
 					var cp:Point = dataspaceToLocal(new Point(0,c),ds);
 					plotShape.graphics.lineStyle(0.5,AirQualityConstants.getColorForValue(ds.pollutant,c),0.3)	;
-					plotShape.graphics.moveTo(0,cp.y);
-					plotShape.graphics.lineTo(bd.width,cp.y);
+					plotShape.graphics.moveTo(0,cp.y + bounds.top);
+					plotShape.graphics.lineTo(bd.width,cp.y + bounds.top);
 				}
 							
 				var startDate:Date = new Date(_xBottom * 1000);

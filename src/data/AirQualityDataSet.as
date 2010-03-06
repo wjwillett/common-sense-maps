@@ -10,9 +10,10 @@ package data
 	
 	public class AirQualityDataSet extends EventDispatcher
 	{
-		public function AirQualityDataSet(source:Object, pollutant:String, name:String="")
+		public function AirQualityDataSet(source:Object, pollutant:String, name:String="",multiplier:Number=1)
 		{
 			_sourceObject = source;
+			_multiplier = multiplier;
 			this.pollutant = pollutant;
 			this.name = name;	
 			loadData(source);
@@ -21,6 +22,7 @@ package data
 		
 		protected var _sourceObject:Object;
 		protected var _data:Vector.<Object>;
+		protected var _multiplier:Number;	 
 			 
 		public var name:String;
 		public var pollutant:String;
@@ -30,11 +32,6 @@ package data
 		public function get dataURI():String{return _sourceObject.toString();} 
 		
 		public var hidden:Boolean = false;
-		
-		// Added to implement hotspots filtering
-		public var limitCO:Boolean = false;
-		public var minCOLevel:Number = 0.0;
-		public var maxCOLevel:Number = 0.0;
 		
 		// Added to implement spike episodes storage
 		public var stats:Stats
@@ -87,20 +84,17 @@ package data
 							dataURI + "\" has a different number of elements than the header row:(" +
 							entries[0] + ").");  
 					} 
-					// Check if CO Level is limited (for hotspots view specifically)
-					if(limitCO == true && (entry[5] < minCOLevel || entry[5] > maxCOLevel))
-						continue;
-					else{
-						var pointData:Object = {}
-						for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
-						//annotate the point with a reference to its source
-						pointData.sourceURI = dataURI;
-						_data.push(pointData);
-					}
+					
+					var pointData:Object = {}
+					for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
+					if(pointData.value) pointData.value *= _multiplier;  
+					//annotate the point with a reference to its source
+					pointData.sourceURI = dataURI;
+					_data.push(pointData);
 				}
 			}
 			
-			//sort and dispatch a complete event if were done loading everything
+			//sort and dispatch a complete event if we're done loading everything
 			if(multipleSources) numSourcesLoading--;
 			if(!multipleSources || numSourcesLoading == 0){
 				_data.sort(function(x:Object, y:Object):Number{
