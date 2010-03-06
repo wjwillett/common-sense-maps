@@ -70,6 +70,13 @@ package components
 		public function get yMax():Number { return isNaN(_yMaxManual) ? _yMax : _yMaxManual; }
 		public function set yMax(val:Number):void{_yMaxManual = val; dirty.dirty();}
 		
+		public function clearLimits():void{
+			yMin = NaN;
+			yMax = NaN;
+			
+			dirty.dirty();
+		}
+		
 		
 		/**
 		 * A set of objects that contain lists of datapoints, along with

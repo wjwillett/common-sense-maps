@@ -953,12 +953,9 @@
 			}
 			
 			protected function selectorHandler():void{
-				// Set the sliders back to their old max and min so we don't hide any data permanentally...
-				if(timeline.dataSets.length > 0){
-					airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
-					airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
-					airQualitySliderHandler();
-				}
+				// Reset all value limiters on the timeline and map to prevent weird issues with the timeline
+				timeline.clearLimits();
+				_plotLayer.clearLimits();
 				
 				//clear the existing plots... (why do we do this?)
 				for(var ds:String in _dataSets) delete _dataSets[ds];
