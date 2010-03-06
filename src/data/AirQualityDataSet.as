@@ -100,8 +100,10 @@ package data
 				_data.sort(function(x:Object, y:Object):Number{
 						return Number(x.time) - Number(y.time);
 					});
-				// execute stats object update now that data is available
-				stats = new Stats(_data, headers);
+				// execute stats object update now that data is available, or do nothing if no data was returned in the query
+				if(_data.length > 0){
+					stats = new Stats(_data, headers);
+				}
 				
 				// Note the example below on how to iterate through spikes in the data
 				/*

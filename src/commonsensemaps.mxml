@@ -26,23 +26,23 @@
 		</mx:VBox>
 	</mx:VDividedBox>-->
 	
-		<mx:VBox right="15" top="0" bottom="390" width="300" id="timelinesHolder" 
+	<mx:VBox right="15" top="0" bottom="390" width="0" id="timelinesHolder" 
 		backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Badge" width="275" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="275" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
 			</mx:Component>
 		</flexlib:headerRenderer>
-		<mx:Text text="see the air quality data you've collected&#xd;" fontWeight="normal" fontSize="9" />
-		<mx:List dataProvider="{BADGES}" id="badgeIdList" 
-			labelField="name" width="230" height="90" allowMultipleSelection="true" />
-		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList" 
-			labelField="pollutant" height="60" selectedIndex="0"  width="230" itemClick="{fileListHandler()}" />
-		<mx:Text text="file list for west oakland pm" fontWeight="normal" fontSize="9" />
-		<mx:List dataProvider="{FILES}" id="fileList" allowMultipleSelection="true"
+		<mx:Text text="select a pollutant" fontWeight="normal" fontSize="9" />
+		<!--<mx:List dataProvider="{BADGES}" id="badgeIdList" 
+			labelField="name" width="230" height="90" allowMultipleSelection="true" />-->
+		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList"
+			labelField="pollutant" height="90" selectedIndex="0"  width="230" itemClick="{fileBadgeListHandler()}" />
+		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
+		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
 			labelField="name" height="90" width="230" selectedIndex="0" />
 		
 		<mx:Button label="refresh/load" click="{selectorHandler()}"  
@@ -72,7 +72,7 @@
 		<mx:Text text="select a time range" fontWeight="normal" fontSize="9" />
 		<mx:DateChooser id="dateChooser" borderColor="#FFFFFF" selectedDate="{new Date()}"
 			allowMultipleSelection="true" allowDisjointSelection="false" showToday="false" width="180"/>
-		<mx:Button label="Show these dates" click="{selectorHandler()}" />
+		<mx:Button label="show these dates" click="{selectorHandler()}" />
 		
 		<!--<mx:Button label="Show all times" click="{selectorHandler()}" />-->
 	</flexlib:WindowShade>
@@ -87,9 +87,12 @@
 		</flexlib:headerRenderer>
 		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
 		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
-		<mx:Button label="Mark the 10 highest" click="{episodesHandler()}" />
+		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
+		<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />
 		
 	</flexlib:WindowShade>
+	
+	<mx:Button top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
 	</mx:HBox>
 
 	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
@@ -185,8 +188,8 @@
 				
 			protected const POLLUTANTS:Array = [
 				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
-				{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:"pm25",multiplier:1},
-				{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:"pm10",multiplier:1}
+				{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:"pm25",multiplier:1000},
+				{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:"pm10",multiplier:1000}
 				//{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
 				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
 				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
@@ -196,7 +199,7 @@
 				
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
-			public static const PM_DATA_DIR:String = "http://www.commonsensecommunity.com/data/WestOaklandPM/";
+			public static const PM_DATA_DIR:String = "http://www.commonsensecommunity.com/data/WestOaklandPM";
 			//public static const PM_DATA_DIR:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
 		
 			
@@ -325,7 +328,7 @@
 				//triggerLoadingPopup();
 				
 				//4. Do nothing. Just let commentspace know we're loaded
-				//dispatchComplete();	
+				dispatchComplete();	
 					
 			}
 			
@@ -370,7 +373,7 @@
 						dispatchUpdated();
 					};
 				var handleHide:Function = function(de:DataSetEvent):void{			
-						timeline.refresh();
+						timeline.refresh(true);
 						_plotLayer.refresh(true);
 						dispatchUpdated();
 					};
@@ -399,6 +402,16 @@
 				
 				//Update state whenever the timeline stops (do not try to update during playback)
 				timeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
+			}
+			
+			/**
+			 * New method for closing all shades when necessary
+			 */
+			protected function closeAllShades():void{
+				badgeSelector.opened = false;
+				locationSelector.opened = false;
+				timeSelector.opened = false;
+				episodesSelector.opened = false;
 			}
 			
 			/**
@@ -485,7 +498,6 @@
 			 *  Manages the progress bar while loading. 
 			 */
 			protected function loadData(source:Object,pollutant:String,name:String=null,onComplete:Function=null):void{
-				
 				//if this same source has already been loaded, remove it before reloading.
 				for each(var d:AirQualityDataSet in _dataSets){
 					if(d.dataURI == source) _dataSets.splice(_dataSets.lastIndexOf(d),1);
@@ -512,12 +524,14 @@
 						timeline.refresh(true);
 						_plotLayer.refresh(true);
 						dispatchUpdated();
+						
+						// We can set up the airQualitySlider again here
+						airQualitySlider.minimum = timeline.yMin;
+						airQualitySlider.maximum = timeline.yMax;
+						airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
+						airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
+						
 						if(onComplete != null){
-							// We can set up the airQualitySlider here
-							airQualitySlider.minimum = timeline.yMin;
-							airQualitySlider.maximum = timeline.yMax;
-							airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
-							airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
 							onComplete();
 						} 
 				});
@@ -904,42 +918,55 @@
 			 * Handles changes in the selection criteria for the various selector menus
 			 */
 			 
-			protected function fileListHandler():void{
-				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
-					if(FILES.length == 0){
-						var pmRootDir:String = PM_DATA_DIR;
-						var dirRequest:URLRequest = new URLRequest(pmRootDir);
-						var dirLoader:URLLoader = new URLLoader(dirRequest);
-						dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
-								var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
-								for(var i:int=0; i< pmSourceFiles.length; i++) {
-									// TODO - populate an additional list in the Badge menu
-									FILES.push({name:pmSourceFiles[i], path:pmRootDir + pmSourceFiles[i]});
-								}
-								fileList.dataProvider = FILES;
-						});
-					}
+			protected function fileBadgeListHandler():void{
+				if(pollutantList.selectedItem.abbreviation == "co"){
+					fileBadgeList.dataProvider = BADGES;
 				}
-				else{
-					FILES = [];
-					fileList.dataProvider = FILES;
+				else if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
+					FILES = []; // delete the list
+					fileBadgeList.dataProvider = FILES;
+					
+					var pmRootDir:String;
+					if(pollutantList.selectedItem.abbreviation == "pm25"){
+						pmRootDir = PM_DATA_DIR + "25/"
+					} else if(pollutantList.selectedItem.abbreviation == "pm10"){
+						pmRootDir = PM_DATA_DIR + "10/"
+					}
+					var dirRequest:URLRequest = new URLRequest(pmRootDir);
+					var dirLoader:URLLoader = new URLLoader(dirRequest);
+					
+					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
+							var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
+							for(var i:int=0; i< pmSourceFiles.length; i++) {
+								// TODO - populate an additional list in the Badge menu
+								FILES.push({name:pmSourceFiles[i], path:pmRootDir + pmSourceFiles[i]});
+							}
+							fileBadgeList.dataProvider = FILES;
+					});
 				}
 			}
 			
 			protected function selectorHandler():void{
+				// Set the sliders back to their old max and min so we don't hide any data permanentally...
+				if(timeline.dataSets.length > 0){
+					airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
+					airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
+					airQualitySliderHandler();
+				}
+				
 				//clear the existing plots... (why do we do this?)
 				for(var ds:String in _dataSets) delete _dataSets[ds];
 				_plotLayer.refresh(true);
 				timeline.refresh(true);
-			
+				
 				// TODO will eventually integrate pm data so its from a badge, just like co data...
 				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
 					
 					// If we already have the file list... take the selected ones and load them up
 					if(FILES.length > 0){
 						var fileInfo:Object;
-						for each(var file:Object in fileList.selectedItems){
-							fileInfo = {name:file.name, source:file.path, reading:"pm25"};
+						for each(var file:Object in fileBadgeList.selectedItems){
+							fileInfo = {name:file.name, source:file.path, reading:pollutantList.selectedItem.abbreviation};
 							loadData(fileInfo.source, fileInfo.reading, fileInfo.name, function():void{centermap();dispatchComplete();});
 						}
 					} else{
@@ -948,8 +975,8 @@
 				}
 				else{
 					var info:Array = []
-					if(badgeIdList.selectedItems.length > 0 && pollutantList.selectedItems.length > 0){
-						for each(var b:Object in badgeIdList.selectedItems){
+					if(fileBadgeList.selectedItems.length > 0 && pollutantList.selectedItems.length > 0){
+						for each(var b:Object in fileBadgeList.selectedItems){
 						info.push({name:buildName(b.name),
 								   source:buildURL(map, timeline, b.id),
 								   reading:pollutantList.selectedItem.abbreviation});
@@ -1009,9 +1036,19 @@
 			}
 			
 			protected function episodesHandler():void{
-				var ds:AirQualityDataSet = _dataSets[0]; // FIXME only looks at the first plotted data set right now
-				var peaks:Array = ds.stats.getSpikes();
-				addTimelines(peaks.slice(Math.max(peaks.length-11,0),Math.max(peaks.length-1,0)));
+				if(_dataSets.length > 0){
+					timelinesHolder.width = 300; // set the width only when there ARE episodes in there
+					var ds:AirQualityDataSet = _dataSets[0]; // FIXME only looks at the first plotted data set right now
+					var peaks:Array = ds.stats.getSpikes();
+					addTimelines(peaks.slice(Math.max(peaks.length-11,0),Math.max(peaks.length-1,0)));
+				} else{
+					triggerInputErrorPopup();
+				}
+			}
+			
+			protected function destroyEpisodes():void{
+				timelinesHolder.removeAllChildren();
+				timelinesHolder.width = 0;
 			}
 			
 			protected function addTimelines(episodes:Array):void{
@@ -1063,7 +1100,7 @@
 			}
 			
 			protected function buildURL(map:TweenMap, timeline:AirQualityTimeLine, badgeId:String=null):String{
-				var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : badgeIdList.selectedItem.id) + 
+				var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : fileBadgeList.selectedItem.id) + 
 				 		"&reading=" + pollutantList.selectedItem.db; 
 				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
 					url += "&start_time=" + (dateChooser.selectedRanges[0].rangeStart as Date).time / 1000 +
