@@ -497,7 +497,7 @@
 			 * Loads data from a source and passes it to the timeline and map when complete.
 			 *  Manages the progress bar while loading. 
 			 */
-			protected function loadData(source:Object,pollutant:String,name:String=null,onComplete:Function=null):void{
+			protected function loadData(source:Object,reading:String,name:String=null,onComplete:Function=null):void{
 				//if this same source has already been loaded, remove it before reloading.
 				for each(var d:AirQualityDataSet in _dataSets){
 					if(d.dataURI == source) _dataSets.splice(_dataSets.lastIndexOf(d),1);
@@ -514,7 +514,13 @@
 						"% (" + pe.bytesLoaded + " of " + pe.bytesTotal + " bytes)");
 				}
 				
-				var ds:AirQualityDataSet = new AirQualityDataSet(source,pollutant,name) 
+				//FIXME: Multipliers should be handled in a more intelligent way, probably provided by the resource 
+				// providing the source data, since it can change from source to source even for the same reading type.
+				// For now, we just assume PM data needs to be scaled up.
+				var multiplier:Number = (reading == AirQualityConstants.PM_25_24HR || 
+					reading == AirQualityConstants.PM_10_24HR) ? 1000 : 1; 
+				
+				var ds:AirQualityDataSet = new AirQualityDataSet(source,reading,name, multiplier) 
 				ds.addEventListener(ProgressEvent.PROGRESS, handleProgress);
 				ds.addEventListener(Event.COMPLETE, function(e:Event):void{
 						progressBar.visible = false;
@@ -964,10 +970,9 @@
 					
 					// If we already have the file list... take the selected ones and load them up
 					if(FILES.length > 0){
-						var fileInfo:Object;
 						for each(var file:Object in fileBadgeList.selectedItems){
-							fileInfo = {name:file.name, source:file.path, reading:pollutantList.selectedItem.abbreviation};
-							loadData(fileInfo.source, fileInfo.reading, fileInfo.name, function():void{centermap();dispatchComplete();});
+							loadData(file.path, pollutantList.selectedItem.abbreviation,
+								file.name, function():void{centermap();dispatchComplete();});
 						}
 					} else{
 						trace("file list not populated, cannot load anything from it.");

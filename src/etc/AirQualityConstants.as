@@ -71,7 +71,7 @@ package etc
 			ozone8 : "Ozone (8-hour)",
 			//Ozone (1-hour) ppm
 			ozone1 : "Ozone (1-hour)",
-			//Particulate Matter 2.5 (24-hour) milligrams / m^3
+			//Particulate Matter 2.5 (24-hour) micrograms / m^3
 			pm25   : "Particulate Matter 2.5 (24-hour)",
 			//Particulate Matter 10 (24-hour) micrograms / m^3
 			pm10   : "Particulate Matter 10 (24-hour)",
@@ -86,7 +86,7 @@ package etc
 			//Ozone (1-hour) ppm
 			ozone1 : "ppm",
 			//Particulate Matter 2.5 (24-hour) milligrams / m^3
-			pm25   : "milligrams / m^3",
+			pm25   : "micrograms / m^3",
 			//Particulate Matter 10 (24-hour) micrograms / m^3
 			pm10   : "micrograms / m^3",
 			//Carbon Monoxide (8-hour) ppm

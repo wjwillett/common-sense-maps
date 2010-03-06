@@ -434,12 +434,14 @@
 				
 				//add and update others
 				for each(var d:AirQualityDataSet in _dataSets){
+					if(noControls) return;
 					if(!_dSetBounds[d.dataURI]) continue;
 					if(!_dSetLabels[d.dataURI]) _dSetLabels[d.dataURI] = new TimelineLabel();
 					var l:TimelineLabel = _dSetLabels[d.dataURI];
 					l.dataSet = d;
 					l.labelText = "<b>" + d.name + "</b>" + (' - '  +
-						AirQualityConstants.POLLUTANT_NAMES[d.pollutant] + AirQualityConstants.POLLUTANT_UNITS[d.pollutant]);
+						AirQualityConstants.POLLUTANT_NAMES[d.pollutant] + " " +
+						AirQualityConstants.POLLUTANT_UNITS[d.pollutant]);
 					l.y = _dSetBounds[d.dataURI].top + margin;
 					
 					if(noControls || !useAdvancedControls) l.visible = false;
