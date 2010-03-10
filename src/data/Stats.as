@@ -4,16 +4,18 @@ package data
 	
 	public class Stats
 	{
+		public static var TIME_WINDOW:Number = 60; // hard coded time length for each episode window
+		public static var WINDOW_STAGGERING:Number = 30; // hard coded start time staggering for windows.
+		
 		private var spikeEpisodes:Array;
-		//private var topTenEpisodes:Array; // for internal debugging if required
+		private var topTenEpisodes:Array; // for internal debugging if required
 		private var episodeEndTimes:Object;
-		private var windowStaggering:Number = 30; // hard coded start time staggering for windows.
 		private var myExposureAverage:Number;
 		
 		public function Stats(_data:Vector.<Object>, headers:Array){ // Constructor
 			spikeEpisodes = new Array();
 			episodeEndTimes = new Object();
-			//topTenEpisodes = new Array();
+			topTenEpisodes = new Array();
 			processSpikes(_data, headers);
 			calculateAverage(_data, headers);
 		}
@@ -23,7 +25,6 @@ package data
 			// for different kinds of data
 			var startTime:Number = 0;
 			var endTime:Number = 0;
-			var timeWindow:Number = 60;
 			var windowAverage:Number = 0;
 			var windowCounter:Number = 0;
 			var startPos:Number = 0;
@@ -38,7 +39,7 @@ package data
 				
 				k = startPos;
 				// check a 60-second window of data
-				while(k < _data.length && _data[k][headers[0]] < startTime+60){ // 1-minute time window
+				while(k < _data.length && _data[k][headers[0]] < startTime+TIME_WINDOW){ // time window customizable
 					windowAverage += Number(_data[k][headers[3]])
 					windowCounter++;
 					endTime = _data[k][headers[0]]
@@ -46,15 +47,18 @@ package data
 				}
 				windowAverage = windowAverage/windowCounter;
 				spikeEpisodes.push({'beginTime':startTime, 'endTime':endTime, 'windowAverage':windowAverage});
+				
 				// Populate the endTimes hashtable
 				episodeEndTimes[endTime] = windowAverage;
+				
+				// DEBUG loop and episode time stuff
+				//trace("stuck in the loop? timewindow = " + TIME_WINDOW + "stagger = " + WINDOW_STAGGERING);
 				//trace("found episode: ("+startTime+","+(startTime+60)+")");
 				//trace("episode end time for "+endTime+ ": "+episodeEndTimes[endTime]);
 				
-				i = startPos;
 				// Determine the next startPos - if end of array before next window, we break
-				// EDIT WINDOW HERE!
-				while(i < _data.length && _data[i][headers[0]] < startTime+windowStaggering){
+				i = startPos;
+				while(i < _data.length && _data[i][headers[0]] < startTime+WINDOW_STAGGERING){ // window staggering customizable
 					i++;
 				}
 				if(i >= _data.length){
@@ -64,8 +68,9 @@ package data
 					startPos = i;
 				}
 			}
-			spikeEpisodes = spikeEpisodes.sortOn('windowAverage');
-			// Debugging stuff
+			spikeEpisodes = spikeEpisodes.sortOn('windowAverage', Array.NUMERIC); // important to set the NUMERIC flag!!!
+			
+			// DEBUG stuff in spikeEpisodes
 			/*
 			trace("new stuff");
 			for(i=0; i < spikeEpisodes.length; i++){

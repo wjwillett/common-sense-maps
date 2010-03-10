@@ -89,12 +89,17 @@
 		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
 		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
 		<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />
+			
+		<mx:Text text="set the time window for an episode" />
+		<mx:TextInput id="timeWindow" text="60" change="{Stats.TIME_WINDOW = Number(timeWindow.text); trace('timewindow changed to' + Number(timeWindow.text));}" />
+		<mx:Text text="set the staggering for each window:" />
+		<mx:TextInput id="windowStaggering" text="30" change="{Stats.WINDOW_STAGGERING = Number(windowStaggering.text); trace('stagger changed' + Number(windowStaggering.text));}" />
 		
 	</flexlib:WindowShade>
 	
 	<mx:Button top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
 	</mx:HBox>
-
+	
 	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
 	<mx:ProgressBar id="progressBar" bottom="230" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
 	<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
@@ -138,6 +143,7 @@
 			import com.modestmaps.geo.Location;
 			import mx.events.FlexEvent;
 			import mx.controls.Label;
+			import data.Stats;
 			
 			/******** Embedded Assets **********************************************************/
 			[Embed(source="assets/flag_blue.png")]
