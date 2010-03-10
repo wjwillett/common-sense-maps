@@ -26,7 +26,7 @@
 		</mx:VBox>
 	</mx:VDividedBox>-->
 	
-	<mx:VBox right="15" top="0" bottom="390" width="0" id="timelinesHolder" 
+	<mx:VBox right="15" top="30" bottom="270" width="0" id="timelinesHolder" 
 		backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
@@ -62,7 +62,7 @@
 		<mx:Button label="Go" click="{locationHandler()}" />
 	</flexlib:WindowShade>
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" 
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" opened="false"
 		x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
@@ -99,9 +99,15 @@
 	
 	<mx:Button top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
 	</mx:HBox>
+<<<<<<< HEAD
 	
 	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
 	<mx:ProgressBar id="progressBar" bottom="230" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
+=======
+
+	<ns1:AirQualityLegend id="legend" bottom="220" right="15" width="650" height="30"/>
+	<mx:ProgressBar id="progressBar" bottom="220" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
+>>>>>>> 3d7e91f33cc49e5f4da4e76faa4cd1cef7544823
 	<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
 	
 
@@ -257,7 +263,6 @@
 				map.zoomDuration = 0.5;
 				map.panAndZoomDuration = 0.6;
 				map.useHandCursor = map.buttonMode = true;
-				
 				
 				_plotLayer = new AirQualityMapLayer(map);
 				_plotLayer.dataSets = _dataSets;
@@ -423,9 +428,9 @@
 			/**
 			 * New method for setting up episodes mini-timelines
 			 */
-			protected function setupEpisodesTimeline(timeline:AirQualityTimeLine):void{
+			protected function setupEpisodesTimeline(eTimeline:AirQualityTimeLine):void{
 
-				timeline.selections = _selections;
+				eTimeline.selections = _selections;
 				
 				//Add handlers for linked tooltipping between map and timeline
 				var drawMapTip:Function = function(de:DataPointEvent=null):void{
@@ -434,20 +439,28 @@
 				var drawTimelineTip:Function = function(de:DataPointEvent=null):void{
 						timeline.drawDataTip(de.dataPoint);
 					};
+				var drawETimelineTip:Function = function(de:DataPointEvent=null):void{
+						eTimeline.drawDataTip(de.dataPoint);
+					};
 				var discardMapTip:Function = function(de:DataPointEvent=null):void{
 						_plotLayer.discardActiveDataTip();
 					};
 				var discardTimelineTip:Function = function(de:DataPointEvent=null):void{
 						timeline.discardActiveDataTip();
 					};
-				timeline.addEventListener(DataPointEvent.HOVER,drawMapTip);
-				timeline.addEventListener(DataPointEvent.UNHOVER,discardMapTip);
-				_plotLayer.addEventListener(DataPointEvent.HOVER,drawTimelineTip);
-				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardTimelineTip);
+				var discardETimelineTip:Function = function(de:DataPointEvent=null):void{
+						eTimeline.discardActiveDataTip();
+					};
+				eTimeline.addEventListener(DataPointEvent.HOVER,drawMapTip);
+				eTimeline.addEventListener(DataPointEvent.HOVER,drawTimelineTip);
+				eTimeline.addEventListener(DataPointEvent.UNHOVER,discardMapTip);
+				eTimeline.addEventListener(DataPointEvent.UNHOVER,discardTimelineTip);
+				_plotLayer.addEventListener(DataPointEvent.HOVER,drawETimelineTip);
+				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardETimelineTip);
 				
 				//handlers for popup menus on map and timeline
-				timeline.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
-						discardTimelineTip();	
+				eTimeline.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
+						discardETimelineTip();	
 						createMenu(de.mousePosition,de.dataPoint);
 						
 					});
@@ -457,14 +470,14 @@
 					});
 				
 				//handler for dataset removal
-				timeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
+				eTimeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
 						_plotLayer.refresh(true);
-						timeline.refresh(true);
+						eTimeline.refresh(true);
 						dispatchUpdated();
 					});
 					
 				//time scrubbing for map
-				timeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
+				eTimeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
 						if(te.playheadTime){
 							_plotLayer.maxTime = te.playheadTime;
 							
@@ -491,11 +504,11 @@
 					});
 				
 				//Listeners for updating state on zoom and pan
-				timeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
-				timeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
+				eTimeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
+				eTimeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
 				
 				//Update state whenever the timeline stops (do not try to update during playback)
-				timeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
+				eTimeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
 			}
 			
 			
@@ -1076,21 +1089,14 @@
 				for each(var e:Object in episodes){
 					var t:AirQualityTimeLine = new AirQualityTimeLine();
 					t.percentWidth = 100;
-					t.height = timelinesHolder.height * 0.75 / episodes.length;
+					t.height = timelinesHolder.height * 0.95 / episodes.length;
+					t.margin = 8;
 					t.noControls = true;
 					t.dataSets = _dataSets;
 					t.xBottom = e.beginTime;
 					t.xTop = e.endTime;
 					_timelines.push(t);
 					
-					//label
-					var l:Label = new Label();
-					l.text = (new Date(e.beginTime*1000)).toLocaleString();
-					l.setStyle("paddingTop",2);
-					l.setStyle("paddingBottom",-4);
-					l.setStyle("fontWeight","bold");
-					l.setStyle("color","0x999999");
-					timelinesHolder.addChild(l);
 					
 					timelinesHolder.addChild(t);
 					t.addEventListener(FlexEvent.CREATION_COMPLETE, function(fe:FlexEvent):void{
@@ -1100,6 +1106,16 @@
 							t.setStyle("borderColor",0xFFFFFFFF);
 							tl.refresh();
 						});
+					
+					//label
+					var l:Label = new Label();
+					var eTime:Date = new Date(e.beginTime*1000);
+					l.htmlText = eTime.toLocaleDateString() + " <b>" + eTime.toLocaleTimeString() + "</b>";
+					l.setStyle("paddingTop",-t.height);
+					l.setStyle("paddingBottom",t.height - 15);
+					l.setStyle("color","0x666666");
+					timelinesHolder.addChild(l);	
+						
 					/* t.addEventListener(MouseEvent.MOUSE_OVER, function(fme:Event):void{
 							var tm:AirQualityTimeLine = fme.currentTarget as AirQualityTimeLine;
 							_plotLayer.minTime = tm.xBottom;
