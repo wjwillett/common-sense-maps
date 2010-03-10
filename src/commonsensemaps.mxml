@@ -750,7 +750,7 @@
 						//set hidden/visibile for each dataset
 						for each(var hds:AirQualityDataSet in _dataSets){
 							if(dsn.indexOf(hds.name) != -1)
-								hds.hidden = (dsh[dsn.indexOf(hds.name)] == "true"); // hacky fix for a weird boolean casting of "false" string problem
+								hds.hidden = Boolean(dsh[dsn.indexOf(hds.name)]);
 						}
 						
 						//set time bounds
@@ -774,7 +774,8 @@
 				var ds:Array = (o.dataSource is String) ? (o.dataSource as String).split(',') : null;
 				var dsn:Array = (o.dataNames is String) ? (o.dataNames as String).split(',') : null;
 				var dsp:Array = (o.dataPollutants is String) ? (o.dataPollutants as String).split(',') : null;
-				var dsh:Array = (o.dataHidden is String) ? (o.dataHidden as String).split(',') : null;
+				var dsh:Array = (o.dataHidden is String) ? (o.dataHidden as String).split(',') : 
+					(o.dataHidden is Boolean ? [o.dataHidden] : null);
 				
 				var loadingCount:int = 0;
 				
