@@ -99,15 +99,9 @@
 	
 	<mx:Button top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
 	</mx:HBox>
-<<<<<<< HEAD
-	
-	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
-	<mx:ProgressBar id="progressBar" bottom="230" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
-=======
 
 	<ns1:AirQualityLegend id="legend" bottom="220" right="15" width="650" height="30"/>
 	<mx:ProgressBar id="progressBar" bottom="220" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
->>>>>>> 3d7e91f33cc49e5f4da4e76faa4cd1cef7544823
 	<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
 	
 
@@ -378,9 +372,26 @@
 					});
 				
 				//handlers for dataset removal and hide/unhide
-				var handleRemove:Function = function(de:DataSetEvent):void{			
+				var handleRemove:Function = function(de:DataSetEvent):void{
 						_plotLayer.refresh(true);
 						timeline.refresh(true);
+						
+						if(timelinesHolder.numChildren > 0){ // FIXME really hacky way of removing the episodesview when the corr. dataset removed
+							var i:Number = 0;
+							/*
+							while(!(timelinesHolder.getChildAt(i) is AirQualityTimeLine)){
+								i++;
+							}
+							var firstTimeLine:AirQualityTimeLine = (timelinesHolder.getChildAt(i) as AirQualityTimeLine);
+							trace("timeline = " + firstTimeLine.xDataField);
+							trace("removing: " + (firstTimeLine.dataSets[0] as AirQualityDataSet).name);
+							if((firstTimeLine.dataSets[0] as AirQualityDataSet).name  == de.dataset.name){
+								destroyEpisodes();
+							}
+							*/
+							destroyEpisodes();
+						}
+						
 						dispatchUpdated();
 					};
 				var handleHide:Function = function(de:DataSetEvent):void{			
@@ -745,6 +756,7 @@
 					dsp = (dsp == null ? escape(di.pollutant) : dsp + "," + escape(di.pollutant));
 					dsh = (dsh == null ? di.hidden.toString() : dsh + "," + di.hidden.toString());
 				} 
+				trace("children = " + container.numChildren);
 				return {centerLat:cl.lat,
 						centerLon:cl.lon,
 						zoom:cz[1],
@@ -756,13 +768,15 @@
 						xTop:timeline.xTop,
 						playheadPosition:timeline.playheadPosition,
 						airQualitySliderMin:airQualitySlider.values[0],
-						airQualitySliderMax:airQualitySlider.values[1]};
+						airQualitySliderMax:airQualitySlider.values[1],
+						episodesDisplayed:(timelinesHolder.numChildren > 0)};
 			}
 			
 			public function set state(o:Object):void{
 				// Reset all value limiters on the timeline and map to prevent weird issues with the slider
 				timeline.clearLimits();
 				_plotLayer.clearLimits();
+				timelinesHolder.removeAllChildren(); // remove the episodes view so the new state load its own
 				
 				//parameters to be set once we know the data's loaded
 				var onceLoaded:Function = function():void{
@@ -772,7 +786,7 @@
 						//set hidden/visibile for each dataset
 						for each(var hds:AirQualityDataSet in _dataSets){
 							if(dsn.indexOf(hds.name) != -1)
-								hds.hidden = Boolean(dsh[dsn.indexOf(hds.name)]);
+								hds.hidden = (dsh[dsn.indexOf(hds.name)] == "true"); // hacky fix for a weird boolean casting of "false" string problem
 						}
 						
 						//set time bounds
@@ -780,6 +794,11 @@
 						timeline.xTop = o.xTop;
 						timeline.playheadPosition = o.playheadPosition;
 						timeline.refresh();
+						
+						//load episodes (if it was displayed)
+						if(o.episodesDisplayed){
+							episodesHandler();
+						}
 						
 						// Set airQualitySlider positions now that we have loaded the data
 						airQualitySlider.setThumbValueAt(0, o.airQualitySliderMin);
@@ -1081,6 +1100,7 @@
 			protected function destroyEpisodes():void{
 				timelinesHolder.removeAllChildren();
 				timelinesHolder.width = 0;
+				dispatchUpdated(); // called for IStatefulVis
 			}
 			
 			protected function addTimelines(episodes:Array):void{
@@ -1105,6 +1125,7 @@
 							t.setStyle("borderStyle","solid");
 							t.setStyle("borderColor",0xFFFFFFFF);
 							tl.refresh();
+							dispatchUpdated(); // to update IStatefulVis
 						});
 					
 					//label
