@@ -454,18 +454,6 @@
 				eTimeline.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
 						discardETimelineTip();	
 						createMenu(de.mousePosition,de.dataPoint);
-						
-					},false,0,true);
-				/* _plotLayer.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
-						discardMapTip();
-						createMenu(de.mousePosition,de.dataPoint);
-					}); */
-				
-				//handler for dataset removal
-				eTimeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
-						_plotLayer.refresh(true);
-						eTimeline.refresh(true);
-						dispatchUpdated();
 					},false,0,true);
 				
 				//remove listeners if timeline is removed from display
@@ -478,40 +466,7 @@
 					_plotLayer.removeEventListener(DataPointEvent.HOVER,drawETimelineTip);
 					_plotLayer.removeEventListener(DataPointEvent.UNHOVER,discardETimelineTip);
 					});
-					
-				//time scrubbing for map
-				/* eTimeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
-						if(te.playheadTime){
-							_plotLayer.maxTime = te.playheadTime;
-							
-							//Centers map on the last point
-							//FIXME: This is a VERY quick implementation that loops through all the points every time.
-							// optimize the search for the last point(e.g. only check since the last update) and 
-							// smooth the playback	
-							if(_dataSets[0] && (_dataSets[0] as AirQualityDataSet).data){
-								var ds:AirQualityDataSet = (_dataSets[0] as AirQualityDataSet);
-								
-								//iterate through points
-								for(var i:int=0; i < ds.data.length; i++){
-									var point:Object = ds.data[i]; 
-									//Save the index of the last point drawn at/after the playhead 							
-									if(Number(point.time) > te.playheadTime && point.lat && point.lat != "None" && point.lat !=0){
-										//panAndZoomTo(new Location(point.lat, point.lon),map.getZoom());
-										map.setCenterZoom(new Location(Number(point.lat),Number(point.lon)),17);
-										break;
-									}
-								}
-							}
-							_plotLayer.refresh();
-						} 
-					}); 
 				
-				//Listeners for updating state on zoom and pan
-				eTimeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
-				eTimeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
-				
-				//Update state whenever the timeline stops (do not try to update during playback)
-				eTimeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);*/
 			}
 			
 			
