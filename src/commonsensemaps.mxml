@@ -749,8 +749,10 @@
 						
 						//set hidden/visibile for each dataset
 						for each(var hds:AirQualityDataSet in _dataSets){
-							if(dsn.indexOf(hds.name) != -1)
-								hds.hidden = Boolean(dsh[dsn.indexOf(hds.name)]);
+							if(dsn.indexOf(hds.name) != -1){
+								var h:Object = dsh[dsn.indexOf(hds.name)];
+								hds.hidden = (h is Boolean ? h : h.toString() == "true");
+							}
 						}
 						
 						//set time bounds
