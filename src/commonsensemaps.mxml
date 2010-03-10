@@ -761,6 +761,9 @@
 						timeline.playheadPosition = o.playheadPosition;
 						timeline.refresh();
 						
+						_plotLayer.minTime = o.xBottom;
+						_plotLayer.maxTime = o.xTop;
+						
 						//load episodes (if it was displayed)
 						if(o.episodesDisplayed){
 							episodesHandler();
