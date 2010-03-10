@@ -99,15 +99,9 @@
 	
 	<mx:Button top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
 	</mx:HBox>
-<<<<<<< HEAD
-	
-	<ns1:AirQualityLegend id="legend" bottom="230" right="15" width="150" height="160"/>
-	<mx:ProgressBar id="progressBar" bottom="230" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
-=======
 
 	<ns1:AirQualityLegend id="legend" bottom="220" right="15" width="650" height="30"/>
 	<mx:ProgressBar id="progressBar" bottom="220" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
->>>>>>> 3d7e91f33cc49e5f4da4e76faa4cd1cef7544823
 	<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
 	
 
@@ -244,8 +238,6 @@
 					setupTimeline();
 				}
 			}
-			
-			protected var _timelines:Array = [];
 			
 			/******** Mapping Methods **********************************************************/
 			protected function setupMap():void{
@@ -451,33 +443,44 @@
 				var discardETimelineTip:Function = function(de:DataPointEvent=null):void{
 						eTimeline.discardActiveDataTip();
 					};
-				eTimeline.addEventListener(DataPointEvent.HOVER,drawMapTip);
-				eTimeline.addEventListener(DataPointEvent.HOVER,drawTimelineTip);
-				eTimeline.addEventListener(DataPointEvent.UNHOVER,discardMapTip);
-				eTimeline.addEventListener(DataPointEvent.UNHOVER,discardTimelineTip);
-				_plotLayer.addEventListener(DataPointEvent.HOVER,drawETimelineTip);
-				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardETimelineTip);
+				eTimeline.addEventListener(DataPointEvent.HOVER,drawMapTip,false,0,true);
+				eTimeline.addEventListener(DataPointEvent.HOVER,drawTimelineTip,false,0,true);
+				eTimeline.addEventListener(DataPointEvent.UNHOVER,discardMapTip,false,0,true);
+				eTimeline.addEventListener(DataPointEvent.UNHOVER,discardTimelineTip,false,0,true);
+				_plotLayer.addEventListener(DataPointEvent.HOVER,drawETimelineTip,false,0,true);
+				_plotLayer.addEventListener(DataPointEvent.UNHOVER,discardETimelineTip,false,0,true);
 				
 				//handlers for popup menus on map and timeline
 				eTimeline.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
 						discardETimelineTip();	
 						createMenu(de.mousePosition,de.dataPoint);
 						
-					});
-				_plotLayer.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
+					},false,0,true);
+				/* _plotLayer.addEventListener(DataPointEvent.CLICK,function(de:DataPointEvent):void{
 						discardMapTip();
 						createMenu(de.mousePosition,de.dataPoint);
-					});
+					}); */
 				
 				//handler for dataset removal
 				eTimeline.addEventListener(DataSetEvent.DATASET_REMOVED,function(de:DataSetEvent):void{			
 						_plotLayer.refresh(true);
 						eTimeline.refresh(true);
 						dispatchUpdated();
+					},false,0,true);
+				
+				//remove listeners if timeline is removed from display
+				eTimeline.addEventListener(FlexEvent.REMOVE, function(e:FlexEvent):void{
+					eTimeline.removeEventListener(FlexEvent.REMOVE,arguments.callee);
+					eTimeline.removeEventListener(DataPointEvent.HOVER,drawMapTip);
+					eTimeline.removeEventListener(DataPointEvent.HOVER,drawTimelineTip);
+					eTimeline.removeEventListener(DataPointEvent.UNHOVER,discardMapTip);
+					eTimeline.removeEventListener(DataPointEvent.UNHOVER,discardTimelineTip);
+					_plotLayer.removeEventListener(DataPointEvent.HOVER,drawETimelineTip);
+					_plotLayer.removeEventListener(DataPointEvent.UNHOVER,discardETimelineTip);
 					});
 					
 				//time scrubbing for map
-				eTimeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
+				/* eTimeline.addEventListener(TimelineEvent.PLAYHEAD_MOVED,function(te:TimelineEvent):void{
 						if(te.playheadTime){
 							_plotLayer.maxTime = te.playheadTime;
 							
@@ -501,14 +504,14 @@
 							}
 							_plotLayer.refresh();
 						} 
-					});
+					}); 
 				
 				//Listeners for updating state on zoom and pan
 				eTimeline.addEventListener(TimelineEvent.TIMELINE_ZOOMED,dispatchUpdated);
 				eTimeline.addEventListener(TimelineEvent.TIMELINE_SCROLLED,dispatchUpdated);
 				
 				//Update state whenever the timeline stops (do not try to update during playback)
-				eTimeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);
+				eTimeline.addEventListener(TimelineEvent.PLAYHEAD_STOPPED,dispatchUpdated);*/
 			}
 			
 			
@@ -1095,8 +1098,6 @@
 					t.dataSets = _dataSets;
 					t.xBottom = e.beginTime;
 					t.xTop = e.endTime;
-					_timelines.push(t);
-					
 					
 					timelinesHolder.addChild(t);
 					t.addEventListener(FlexEvent.CREATION_COMPLETE, function(fe:FlexEvent):void{
@@ -1105,7 +1106,7 @@
 							t.setStyle("borderStyle","solid");
 							t.setStyle("borderColor",0xFFFFFFFF);
 							tl.refresh();
-						});
+						},false,0,true);
 					
 					//label
 					var l:Label = new Label();
