@@ -32,30 +32,31 @@
 		
 	</mx:Canvas>
 	
-	<mx:Button id="zOut" click="{zoomOut()}" label="-" toolTip="zoom out" 
+	<mx:Button id="zOut" click="{zoomOut()}" icon="@Embed(source='assets/zoom_out.png')" toolTip="zoom out" 
 			x="{margin}" y="{margin + 25}" paddingLeft="0" paddingRight="0"
 			width="25" visible="{!noControls &amp;&amp; useAdvancedControls}"
 			enabled="{_xBottom &gt; _xMin || _xTop &lt; _xMax}"/>
-	<mx:Button id="zIn" click="{zoomIn()}" label="+" 
+	<mx:Button id="zIn" click="{zoomIn()}" icon="@Embed(source='assets/zoom_in.png')"
 			toolTip="zoom in" width="25" paddingLeft="0" 
 			paddingRight="0" y="{margin}" x="{margin}"
 			visible="{!noControls &amp;&amp; useAdvancedControls}" />
-	<mx:Button id="zFull" click="{resetZoom()}" label="_" 
+	<mx:Button id="zFull" click="{resetZoom()}" icon="@Embed(source='assets/zoom.png')"
 			toolTip="zoom all the way out" width="25" paddingLeft="0" 
 			paddingRight="0" y="{margin+50}" x="{margin}"
 			visible="{!noControls &amp;&amp; useAdvancedControls}"
 			enabled="{_xBottom &gt; _xMin || _xTop &lt; _xMax}"/>
 
-	<mx:Button id="pauseBtn" x="{margin}" label="||" bottom="{margin}" enabled="{_playing}" 
+	<!--<mx:Button id="pauseBtn" x="{margin}" label="||" bottom="{margin}" enabled="{_playing}" 
 		paddingRight="0" paddingLeft="0" click="{stopPlayback(event)}" width="18" 
 		toolTip="pause" visible="{!noControls}"/>
 	<mx:Button id="playBtn" x="{margin + 20}" label=">" bottom="{margin}" enabled="{!_playing}"
 		paddingRight="2" paddingLeft="2" click="{startPlayback(event)}" width="20"
 		toolTip="play" visible="{!noControls}"/>
-	<mx:VSlider id="playSlider" x="{margin }" y="{playBtn.y - 60}" height="50" value="{Math.log(timeMultiplier)*Math.LOG10E}"
+	
+	<mx:HSlider id="playSlider" x="{margin }" y="{playBtn.y - 60}" height="50" value="{Math.log(timeMultiplier)*Math.LOG10E}"
 		minimum="0.3" maximum="4" labels="{['.','..','...','....']}" dataTipFormatFunction="{playScrollDataTip}"
 		toolTip="{'playback speed: ' + int(Math.pow(10,playSlider.value)) + 'x'}" liveDragging="true"
-		change="{timeMultiplier=Math.pow(10,playSlider.value)}" visible="{!noControls}"/>
+		change="{timeMultiplier=Math.pow(10,playSlider.value)}" visible="{!noControls}"/>-->
 	
 	
 	<mx:Script>

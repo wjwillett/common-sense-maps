@@ -26,11 +26,11 @@
 		</mx:VBox>
 	</mx:VDividedBox>-->
 	
-	<mx:VBox right="15" top="30" bottom="270" width="0" id="timelinesHolder" 
-		backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
+	<mx:VBox right="15" top="0" bottom="270" width="0" id="timelinesHolder"
+	backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="275" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="285" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -39,13 +39,19 @@
 		<mx:Text text="select a pollutant" fontWeight="normal" fontSize="9" />
 		<!--<mx:List dataProvider="{BADGES}" id="badgeIdList" 
 			labelField="name" width="230" height="90" allowMultipleSelection="true" />-->
-		<mx:List dataProvider="{POLLUTANTS}" id="pollutantList"
-			labelField="pollutant" height="90" selectedIndex="0"  width="230" itemClick="{fileBadgeListHandler()}" />
+		<!--<mx:List dataProvider="{POLLUTANTS}" id="pollutantList"
+			labelField="pollutant" height="90" selectedIndex="0"  width="230" itemClick="{fileBadgeListHandler()}" />-->
+		
+		<mx:RadioButtonGroup id="pollutantRadioGroup" itemClick="{fileBadgeListHandler()}" />
+		<mx:Repeater id="pollutantRepeater" dataProvider="{POLLUTANTS}">
+			<mx:RadioButton label="{pollutantRepeater.currentItem.pollutant}" groupName="pollutantRadioGroup" value="{pollutantRepeater.currentItem}" />
+		</mx:Repeater>
+		
 		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
 			labelField="name" height="90" width="230" selectedIndex="0" />
 		
-		<mx:Button label="refresh/load" click="{selectorHandler()}"  
+		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
 			height="25"/>
 	</flexlib:WindowShade>
@@ -63,7 +69,7 @@
 	</flexlib:WindowShade>
 	
 	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" opened="false"
-		x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle">
+		x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle" >
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -72,7 +78,7 @@
 		<mx:Text text="select a time range" fontWeight="normal" fontSize="9" />
 		<mx:DateChooser id="dateChooser" borderColor="#FFFFFF" selectedDate="{new Date()}"
 			allowMultipleSelection="true" allowDisjointSelection="false" showToday="false" width="180"/>
-		<mx:Button label="show these dates" click="{selectorHandler()}" />
+		<mx:Button label="show these dates" click="{selectorHandler(false)}" />
 		
 		<!--<mx:Button label="Show all times" click="{selectorHandler()}" />-->
 	</flexlib:WindowShade>
@@ -88,25 +94,55 @@
 		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
 		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
 		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
-		<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />
+		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
 			
-		<mx:Text text="set the time window for an episode" />
+		<!--<mx:Text text="set the time window for an episode" />
 		<mx:TextInput id="timeWindow" text="60" change="{Stats.TIME_WINDOW = Number(timeWindow.text); trace('timewindow changed to' + Number(timeWindow.text));}" />
 		<mx:Text text="set the staggering for each window:" />
-		<mx:TextInput id="windowStaggering" text="30" change="{Stats.WINDOW_STAGGERING = Number(windowStaggering.text); trace('stagger changed' + Number(windowStaggering.text));}" />
+		<mx:TextInput id="windowStaggering" text="30" change="{Stats.WINDOW_STAGGERING = Number(windowStaggering.text); trace('stagger changed' + Number(windowStaggering.text));}" />-->
 		
 	</flexlib:WindowShade>
 	
-	<mx:Button top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
+	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
 	</mx:HBox>
-
-	<ns1:AirQualityLegend id="legend" bottom="220" right="15" width="650" height="30"/>
-	<mx:ProgressBar id="progressBar" bottom="220" right="{30 + legend.width}" left="125" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
-	<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
+	
+	<mx:VDividedBox left="15" bottom="15" right="15" width="100" height="100%" dividerRelease="{adjustMapControlsPosition()}">
+		<mx:HBox id="controlsHBox" verticalAlign="bottom" horizontalAlign="left" height="600" width="100%">
+			<mx:VBox id="playButtonBox" backgroundColor="#FFFFFF" borderStyle="solid" borderColor="#9D9D9D" width="195" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="10">
+				<mx:HBox>
+					<mx:VBox cornerRadius="15" width="115">
+						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" fontSize="17"/>
+						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" fontSize="14"/>
+					</mx:VBox>
+					<mx:Button label="{timeline._playing ? '||' : '&gt;'}" cornerRadius="10"
+						toolTip="{timeline._playing ? 'pause' : 'play'}" height="100%" fontSize="23" id="bigPlayPause" 
+						click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
+				</mx:HBox>
+				<mx:HBox horizontalAlign="center">
+					<mx:Image source="assets/control_rewind.png"/>
+					<mx:HSlider id="playSlider" x="{timeline.margin}" height="25" value="{Math.log(timeline.timeMultiplier)*Math.LOG10E}" width="130"
+						minimum="0.3" maximum="4" dataTipFormatFunction="{playScrollDataTip}"
+						toolTip="{'playback speed: ' + int(Math.pow(10,playSlider.value)) + 'x'}" liveDragging="true"
+						change="{timeline.timeMultiplier=Math.pow(10,playSlider.value)}" visible="{!timeline.noControls}"/>
+					<mx:Image source="assets/control_fastforward.png"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:Canvas width="{timeline.width - 330}">
+				<mx:ProgressBar id="progressBar" width="100%" visible="false" includeInLayout="false" indeterminate="true" mode="manual"/>
+			</mx:Canvas>
+			<mx:Canvas id="controlsCanvas"/>
+		</mx:HBox>
+		<ns1:AirQualityTimeLine id="timeline" width="100%" height="200" left="15" right="15" bottom="15" creationComplete="{setup()}"/>
+	</mx:VDividedBox>
+	
+	<!--<ns1:AirQualityLegend id="legend" bottom="220" right="15" width="650" height="30"/>-->
 	
 
 	<mx:Script>
 		<![CDATA[
+			import mx.core.UIComponent;
+			import components.IconControls;
+			import mx.controls.LinkButton;
 			import com.adobe.serialization.json.JSON;
 			import commentspace.events.EntityEvent;
 			import mx.events.CollectionEventKind;
@@ -165,8 +201,11 @@
 		            0, 0, 0, 0.5, 0
 		        ];
 		    
-		    // Adding Google API key to enable geocoding (note security restriction stuff associated with this)... 
-		    public static const GOOGLE_API_KEY:String = "ABQIAAAA_3td1tmQ7cbEqh_kQLucMRRl_cuzxjTWTH-RUAWem_qXsJGROBTgOLdo3jwgLuyWZ63_ndi7h3-PQg";
+		    // Adding Google API key to enable geocoding (note security restriction stuff associated with this)...
+		    // Use this key for testing locally 
+		    //public static const GOOGLE_API_KEY:String = "ABQIAAAA_3td1tmQ7cbEqh_kQLucMRRl_cuzxjTWTH-RUAWem_qXsJGROBTgOLdo3jwgLuyWZ63_ndi7h3-PQg";
+		    // Use this key for hosting on commonsensecommunity.com
+		    public static const GOOGLE_API_KEY:String = "ABQIAAAA_3td1tmQ7cbEqh_kQLucMRQXZpYdCZCcWeB4L1TxFQtaTFEDDxSqPJc0whJ2_2BTJeTgn0uDSRY4tA";
 		    
 			protected const BADGES:Array = [
 				{name:"Badge 1",id:'000000000001'},
@@ -215,6 +254,9 @@
 			//the map!
 			protected var map:TweenMap;
 			
+			//the controls for the map!
+			protected var controls:IconControls;
+			
 			//Clip the flags are drawn into
 			protected var _flagsClip:MarkerClip;
 			
@@ -237,6 +279,23 @@
 					setupMap();
 					setupTimeline();
 				}
+			}
+			
+			/**
+			 * Datatip function for playhead speed slider.
+			 */
+			protected function playScrollDataTip(val:Number):String{
+				return int(Math.pow(10,val)) + 'x';
+			}
+			
+			/**
+			 * Adjusts the position of map control sprite when we change the VDividedBox
+			 */
+			protected function adjustMapControlsPosition():void{
+//				trace("timeline height now = "+timeline.height);
+//				controls.fullScreenButton.visible = true;
+//				controls.x = container.width - 100;
+//				controls.y = -controlsHBox.height + 400;
 			}
 			
 			/******** Mapping Methods **********************************************************/
@@ -262,11 +321,21 @@
 				
 				map.addChild(_plotLayer);
 				
-				var controls:MapControls = new MapControls(map);
-				map.addChild(controls);
-				//controls.x = 0;
-				controls.y = -timeline.height - 15;
-
+				// add the controls to the map
+				controls = new IconControls(map);
+//				map.addChild(controls);
+//				trace("coordinates of controls: "+controls.x+","+controls.y);
+//				controls.x = timeline.width;
+//				controls.y = timeline.height;
+				
+				// try putting the map controls in a UIComponent then adding it the HBox...
+				var uicomp:UIComponent = new UIComponent();
+				controlsCanvas.addChild(uicomp);
+				uicomp.addChild(controls);
+				//controls.x += 35;
+				controls.y -= 55;
+				trace("coordinates of controls: "+controls.x+","+controls.y);
+				
 				//set the map center
 				map.setCenterZoom(new Location(37.803,-122.298),14);
 				
@@ -942,17 +1011,34 @@
 			 */
 			 
 			protected function fileBadgeListHandler():void{
-				if(pollutantList.selectedItem.abbreviation == "co"){
+				if(pollutantRadioGroup.selectedValue.abbreviation == "co"){
+					// Enable Location and Time selectors
+					locationSelector.enabled = true;
+					locationSelector.alpha = 1;
+					locationSelector.label = "Location";
+					timeSelector.enabled = true;
+					timeSelector.alpha = 1;
+					timeSelector.label = "Time";
+					
 					fileBadgeList.dataProvider = BADGES;
 				}
-				else if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
+				else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
+					// Disable Location and Time selectors (since PM data is being retrieved from files right now)
+					locationSelector.enabled = false;
+					locationSelector.alpha = 0.5;
+					locationSelector.label = "Location (disabled)";
+					timeSelector.enabled = false;
+					timeSelector.alpha = 0.5;
+					timeSelector.label = "Time (disabled)";
+					
+					
 					FILES = []; // delete the list
 					fileBadgeList.dataProvider = FILES;
 					
 					var pmRootDir:String;
-					if(pollutantList.selectedItem.abbreviation == "pm25"){
+					if(pollutantRadioGroup.selectedValue.abbreviation == "pm25"){
 						pmRootDir = PM_DATA_DIR + "25/"
-					} else if(pollutantList.selectedItem.abbreviation == "pm10"){
+					} else if(pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
 						pmRootDir = PM_DATA_DIR + "10/"
 					}
 					var dirRequest:URLRequest = new URLRequest(pmRootDir);
@@ -969,7 +1055,7 @@
 				}
 			}
 			
-			protected function selectorHandler():void{
+			protected function selectorHandler(fromLocationHandler:Boolean):void{
 				// Reset all value limiters on the timeline and map to prevent weird issues with the slider
 				timeline.clearLimits();
 				_plotLayer.clearLimits();
@@ -979,14 +1065,22 @@
 				_plotLayer.refresh(true);
 				timeline.refresh(true);
 				
+				//choose whether we should center the map or not based off whether we used location service
+				var onCompleteFunc:Function;
+				if(fromLocationHandler){
+					onCompleteFunc = function():void{dispatchComplete();}; // don't re-center the map on the last point if we used locationselector
+				} else{
+					onCompleteFunc = function():void{centermap();dispatchComplete();};
+				}
+				
 				// TODO will eventually integrate pm data so its from a badge, just like co data...
-				if(pollutantList.selectedItem.abbreviation == "pm25" || pollutantList.selectedItem.abbreviation == "pm10"){
+				if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
 					
 					// If we already have the file list... take the selected ones and load them up
 					if(FILES.length > 0){
 						for each(var file:Object in fileBadgeList.selectedItems){
-							loadData(file.path, pollutantList.selectedItem.abbreviation,
-								file.name, function():void{centermap();dispatchComplete();});
+							loadData(file.path, pollutantRadioGroup.selectedValue.abbreviation,
+								file.name, onCompleteFunc);
 						}
 					} else{
 						trace("file list not populated, cannot load anything from it.");
@@ -994,15 +1088,15 @@
 				}
 				else{
 					var info:Array = []
-					if(fileBadgeList.selectedItems.length > 0 && pollutantList.selectedItems.length > 0){
+					if(fileBadgeList.selectedItems.length > 0 && pollutantRadioGroup.selectedValue != null){
 						for each(var b:Object in fileBadgeList.selectedItems){
 						info.push({name:buildName(b.name),
 								   source:buildURL(map, timeline, b.id),
-								   reading:pollutantList.selectedItem.abbreviation});
+								   reading:pollutantRadioGroup.selectedValue.abbreviation});
 						}
 						// alright, we're ready to load everything for each badge!
 						trace(info[0].source);
-						for each (var i:Object in info) loadData(i.source,i.reading,i.name);
+						for each (var i:Object in info) loadData(i.source,i.reading,i.name, onCompleteFunc); // prevent re-centering
 					} else{
 						triggerInputErrorPopup();
 					}
@@ -1030,7 +1124,7 @@
 						trace("Location Invalid!");
 					
 					map.setCenter(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])));
-					selectorHandler(); // now that it's centered, we can load things normally!
+					selectorHandler(true); // now that it's centered, we can load things normally!
 				});
 				
 				//FIXME:quick default handler which catches the errors thrown when running on the web
@@ -1038,7 +1132,7 @@
 				loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(e:Event){
 					geocodeReturn = [0,0,37.813191355256826, -122.2976803779602];
 					map.setCenter(new Location(Number(geocodeReturn[2]),Number(geocodeReturn[3])));
-					selectorHandler();
+					selectorHandler(true);
 				});
 			}
 			
@@ -1057,6 +1151,15 @@
 			}
 			
 			protected function episodesHandler():void{
+				// Add a button for removing the episodes pane
+				var remover:mx.controls.Button = new mx.controls.Button();
+				remover.label = "x";
+				remover.height = 28;
+				remover.setStyle("cornerRadius", "10");
+				remover.toolTip = "remove episodes from view";
+				remover.addEventListener(MouseEvent.CLICK, destroyEpisodes);
+				timelinesHolder.addChild(remover);
+				
 				if(_dataSets.length > 0){
 					timelinesHolder.width = 300; // set the width only when there ARE episodes in there
 					var ds:AirQualityDataSet = _dataSets[0]; // FIXME only looks at the first plotted data set right now
@@ -1067,7 +1170,7 @@
 				}
 			}
 			
-			protected function destroyEpisodes():void{
+			protected function destroyEpisodes(e:Event=null):void{
 				timelinesHolder.removeAllChildren();
 				timelinesHolder.width = 0;
 				dispatchUpdated(); // called for IStatefulVis
@@ -1125,7 +1228,7 @@
 			
 			protected function buildURL(map:TweenMap, timeline:AirQualityTimeLine, badgeId:String=null):String{
 				var url:String = BASE_DB_QUERY_URL + "?badge_id=" + (badgeId ? badgeId : fileBadgeList.selectedItem.id) + 
-				 		"&reading=" + pollutantList.selectedItem.db; 
+				 		"&reading=" + pollutantRadioGroup.selectedValue.db; 
 				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
 					url += "&start_time=" + (dateChooser.selectedRanges[0].rangeStart as Date).time / 1000 +
 						"&end_time=" + ((dateChooser.selectedRanges[0].rangeEnd as Date).time / 1000 + 3600 * 24) +					
@@ -1143,7 +1246,7 @@
 			}
 			
 			protected function buildName(badgeName:String):String{
-				var name:String = badgeName + " " + pollutantList.selectedItem.pollutant;
+				var name:String = badgeName + " " + pollutantRadioGroup.selectedValue.pollutant;
 				if(dateChooser.selectedRanges.length > 0 && dateChooser.selectedRanges[0]){
 					name += (" (" + (dateChooser.selectedRanges[0].rangeStart as Date).toLocaleDateString() + " - " + 
 			       			(dateChooser.selectedRanges[0].rangeEnd as Date).toLocaleDateString() + ")");
