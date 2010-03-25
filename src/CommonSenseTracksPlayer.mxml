@@ -17,7 +17,7 @@
 				<mx:LinkButton label="learn more" textDecoration="underline" color="#3B3B3B" fontSize="9"/>
 			</mx:HBox>
 		</mx:VBox>
-		<mx:HBox bottom="{timeline.height+5}" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
+		<mx:HBox bottom="115" left="10" backgroundColor="#242424" borderStyle="solid" borderColor="#9D9D9D" width="193" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="5">
 			<mx:VBox cornerRadius="15" width="115">
 				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="17"/>
 				<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" color="#FFFFFF" fontSize="14"/>
