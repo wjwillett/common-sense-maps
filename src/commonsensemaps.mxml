@@ -103,28 +103,28 @@
 		
 	</flexlib:WindowShade>
 	
-	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="^" click="{closeAllShades()}" />
+	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="▴" click="{closeAllShades()}" />
 	</mx:HBox>
 	
 	<mx:VDividedBox left="15" bottom="15" right="15" width="100" height="100%" dividerRelease="{adjustMapControlsPosition()}">
 		<mx:HBox id="controlsHBox" verticalAlign="bottom" horizontalAlign="left" height="600" width="100%">
-			<mx:VBox id="playButtonBox" backgroundColor="#FFFFFF" borderStyle="solid" borderColor="#9D9D9D" width="195" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="10">
+			<mx:VBox id="playButtonBox" backgroundColor="#FFFFFF" borderStyle="solid" borderColor="#9D9D9D" width="195" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="10" horizontalAlign="center" verticalGap="0">
 				<mx:HBox>
-					<mx:VBox cornerRadius="15" width="115">
-						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" fontSize="17"/>
-						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" fontSize="14"/>
+					<mx:VBox cornerRadius="15" width="115" verticalGap="2">
+						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" fontSize="18" fontWeight="bold" textAlign="right" width="114"/>
+						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" fontSize="13" width="114" textAlign="right"/>
 					</mx:VBox>
-					<mx:Button label="{timeline._playing ? '||' : '&gt;'}" cornerRadius="10"
+					<mx:Button label="{timeline._playing ? '||' : '►'}" cornerRadius="10"
 						toolTip="{timeline._playing ? 'pause' : 'play'}" height="100%" fontSize="23" id="bigPlayPause" 
 						click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
 				</mx:HBox>
-				<mx:HBox horizontalAlign="center">
-					<mx:Image source="assets/control_rewind.png"/>
-					<mx:HSlider id="playSlider" x="{timeline.margin}" height="25" value="{Math.log(timeline.timeMultiplier)*Math.LOG10E}" width="130"
+				<mx:HBox horizontalAlign="center" verticalAlign="middle" horizontalGap="0">
+					<mx:Label text="slow" fontSize="9" paddingTop="4"/>
+					<mx:HSlider id="playSlider" x="{timeline.margin}" height="18" value="{Math.log(timeline.timeMultiplier)*Math.LOG10E}" width="100"
 						minimum="0.3" maximum="4" dataTipFormatFunction="{playScrollDataTip}"
 						toolTip="{'playback speed: ' + int(Math.pow(10,playSlider.value)) + 'x'}" liveDragging="true"
 						change="{timeline.timeMultiplier=Math.pow(10,playSlider.value)}" visible="{!timeline.noControls}"/>
-					<mx:Image source="assets/control_fastforward.png"/>
+					<mx:Label text="fast" fontSize="9" paddingTop="4"/>
 				</mx:HBox>
 			</mx:VBox>
 			<mx:Canvas width="{timeline.width - 330}">
@@ -1153,7 +1153,7 @@
 			protected function episodesHandler():void{
 				// Add a button for removing the episodes pane
 				var remover:mx.controls.Button = new mx.controls.Button();
-				remover.label = "x";
+				remover.label = "✕";
 				remover.height = 28;
 				remover.setStyle("cornerRadius", "10");
 				remover.toolTip = "remove episodes from view";
