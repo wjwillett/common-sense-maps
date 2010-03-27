@@ -893,8 +893,51 @@
 				dispatchEvent(new StatefulVisEvent(StatefulVisEvent.VIS_UPDATE,true));
 			}
 			
-			public function getThumbnail():BitmapData{ // needed for new version of commentspace...
-				return null;
+			//draw a custom thumbnail for commentspace
+			public function getThumbnail():BitmapData{
+				var r:Rectangle = this.getBounds(this);
+				var width:Number=240, height:Number=-1;
+				var hasW:Boolean = width>0, hasH:Boolean = height>0;
+				
+				// get thumbnail dimensions
+				if (hasW && !hasH) {
+					height = r.height * width / r.width;
+				} else if (!hasW && hasH) {
+					width = r.width * height / r.height;
+				} else {
+					width  = hasW ? width  : (bd ? bd.width  : r.width);
+					height = hasH ? height : (bd ? bd.height : r.height);
+				}
+				// create bitmap data as needed
+				var bd:BitmapData = new BitmapData(width, height, true, 0);
+				
+				// determine object transformation
+				var mat:Matrix = new Matrix();
+				mat.translate(-r.left, -r.top);
+				mat.scale(width/r.width, height/r.height);
+				
+				// draw the thumbnail and return
+				var clipRect:Rectangle = new Rectangle(0,0,width,height);
+				bd.fillRect(clipRect,0xFFDDDDDD);
+				
+				//FIXME: Thumb drawing breaks on the server because of crossdomain issues
+				// currently we just draw the plotlayer rather than the whole map 
+				mat.tx = _plotLayer.width/4 * width/r.width;
+				mat.ty = _plotLayer.height/4 * height/r.height;
+				bd.draw(_plotLayer,mat,null,null);
+				
+				//draw the timeline to the thumb
+				mat.tx = timeline.x * width/r.width;
+				mat.ty = timeline.y * height/r.height;
+				bd.draw(timeline,mat);
+				
+				//draw the episodes to the thumb 
+				if(timelinesHolder.visible){
+					mat.tx = timelinesHolder.x * width/r.width;
+					mat.ty = timelinesHolder.y * width/r.height;
+					bd.draw(timelinesHolder,mat);
+				}
+				return bd;
 			}
 			
 			/* Security settings - should be constrained before deployment!
