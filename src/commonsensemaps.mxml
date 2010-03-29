@@ -30,7 +30,7 @@
 	backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="285" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="300" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -49,7 +49,7 @@
 		
 		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
-			labelField="name" height="90" width="230" selectedIndex="0" />
+			labelField="name" height="90" width="260" selectedIndex="0" />
 		
 		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
@@ -1090,8 +1090,14 @@
 					dirLoader.addEventListener(Event.COMPLETE, function(e:Event):void{
 							var pmSourceFiles:Array = (dirLoader.data as String).match(/(?<=href=\").+csv(?=\">)/gi);
 							for(var i:int=0; i< pmSourceFiles.length; i++) {
-								// TODO - populate an additional list in the Badge menu
-								FILES.push({name:pmSourceFiles[i], path:pmRootDir + pmSourceFiles[i]});
+								// populate the file/badge listing in the badge menu
+								var filename:String = pmSourceFiles[i];
+								trace(filename);
+								
+								// regex the file names with this format: 2010-02-27_10-27_2-5_8530A.csv
+								var exp:RegExp = new RegExp("(\\d{4})-(\\d{2})-(\\d{2})_(\\d{2})-(\\d{2})_(\\d+)-(\\d+)_(\\w+)\\.csv", "g");
+								var humanName:String = filename.replace(exp, "Badge $8 - $2/$3/$1 at $4:$5");
+								FILES.push({name:humanName, path:pmRootDir + pmSourceFiles[i]});
 							}
 							fileBadgeList.dataProvider = FILES;
 					});
