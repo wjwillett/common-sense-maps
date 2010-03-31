@@ -103,7 +103,7 @@
 		
 	</flexlib:WindowShade>
 	
-	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="▴" click="{closeAllShades()}" />
+	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="▲" click="{closeAllShades()}" />
 	</mx:HBox>
 	
 	<mx:VDividedBox left="15" bottom="15" right="15" width="100" height="100%" dividerRelease="{adjustMapControlsPosition()}">
@@ -114,7 +114,7 @@
 						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleTimeString() : ''}" styleName="csH1" fontSize="18" fontWeight="bold" textAlign="right" width="114"/>
 						<mx:Label text="{timeline &amp;&amp; timeline.playheadDate ? timeline.playheadDate.toLocaleDateString() : ''}" styleName="csH1" fontSize="13" width="114" textAlign="right"/>
 					</mx:VBox>
-					<mx:Button label="{timeline._playing ? '||' : '►'}" cornerRadius="10"
+					<mx:Button label="{timeline._playing ? '||' : '▶'}" cornerRadius="10"
 						toolTip="{timeline._playing ? 'pause' : 'play'}" height="100%" fontSize="23" id="bigPlayPause" 
 						click="{timeline._playing ? timeline.stopPlayback(event) : timeline.startPlayback(event)}" width="55"/>
 				</mx:HBox>
