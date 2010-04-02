@@ -49,11 +49,30 @@
 		
 		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
-			labelField="name" height="90" width="260" selectedIndex="0" />
+			labelField="name" height="90" width="260" selectedIndex="0"/>
 		
 		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
 			height="25"/>
+	</flexlib:WindowShade>
+	
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" 
+		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
+		<flexlib:headerRenderer>
+			<mx:Component>
+				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
+			</mx:Component>
+		</flexlib:headerRenderer>
+		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
+		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
+		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
+		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
+			
+		<!--<mx:Text text="set the time window for an episode" />
+		<mx:TextInput id="timeWindow" text="60" change="{Stats.TIME_WINDOW = Number(timeWindow.text); trace('timewindow changed to' + Number(timeWindow.text));}" />
+		<mx:Text text="set the staggering for each window:" />
+		<mx:TextInput id="windowStaggering" text="30" change="{Stats.WINDOW_STAGGERING = Number(windowStaggering.text); trace('stagger changed' + Number(windowStaggering.text));}" />-->
+		
 	</flexlib:WindowShade>
 	
 	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="locationSelector" label="Location" 
@@ -81,26 +100,6 @@
 		<mx:Button label="show these dates" click="{selectorHandler(false)}" />
 		
 		<!--<mx:Button label="Show all times" click="{selectorHandler()}" />-->
-	</flexlib:WindowShade>
-	
-	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" 
-		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
-		<flexlib:headerRenderer>
-			<mx:Component>
-				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
-			</mx:Component>
-		</flexlib:headerRenderer>
-		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
-		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
-		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
-		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
-			
-		<!--<mx:Text text="set the time window for an episode" />
-		<mx:TextInput id="timeWindow" text="60" change="{Stats.TIME_WINDOW = Number(timeWindow.text); trace('timewindow changed to' + Number(timeWindow.text));}" />
-		<mx:Text text="set the staggering for each window:" />
-		<mx:TextInput id="windowStaggering" text="30" change="{Stats.WINDOW_STAGGERING = Number(windowStaggering.text); trace('stagger changed' + Number(windowStaggering.text));}" />-->
-		
 	</flexlib:WindowShade>
 	
 	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="▲" click="{closeAllShades()}" />
@@ -1103,6 +1102,7 @@
 								var humanName:String = filename.replace(exp, "$8 - $2/$3/$1 at $4:$5");
 								FILES.push({name:humanName, path:pmRootDir + pmSourceFiles[i]});
 							}
+							FILES.reverse();
 							fileBadgeList.dataProvider = FILES;
 					});
 				}
