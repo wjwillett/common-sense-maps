@@ -48,8 +48,8 @@
  			// works when run from the server.
  			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis(FullIds).swf"
  			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis.swf"
- 			private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
- 			//private const COMMENT_VIS_SOURCE:String = 'CommentVis.swf';
+ 			//private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
+ 			private const COMMENT_VIS_SOURCE:String = 'CommentVis.swf';
  			
  			private const DEFAULT_WORKSPACE:String = "CommonSense";//"Empty";//"OlympicsTest";//"TimeUse";
 			//private const DEFAULT_VIS:String = "";

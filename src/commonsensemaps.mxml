@@ -30,7 +30,7 @@
 	backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="300" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="325" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -49,7 +49,7 @@
 		
 		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
-			labelField="name" height="90" width="260" selectedIndex="0"/>
+			labelField="name" height="115" width="300" selectedIndex="0"/>
 		
 		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
@@ -232,8 +232,9 @@
 				
 			protected const POLLUTANTS:Array = [
 				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
-				{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:"pm25",multiplier:1000},
-				{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:"pm10",multiplier:1000}
+				{pollutant:"Particulate Matter (24-hour thresholds)",abbreviation:"pm",db:"pm",multiplier:1000}
+				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:"pm25",multiplier:1000},
+				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:"pm10",multiplier:1000},
 				//{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
 				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
 				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
@@ -242,6 +243,8 @@
 			protected var FILES:Array = [];
 				
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
+			public static const BASE_SHIFT_QUERY_URL:String = "http://www.commonsensecommunity.com/shiftQuery/";
+			public static const BASE_PM_QUERY_URL:String = "http://www.commonsensecommunity.com/pmQuery/";
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
 			public static const PM_DATA_DIR:String = "http://www.commonsensecommunity.com/data/WestOaklandPM";
 			//public static const PM_DATA_DIR:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
@@ -592,7 +595,7 @@
 						timeline.refresh(true);
 						_plotLayer.refresh(true);
 						dispatchUpdated();
-						
+						trace("about to set up the slider control");
 						// We can set up the airQualitySlider again here
 						airQualitySlider.minimum = timeline.yMin;
 						airQualitySlider.maximum = timeline.yMax;
@@ -1068,7 +1071,8 @@
 					
 					fileBadgeList.dataProvider = BADGES;
 				}
-				else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
+				// note we include just 'pm' in the OR because originally we had user queries divided up by specific pm type...
+				else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10" || pollutantRadioGroup.selectedValue.abbreviation == "pm"){
 					// Disable Location and Time selectors (since PM data is being retrieved from files right now)
 					locationSelector.enabled = false;
 					locationSelector.alpha = 0.5;
@@ -1081,6 +1085,7 @@
 					FILES = []; // delete the list
 					fileBadgeList.dataProvider = FILES;
 					
+					/* // We use this logic if we are loading from raw pm data files
 					var pmRootDir:String;
 					if(pollutantRadioGroup.selectedValue.abbreviation == "pm25"){
 						pmRootDir = PM_DATA_DIR + "25/"
@@ -1105,6 +1110,36 @@
 							FILES.reverse();
 							fileBadgeList.dataProvider = FILES;
 					});
+					*/
+					
+					// We use this logic to retrieve a "shift list" from the database
+					var request:URLRequest = new URLRequest(BASE_SHIFT_QUERY_URL);
+					var loader:URLLoader = new URLLoader(request);
+					loader.addEventListener(Event.COMPLETE,function(e:Event):void{
+						if(loader.data is String){
+							var result:String = loader.data;
+							var entries:Array = result.split(/\r|\n/gi);
+							if(entries.length > 1){
+								var headers:Array = (entries[0] as String).split(';'); // Note our use of semi-colons because the "name" field has commas...
+								
+								for(var i:int = 1; i < entries.length; i++){
+									var entry:Array = (entries[i] as String).split(';'); // Note our use of semi-colons because the "name" field has commas...
+									if(headers.length != entry.length && i < entries.length - 1){
+										throw new Error("Row " + i + ":(" + entries[i] + ") from data source \"" + 
+											BASE_SHIFT_QUERY_URL + "\" has a different number of elements than the header row:(" +
+											entries[0] + ")."); 
+									} 
+									
+									var pointData:Object = {}
+									for(var h:int=0;h < headers.length;h++) pointData[headers[h]] = entry[h];
+									FILES.push(pointData);
+								}
+								fileBadgeList.dataProvider = FILES;
+							}
+						} else
+							trace("We failed to get a string from the shiftQuery");
+					});			
+					
 				}
 			}
 			
@@ -1127,13 +1162,21 @@
 				}
 				
 				// TODO will eventually integrate pm data so its from a badge, just like co data...
-				if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
+				// note we include just 'pm' in the OR because originally we had user queries divided up by specific pm type...
+				if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10" || pollutantRadioGroup.selectedValue.abbreviation == "pm"){
 					
 					// If we already have the file list... take the selected ones and load them up
 					if(FILES.length > 0){
 						for each(var file:Object in fileBadgeList.selectedItems){
-							loadData(file.path, pollutantRadioGroup.selectedValue.abbreviation,
-								file.name, onCompleteFunc);
+							//loadData(file.path, pollutantRadioGroup.selectedValue.abbreviation, file.name, onCompleteFunc); // Instead of loading from files, we load from database!
+							if(file.filter == '10.0' || file.filter == '2.5'){
+								var filter_type:String = file.filter == '10.0' ? 'pm10' : 'pm25';
+								loadData(buildPmQueryURL(file.utcstart, file.utcend, file.device, file.filter), filter_type, file.name, onCompleteFunc);
+							}
+							else{
+								// pm1 and pm40 currently unsupported!
+								triggerInputErrorPopup();
+							}
 						}
 					} else{
 						trace("file list not populated, cannot load anything from it.");
@@ -1154,6 +1197,8 @@
 						triggerInputErrorPopup();
 					}
 				}
+				
+				
 			}
 			
 			protected function locationHandler():void{
@@ -1295,6 +1340,12 @@
 						"&timeline_height=" + timeline.height;
 				}
 				trace(url);		 		
+				return url;
+			}
+			
+			protected function buildPmQueryURL(start_time:String, end_time:String, device_id:String, filter_type:String):String{
+				var url:String = BASE_PM_QUERY_URL + "?start_time=" + start_time + "&end_time=" + end_time + "&device_id=" + device_id + "&filter_type=" + filter_type;
+				trace(url);	
 				return url;
 			}
 			
