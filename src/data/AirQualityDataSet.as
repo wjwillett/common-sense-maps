@@ -30,6 +30,7 @@ package data
 		public function get data():Vector.<Object>{return _data;}
 		public function get sourceObject():Object{return _sourceObject;}
 		public function get dataURI():String{return _sourceObject.toString();} 
+		public function get multiplier():Number{return _multiplier;} // added to allow scaling down to original value whenever necessary
 		
 		public var hidden:Boolean = false;
 		

@@ -57,7 +57,7 @@ package components
 		
 		public var pointOverlapTolerance:Number = 11;
 		public var zoomTolerance:Number = 5; 
-		public var pointDiameter:Number = 12;
+		public var pointDiameter:Number = 15;
 		public var numMouseOverAdjacents:uint = 15;
 		
 		protected var _yMin:Number;			//the lowest data value on the y axis
@@ -367,6 +367,7 @@ package components
 				
 				//FIXME: Currently defaulting to pollutant from the first dataset, should be able to support per-track
 				var pollutant:String = dataSets[0].pollutant;
+				var multiplier:Number = dataSets[0].multiplier;
 					
 				var cat:String = AirQualityConstants.getAQICategoryForValue(pollutant,dataPoint.value);
 				var color:uint = AirQualityConstants.getColorForAQICategory(cat);
@@ -376,7 +377,7 @@ package components
 				_plotTip.setStyle("backgroundAlpha",0.7);
 				var time:Number = Number(dataPoint.time * 1000);
 				var date:Date = new Date(time);
-				var value:Number = Number(dataPoint.value);
+				var value:Number = Number(dataPoint.value / multiplier); // scaled down for the tooltip
 				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
 				_plotTip.text = date.toLocaleDateString() + "\n" +
 					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
