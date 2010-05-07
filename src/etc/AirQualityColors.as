@@ -48,9 +48,9 @@ package etc
 			ozone1 : [0.125,0.125,	0.125,	0.165,	0.195,	0.405],
 			
 			//Particulate Matter 2.5 (24-hour) milligrams / m^3
-			pm25   : [0,	0.015,	0.040,	0.065,	0.150,	0.250],
+			//pm25   : [0,	0.015,	0.040,	0.065,	0.150,	0.250],
 			//Particulate Matter 2.5 (24-hour) micrograms / m^3
-			//pm25   : [0,	15,		40,		65,		150,	250],
+			pm25   : [0,	15,		40,		65,		150,	250],
 			
 			//Particulate Matter 10 (24-hour) micrograms / m^3
 			pm10   : [0,	50,		150,	250,	350,	420],

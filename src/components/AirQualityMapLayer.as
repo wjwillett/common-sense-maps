@@ -253,9 +253,10 @@ package components
 					if(!selections.isSelected(point) && _prevPos[ds.dataURI]
 							&& Math.abs(_prevPos[ds.dataURI].x - dPt.x) < pointOverlapTolerance 
 							&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance
-							&& !(point.value > AirQualityColors.POLLUTANT_INDEX[ds.pollutant][2])){ 
+							&& (AirQualityColors.getColorForValue(ds.pollutant, point.value) == AirQualityColors.GOOD_COLOR
+								|| AirQualityColors.getColorForValue(ds.pollutant, point.value) == AirQualityColors.MODERATE_COLOR)){ // skip the green and yellow
+							// for now we deal with the "making spikes obvious" problem by just showing anything that looks red (unhealthysensitive) or worse.
 							// could add a && _prevVal[ds.dataURI] == point.value here as additional check to see if previous value is sufficiently different
-							// for now we deal with the "making spikes obvious" problem by just showing anything that looks red or worse.
 						continue;
 					}
 					
