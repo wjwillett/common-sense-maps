@@ -64,7 +64,15 @@
 			</mx:Component>
 		</flexlib:headerRenderer>
 		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
-		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
+		
+		<!--<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />-->
+		<mx:CheckBox id="goodBox" label="Good" click="{airQualitySliderHandler()}" />
+		<mx:CheckBox id="moderateBox" label="Moderate" click="{airQualitySliderHandler()}" />
+		<mx:CheckBox id="unhealthySensitiveBox" label="Unhealthy for Some" click="{airQualitySliderHandler()}" />
+		<mx:CheckBox id="unhealthyBox" label="Unhealthy" click="{airQualitySliderHandler()}" />
+		<mx:CheckBox id="veryUnhealthyBox" label="Very Unhealthy" click="{airQualitySliderHandler()}" />
+		<mx:CheckBox id="hazardousBox" label="Hazardous" click="{airQualitySliderHandler()}" />
+		
 		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
 		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
 			
@@ -139,6 +147,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import etc.AirQualityColors;
 			import mx.core.UIComponent;
 			import components.IconControls;
 			import mx.controls.LinkButton;
@@ -597,10 +606,18 @@
 						dispatchUpdated();
 						trace("about to set up the slider control");
 						// We can set up the airQualitySlider again here
+						/*
 						airQualitySlider.minimum = timeline.yMin;
 						airQualitySlider.maximum = timeline.yMax;
 						airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
 						airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
+						*/
+						goodBox.selected = true;
+						moderateBox.selected = true;
+						unhealthySensitiveBox.selected = true;
+						unhealthyBox.selected = true;
+						veryUnhealthyBox.selected = true;
+						hazardousBox.selected = true;
 						
 						// Make the playback controls show up now
 						playButtonBox.visible = true;
@@ -806,8 +823,14 @@
 						xBottom:timeline.xBottom,
 						xTop:timeline.xTop,
 						playheadPosition:timeline.playheadPosition,
-						airQualitySliderMin:airQualitySlider.values[0],
-						airQualitySliderMax:airQualitySlider.values[1],
+						//airQualitySliderMin:airQualitySlider.values[0],
+						//airQualitySliderMax:airQualitySlider.values[1],
+						goodBoxChecked:goodBox.selected,
+						moderateBoxChecked:moderateBox.selected,
+						unhealthySensitiveBoxChecked:unhealthySensitiveBox.selected,
+						unhealthyBoxChecked:unhealthyBox.selected,
+						veryUnhealthyBoxChecked:veryUnhealthyBox.selected,
+						hazardousBoxChecked:hazardousBox.selected,
 						episodesDisplayed:(timelinesHolder.numChildren > 0)};
 			}
 			
@@ -845,8 +868,14 @@
 						}
 						
 						// Set airQualitySlider positions now that we have loaded the data
-						airQualitySlider.setThumbValueAt(0, o.airQualitySliderMin);
-						airQualitySlider.setThumbValueAt(1, o.airQualitySliderMax);
+						//airQualitySlider.setThumbValueAt(0, o.airQualitySliderMin);
+						//airQualitySlider.setThumbValueAt(1, o.airQualitySliderMax);
+						goodBox.selected = o.goodBoxChecked;
+						moderateBox.selected = o.moderateBoxChecked;
+						unhealthySensitiveBox.selected = o.unhealthySensitiveBoxChecked;
+						unhealthyBox.selected = o.unhealthyBoxChecked;
+						veryUnhealthyBox.selected = o.veryUnhealthyBoxChecked;
+						hazardousBox.selected = o.hazardousBoxChecked;
 						airQualitySliderHandler();
 					};
 
@@ -1235,14 +1264,89 @@
 			}
 			
 			protected function airQualitySliderHandler():void{
-				// update the timeline
+				// update the timeline and plotlayer
+				/*
 				timeline.yMin = airQualitySlider.values[0];
 				timeline.yMax = airQualitySlider.values[1];
-				timeline.refresh(false); // we choose false to avoid the timeline recalculating the min/maxes for us
-				
-				// update the _plotlayer
 				_plotLayer.yMin = airQualitySlider.values[0];
 				_plotLayer.yMax = airQualitySlider.values[1];
+				*/
+				
+				timeline.yMin = Infinity;
+				timeline.yMax = Infinity;
+				_plotLayer.yMin = Infinity;
+				_plotLayer.yMax = Infinity;
+				
+				var threshold:Array = AirQualityColors.POLLUTANT_INDEX[_dataSets[0].pollutant];
+				if(goodBox.selected){
+					timeline.yMin = threshold[0];
+					timeline.yMax = threshold[1];
+					_plotLayer.yMin = threshold[0];
+					_plotLayer.yMax = threshold[1];
+				} 
+				if(moderateBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[2];
+						_plotLayer.yMax = threshold[2];
+					}
+					else{
+						timeline.yMin = threshold[1];
+						timeline.yMax = threshold[2];
+						_plotLayer.yMin = threshold[1];
+						_plotLayer.yMax = threshold[2];
+					}
+				}
+				if(unhealthySensitiveBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[3];
+						_plotLayer.yMax = threshold[3];
+					}
+					else{
+						timeline.yMin = threshold[2];
+						timeline.yMax = threshold[3];
+						_plotLayer.yMin = threshold[2];
+						_plotLayer.yMax = threshold[3];
+					}
+				}
+				if(unhealthyBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[4];
+						_plotLayer.yMax = threshold[4];
+					}
+					else{
+						timeline.yMin = threshold[3];
+						timeline.yMax = threshold[4];
+						_plotLayer.yMin = threshold[3];
+						_plotLayer.yMax = threshold[4];
+					}
+				}
+				if(veryUnhealthyBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[5];
+						_plotLayer.yMax = threshold[5];
+					}
+					else{
+						timeline.yMin = threshold[4];
+						timeline.yMax = threshold[5];
+						_plotLayer.yMin = threshold[4];
+						_plotLayer.yMax = threshold[5];
+					}
+				}
+				if(hazardousBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = Infinity;
+						_plotLayer.yMax = Infinity;
+					}
+					else{
+						timeline.yMin = threshold[4];
+						timeline.yMax = Infinity;
+						_plotLayer.yMin = threshold[4];
+						_plotLayer.yMax = Infinity;
+					}
+				}
+				
+				// referesh both the timeline and the plotlayer now that we're done messing with them
+				timeline.refresh(false); // we choose false to avoid the timeline recalculating the min/maxes for us
 				_plotLayer.refresh(false); // we choose false to avoid rebuilding the quadtree
 				
 				dispatchUpdated(); // called for IStatefulVis
