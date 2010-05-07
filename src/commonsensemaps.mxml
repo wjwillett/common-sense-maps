@@ -57,7 +57,7 @@
 	</flexlib:WindowShade>
 	
 	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" 
-		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
+		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="true">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -70,8 +70,8 @@
 		<mx:CheckBox id="moderateBox" label="Moderate" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.MODERATE_COLOR, AirQualityColors.MODERATE_COLOR]}" />
 		<mx:CheckBox id="unhealthySensitiveBox" label="Unhealthy for Sensitive Groups" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.UNHEALTHY_SENSITIVE_COLOR, AirQualityColors.UNHEALTHY_SENSITIVE_COLOR]}" />
 		<mx:CheckBox id="unhealthyBox" label="Unhealthy" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.UNHEALTHY_COLOR, AirQualityColors.UNHEALTHY_COLOR]}" />
-		<mx:CheckBox id="veryUnhealthyBox" label="Very Unhealthy" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.VERY_UNHEALTHY_COLOR, AirQualityColors.VERY_UNHEALTHY_COLOR]}" />
-		<mx:CheckBox id="hazardousBox" label="Hazardous" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.HAZARDOUS_COLOR, AirQualityColors.HAZARDOUS_COLOR]}" />
+		<mx:CheckBox id="veryUnhealthyBox" label="Very Unhealthy" click="{airQualitySliderHandler()}" iconColor="0xFFFFFF" fillColors="{[AirQualityColors.VERY_UNHEALTHY_COLOR, AirQualityColors.VERY_UNHEALTHY_COLOR]}" />
+		<mx:CheckBox id="hazardousBox" label="Hazardous" click="{airQualitySliderHandler()}" iconColor="0xFFFFFF" fillColors="{[AirQualityColors.HAZARDOUS_COLOR, AirQualityColors.HAZARDOUS_COLOR]}" />
 		
 		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
 		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
