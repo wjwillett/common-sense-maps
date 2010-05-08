@@ -57,7 +57,7 @@ package components
 		
 		protected function get map():Map{ return _map;}
 		
-		public var pointOverlapTolerance:Number = 11;
+		public var pointOverlapTolerance:Number = 15;
 		//public var pointValueTolerance:Number; // This might be needed to deal with seeing-spikes problem
 		public var zoomTolerance:Number = 5; 
 		public var pointDiameter:Number = 15;
@@ -388,7 +388,7 @@ package components
 				var time:Number = Number(dataPoint.time * 1000);
 				var date:Date = new Date(time);
 				var value:Number = Number(dataPoint.value / multiplier); // scaled down for the tooltip
-				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
+				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : (dataPoint.device ? 'Device ' + dataPoint.device : 'Unknown Badge');
 				_plotTip.text = date.toLocaleDateString() + "\n" +
 					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
 					" " + pollutantUnits + 
