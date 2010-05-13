@@ -30,7 +30,7 @@
 	backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="355" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Shift" width="355" styleName="windowShadeStyle" creationComplete="{}">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -56,7 +56,7 @@
 			height="25"/>
 	</flexlib:WindowShade>
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" 
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Air Quality" 
 		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="true">
 		<flexlib:headerRenderer>
 			<mx:Component>
@@ -73,7 +73,7 @@
 		<mx:CheckBox id="veryUnhealthyBox" label="Very Unhealthy" click="{airQualitySliderHandler()}" iconColor="0xFFFFFF" fillColors="{[AirQualityColors.VERY_UNHEALTHY_COLOR, AirQualityColors.VERY_UNHEALTHY_COLOR]}" />
 		<mx:CheckBox id="hazardousBox" label="Hazardous" click="{airQualitySliderHandler()}" iconColor="0xFFFFFF" fillColors="{[AirQualityColors.HAZARDOUS_COLOR, AirQualityColors.HAZARDOUS_COLOR]}" />
 		
-		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
+		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" visible="false"/>
 		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
 			
 		<!--<mx:Text text="set the time window for an episode" />
@@ -114,7 +114,7 @@
 	</mx:HBox>
 	
 	<mx:VDividedBox left="15" bottom="15" right="15" width="100" height="100%" dividerRelease="{adjustMapControlsPosition()}">
-		<mx:HBox id="controlsHBox" verticalAlign="bottom" horizontalAlign="left" height="600" width="100%">
+		<mx:HBox id="controlsHBox" verticalAlign="bottom" horizontalAlign="left" height="75%" width="100%">
 			<mx:VBox id="playButtonBox" visible="false" backgroundColor="#FFFFFF" borderStyle="solid" borderColor="#9D9D9D" width="195" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" cornerRadius="10" horizontalAlign="center" verticalGap="0">
 				<mx:HBox>
 					<mx:VBox cornerRadius="15" width="115" verticalGap="2">
@@ -1125,10 +1125,15 @@
 					locationSelector.enabled = false;
 					locationSelector.alpha = 0.5;
 					locationSelector.label = "Location (disabled)";
+					locationSelector.visible = false; // completely disabled for now
+					
 					timeSelector.enabled = false;
 					timeSelector.alpha = 0.5;
 					timeSelector.label = "Time (disabled)";
+					timeSelector.visible = false; // completely disabled for now
 					
+					// Hack to make the CO selection disappear upon the forced programmatic selection of PM
+					pollutantRadioGroup.getRadioButtonAt(0).visible = false;
 					
 					FILES = []; // delete the list
 					fileBadgeList.dataProvider = FILES;

@@ -733,7 +733,7 @@
 					var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : (dataPoint.device ? 'Device ' + dataPoint.device : 'Unknown Badge');
 					
 					_plotTip.text = date.toLocaleDateString() + "\n" +
-						date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
+						date.toLocaleTimeString() + "\n" + value.toPrecision(2) + 
 						" " + pollutantUnits + 
 						" (" + cat + ")" +
 						((dataPoint.lat == null || dataPoint.lat == "None") ? "\n!NO GPS DATA" : "") + "\n" +

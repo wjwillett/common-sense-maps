@@ -57,11 +57,11 @@ package components
 		
 		protected function get map():Map{ return _map;}
 		
-		public var pointOverlapTolerance:Number = 15;
+		public var pointOverlapTolerance:Number = 10;
 		//public var pointValueTolerance:Number; // This might be needed to deal with seeing-spikes problem
 		public var zoomTolerance:Number = 5; 
-		public var pointDiameter:Number = 15;
-		public var numMouseOverAdjacents:uint = 15;
+		public var pointDiameter:Number = 10;
+		//public var numMouseOverAdjacents:uint = 15;
 		
 		protected var _yMin:Number;			//the lowest data value on the y axis
 		protected var _yMax:Number; 		//the highest data value on the y axis
@@ -390,7 +390,7 @@ package components
 				var value:Number = Number(dataPoint.value / multiplier); // scaled down for the tooltip
 				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : (dataPoint.device ? 'Device ' + dataPoint.device : 'Unknown Badge');
 				_plotTip.text = date.toLocaleDateString() + "\n" +
-					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
+					date.toLocaleTimeString() + "\n" + value.toPrecision(2) + 
 					" " + pollutantUnits + 
 					" (" + cat + ")" + "\n" +
 					"[" + badgeName + "]";
