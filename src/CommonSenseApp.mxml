@@ -48,13 +48,17 @@
  			// works when run from the server.
  			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis(FullIds).swf"
  			//private const COMMENT_VIS_SOURCE:String = "http://exp.sense.us/media/swf/CommentVis.swf"
- 			private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
- 			//private const COMMENT_VIS_SOURCE:String = 'CommentVis.swf';
+ 			//private const COMMENT_VIS_SOURCE:String = '../../commentspace.comments/bin-debug/CommentVis.swf';
+ 			private const COMMENT_VIS_SOURCE:String = 'CommentVis.swf';
  			
- 			private const DEFAULT_WORKSPACE:String = "CommonSense";//"Empty";//"OlympicsTest";//"TimeUse";
+ 			private const DEFAULT_WORKSPACE:String = "CommonSense"; //"Empty";//"OlympicsTest";//"TimeUse";
 			//private const DEFAULT_VIS:String = "";
  			//private const DEFAULT_VIS:String = "../../commonsensemaps/bin-debug/commonsensemaps.swf";
  			private const DEFAULT_VIS:String = "commonsensemaps.swf";
+ 			
+ 			private const AUTO_LOGIN:Boolean = true;
+ 			private const DEFAULT_LOGIN:String = "surveyors@woeip.org";
+ 			private const DEFAULT_PASS:String = "woeip";
  			
  			//For testing purposes, we can set a default vis and workspace. 
  			// These will be replaced if a 'vis' or 'workspace' argument is 
@@ -81,11 +85,16 @@
 				// as a standalone movie rather than in a scaffold - Login and set workspace
 				if(nestLevel < 4){
 					//show login panel unless hidden in flashvars
-					if(!fv.hideLogin){
+					if(!fv.hideLogin && !AUTO_LOGIN){
 						var lp:LoginPanel = new LoginPanel();
 						lp.percentWidth = 100;
 						leftBar.addChildAt(lp,0);
 					}
+					if(AUTO_LOGIN){
+						LoginManager.instance.login(DEFAULT_LOGIN,DEFAULT_PASS);
+					}
+					
+					
 					//look for args from the address bar 
 					var url:String = ExternalInterface.call("window.location.search.toString");
 					if(url.length > 0) url=url.substr(1);
