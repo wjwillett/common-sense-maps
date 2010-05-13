@@ -4,7 +4,7 @@
 	paddingBottom="25" paddingLeft="25" paddingRight="25" paddingTop="25" width="400" styleName="VBox.cspopup">
 
 	<mx:Label text="oops!" color="#62D000" fontFamily="Helvetica" fontSize="30" styleName="Label.csH1"/>
-	<mx:Text x="10" y="10" text="make sure you selected a badge as well as the pollutant!" width="100%"/>
+	<mx:Text x="10" y="10" text="Make sure you selected a badge as well as the pollutant! Also note that PM 1.0 and PM 4.0 are CURRENTLY UNSUPPORTED in this vis!" width="100%"/>
 	
 	<mx:HBox width="100%" horizontalAlign="right">
 		<mx:Button id="okayButton" label="Okay" click="{onOkay()}" />

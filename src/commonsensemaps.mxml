@@ -30,7 +30,7 @@
 	backgroundColor="#FFFFFF" backgroundAlpha="0" verticalGap="0"/>
 		
 	<mx:HBox width="100%">
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="300" styleName="windowShadeStyle">
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="badgeSelector" label="Sensor" width="355" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -49,7 +49,7 @@
 		
 		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
-			labelField="name" height="90" width="260" selectedIndex="0"/>
+			labelField="name" height="115" width="330" selectedIndex="0"/>
 		
 		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
@@ -57,14 +57,22 @@
 	</flexlib:WindowShade>
 	
 	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Episodes and Air Quality" 
-		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
+		x="{badgeSelector.width + locationSelector.width + timeSelector.width}" width="250" styleName="windowShadeStyle" opened="true">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
 			</mx:Component>
 		</flexlib:headerRenderer>
 		<mx:Text text="select a reading range" fontWeight="normal" fontSize="9" />
-		<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />
+		
+		<!--<mx:HSlider id="airQualitySlider" width ="200" thumbCount="2" minimum="0" maximum="1" change="{airQualitySliderHandler()}" />-->
+		<mx:CheckBox id="goodBox" label="Good" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.GOOD_COLOR, AirQualityColors.GOOD_COLOR]}" />
+		<mx:CheckBox id="moderateBox" label="Moderate" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.MODERATE_COLOR, AirQualityColors.MODERATE_COLOR]}" />
+		<mx:CheckBox id="unhealthySensitiveBox" label="Unhealthy for Sensitive Groups" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.UNHEALTHY_SENSITIVE_COLOR, AirQualityColors.UNHEALTHY_SENSITIVE_COLOR]}" />
+		<mx:CheckBox id="unhealthyBox" label="Unhealthy" click="{airQualitySliderHandler()}" fillColors="{[AirQualityColors.UNHEALTHY_COLOR, AirQualityColors.UNHEALTHY_COLOR]}" />
+		<mx:CheckBox id="veryUnhealthyBox" label="Very Unhealthy" click="{airQualitySliderHandler()}" iconColor="0xFFFFFF" fillColors="{[AirQualityColors.VERY_UNHEALTHY_COLOR, AirQualityColors.VERY_UNHEALTHY_COLOR]}" />
+		<mx:CheckBox id="hazardousBox" label="Hazardous" click="{airQualitySliderHandler()}" iconColor="0xFFFFFF" fillColors="{[AirQualityColors.HAZARDOUS_COLOR, AirQualityColors.HAZARDOUS_COLOR]}" />
+		
 		<mx:Button label="mark the 10 highest" click="{episodesHandler()}" />
 		<!--<mx:Button label="remove episodes view" click="{destroyEpisodes()}" />-->
 			
@@ -139,6 +147,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import etc.AirQualityColors;
 			import mx.core.UIComponent;
 			import components.IconControls;
 			import mx.controls.LinkButton;
@@ -232,8 +241,9 @@
 				
 			protected const POLLUTANTS:Array = [
 				{pollutant:"Carbon Monoxide (8-hour thresholds)",abbreviation:"co",db:'mco',multiplier:0.001},
-				{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:"pm25",multiplier:1000},
-				{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:"pm10",multiplier:1000}
+				{pollutant:"Particulate Matter (24-hour thresholds)",abbreviation:"pm",db:"pm",multiplier:1000}
+				//{pollutant:"Particulate Matter 2.5 (24-hour thresholds)",abbreviation:"pm25",db:"pm25",multiplier:1000},
+				//{pollutant:"Particulate Matter 10 (24-hour thresholds)",abbreviation:"pm10",db:"pm10",multiplier:1000},
 				//{pollutant:"Ozone (1-hour thresholds)",abbreviation:"ozone8",db:'so3',multiplier:0.001},
 				//{pollutant:"Ozone (8-hour thresholds)",abbreviation:"ozone1",db:'o3',multiplier:0.001},
 				//{pollutant:"Sulfur Dioxide (24-hour thresholds)",abbreviation:"so2",db:'so2',multiplier:0.001}
@@ -242,6 +252,8 @@
 			protected var FILES:Array = [];
 				
 			public static const BASE_DB_QUERY_URL:String = "http://www.commonsensecommunity.com/badgedata/"; 	//production server
+			public static const BASE_SHIFT_QUERY_URL:String = "http://www.commonsensecommunity.com/shiftQuery/";
+			public static const BASE_PM_QUERY_URL:String = "http://www.commonsensecommunity.com/pmQuery/";
 			//public static const BASE_DB_QUERY_URL:String = "http://12.46.129.13:8080/badgedata/"; 				//development server
 			public static const PM_DATA_DIR:String = "http://www.commonsensecommunity.com/data/WestOaklandPM";
 			//public static const PM_DATA_DIR:String = "http://www.eecs.berkeley.edu/~willettw/temp/WestOaklandPM/";
@@ -592,12 +604,28 @@
 						timeline.refresh(true);
 						_plotLayer.refresh(true);
 						dispatchUpdated();
-						
+						trace("about to set up the slider control");
 						// We can set up the airQualitySlider again here
+						/*
 						airQualitySlider.minimum = timeline.yMin;
 						airQualitySlider.maximum = timeline.yMax;
 						airQualitySlider.setThumbValueAt(0, airQualitySlider.minimum);
 						airQualitySlider.setThumbValueAt(1, airQualitySlider.maximum);
+						*/
+						// Only set all checkboxes to on if loading "first" dataset
+						if(_dataSets.length == 1){
+							goodBox.selected = true;
+							moderateBox.selected = true;
+							unhealthySensitiveBox.selected = true;
+							unhealthyBox.selected = true;
+							veryUnhealthyBox.selected = true;
+							hazardousBox.selected = true;
+							
+							//reset timeline zoom because of weird state issue with old saved states
+							timeline.resetZoom();
+						}
+						// Do this to make sure checkboxes reflect actual ranges
+						airQualitySliderHandler();
 						
 						// Make the playback controls show up now
 						playButtonBox.visible = true;
@@ -803,8 +831,14 @@
 						xBottom:timeline.xBottom,
 						xTop:timeline.xTop,
 						playheadPosition:timeline.playheadPosition,
-						airQualitySliderMin:airQualitySlider.values[0],
-						airQualitySliderMax:airQualitySlider.values[1],
+						//airQualitySliderMin:airQualitySlider.values[0],
+						//airQualitySliderMax:airQualitySlider.values[1],
+						goodBoxChecked:goodBox.selected,
+						moderateBoxChecked:moderateBox.selected,
+						unhealthySensitiveBoxChecked:unhealthySensitiveBox.selected,
+						unhealthyBoxChecked:unhealthyBox.selected,
+						veryUnhealthyBoxChecked:veryUnhealthyBox.selected,
+						hazardousBoxChecked:hazardousBox.selected,
 						episodesDisplayed:(timelinesHolder.numChildren > 0)};
 			}
 			
@@ -842,8 +876,25 @@
 						}
 						
 						// Set airQualitySlider positions now that we have loaded the data
-						airQualitySlider.setThumbValueAt(0, o.airQualitySliderMin);
-						airQualitySlider.setThumbValueAt(1, o.airQualitySliderMax);
+						//airQualitySlider.setThumbValueAt(0, o.airQualitySliderMin);
+						//airQualitySlider.setThumbValueAt(1, o.airQualitySliderMax);
+						
+						// if we are trying to load an older saved state (before the checkboxes) set all true
+						if(!(o.goodBoxChecked is Boolean)){
+							goodBox.selected = true;
+							moderateBox.selected = true;
+							unhealthySensitiveBox.selected = true;
+							unhealthyBox.selected = true;
+							veryUnhealthyBox.selected = true;
+							hazardousBox.selected = true;
+						} else{
+							goodBox.selected = o.goodBoxChecked;
+							moderateBox.selected = o.moderateBoxChecked;
+							unhealthySensitiveBox.selected = o.unhealthySensitiveBoxChecked;
+							unhealthyBox.selected = o.unhealthyBoxChecked;
+							veryUnhealthyBox.selected = o.veryUnhealthyBoxChecked;
+							hazardousBox.selected = o.hazardousBoxChecked;
+						}
 						airQualitySliderHandler();
 					};
 
@@ -1068,7 +1119,8 @@
 					
 					fileBadgeList.dataProvider = BADGES;
 				}
-				else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
+				// note we include just 'pm' in the OR because originally we had user queries divided up by specific pm type...
+				else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10" || pollutantRadioGroup.selectedValue.abbreviation == "pm"){
 					// Disable Location and Time selectors (since PM data is being retrieved from files right now)
 					locationSelector.enabled = false;
 					locationSelector.alpha = 0.5;
@@ -1081,6 +1133,7 @@
 					FILES = []; // delete the list
 					fileBadgeList.dataProvider = FILES;
 					
+					/* // We use this logic if we are loading from raw pm data files
 					var pmRootDir:String;
 					if(pollutantRadioGroup.selectedValue.abbreviation == "pm25"){
 						pmRootDir = PM_DATA_DIR + "25/"
@@ -1105,6 +1158,44 @@
 							FILES.reverse();
 							fileBadgeList.dataProvider = FILES;
 					});
+					*/
+					
+					// We use this logic to retrieve a "shift list" from the database
+					var request:URLRequest = new URLRequest(BASE_SHIFT_QUERY_URL);
+					var loader:URLLoader = new URLLoader(request);
+					loader.addEventListener(Event.COMPLETE,function(e:Event):void{
+						if(loader.data is String){
+							var result:String = loader.data;
+							var entries:Array = result.split(/\r|\n/gi);
+							if(entries.length > 1){
+								var headers:Array = (entries[0] as String).split(';'); // Note our use of semi-colons because the "name" field has commas...
+								
+								for(var i:int = 1; i < entries.length; i++){
+									var entry:Array = (entries[i] as String).split(';'); // Note our use of semi-colons because the "name" field has commas...
+									if(headers.length != entry.length && i < entries.length - 1){
+										throw new Error("Row " + i + ":(" + entries[i] + ") from data source \"" + 
+											BASE_SHIFT_QUERY_URL + "\" has a different number of elements than the header row:(" +
+											entries[0] + ")."); 
+									} 
+									
+									var pointData:Object = {}
+									for(var h:int=0;h < headers.length;h++){
+										if(headers[h] == "name"){
+											// Sample regex, may not use at all...
+											var exp:RegExp = new RegExp("(\\w+) \\[(\\d{4})-(\\d{2})-(\\d{2}) (\\d{2}):(\\d{2}):(\\d{2}), (\\d{4})-(\\d{2})-(\\d{2}) (\\d{2}):(\\d{2}):(\\d{2})\\]", "g");
+											var humanName:String = entry[h].replace(exp, "$1 (" + entry[1] + ") $3/$4/$2 $5:$6:$7 - $9/$10/$8 $11:$12:$13"); 
+											pointData[headers[h]] = humanName;
+										} else
+											pointData[headers[h]] = entry[h];
+									} 
+									FILES.push(pointData);
+								}
+								fileBadgeList.dataProvider = FILES;
+							}
+						} else
+							trace("We failed to get a string from the shiftQuery");
+					});			
+					
 				}
 			}
 			
@@ -1127,13 +1218,21 @@
 				}
 				
 				// TODO will eventually integrate pm data so its from a badge, just like co data...
-				if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10"){
+				// note we include just 'pm' in the OR because originally we had user queries divided up by specific pm type...
+				if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10" || pollutantRadioGroup.selectedValue.abbreviation == "pm"){
 					
 					// If we already have the file list... take the selected ones and load them up
 					if(FILES.length > 0){
 						for each(var file:Object in fileBadgeList.selectedItems){
-							loadData(file.path, pollutantRadioGroup.selectedValue.abbreviation,
-								file.name, onCompleteFunc);
+							//loadData(file.path, pollutantRadioGroup.selectedValue.abbreviation, file.name, onCompleteFunc); // Instead of loading from files, we load from database!
+							if(file.filter == '10.0' || file.filter == '2.5'){
+								var filter_type:String = file.filter == '10.0' ? 'pm10' : 'pm25';
+								loadData(buildPmQueryURL(file.utcstart, file.utcend, file.device, file.filter), filter_type, file.name, onCompleteFunc);
+							}
+							else{
+								// pm1 and pm40 currently unsupported!
+								triggerInputErrorPopup();
+							}
 						}
 					} else{
 						trace("file list not populated, cannot load anything from it.");
@@ -1154,6 +1253,8 @@
 						triggerInputErrorPopup();
 					}
 				}
+				
+				
 			}
 			
 			protected function locationHandler():void{
@@ -1190,14 +1291,89 @@
 			}
 			
 			protected function airQualitySliderHandler():void{
-				// update the timeline
+				// update the timeline and plotlayer
+				/*
 				timeline.yMin = airQualitySlider.values[0];
 				timeline.yMax = airQualitySlider.values[1];
-				timeline.refresh(false); // we choose false to avoid the timeline recalculating the min/maxes for us
-				
-				// update the _plotlayer
 				_plotLayer.yMin = airQualitySlider.values[0];
 				_plotLayer.yMax = airQualitySlider.values[1];
+				*/
+				
+				timeline.yMin = Infinity;
+				timeline.yMax = Infinity;
+				_plotLayer.yMin = Infinity;
+				_plotLayer.yMax = Infinity;
+				
+				var threshold:Array = AirQualityColors.POLLUTANT_INDEX[_dataSets[0].pollutant];
+				if(goodBox.selected){
+					timeline.yMin = threshold[0];
+					timeline.yMax = threshold[1];
+					_plotLayer.yMin = threshold[0];
+					_plotLayer.yMax = threshold[1];
+				} 
+				if(moderateBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[2];
+						_plotLayer.yMax = threshold[2];
+					}
+					else{
+						timeline.yMin = threshold[1];
+						timeline.yMax = threshold[2];
+						_plotLayer.yMin = threshold[1];
+						_plotLayer.yMax = threshold[2];
+					}
+				}
+				if(unhealthySensitiveBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[3];
+						_plotLayer.yMax = threshold[3];
+					}
+					else{
+						timeline.yMin = threshold[2];
+						timeline.yMax = threshold[3];
+						_plotLayer.yMin = threshold[2];
+						_plotLayer.yMax = threshold[3];
+					}
+				}
+				if(unhealthyBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[4];
+						_plotLayer.yMax = threshold[4];
+					}
+					else{
+						timeline.yMin = threshold[3];
+						timeline.yMax = threshold[4];
+						_plotLayer.yMin = threshold[3];
+						_plotLayer.yMax = threshold[4];
+					}
+				}
+				if(veryUnhealthyBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = threshold[5];
+						_plotLayer.yMax = threshold[5];
+					}
+					else{
+						timeline.yMin = threshold[4];
+						timeline.yMax = threshold[5];
+						_plotLayer.yMin = threshold[4];
+						_plotLayer.yMax = threshold[5];
+					}
+				}
+				if(hazardousBox.selected){
+					if(timeline.yMin < Infinity && _plotLayer.yMin < Infinity){
+						timeline.yMax = Infinity;
+						_plotLayer.yMax = Infinity;
+					}
+					else{
+						timeline.yMin = threshold[4];
+						timeline.yMax = Infinity;
+						_plotLayer.yMin = threshold[4];
+						_plotLayer.yMax = Infinity;
+					}
+				}
+				
+				// referesh both the timeline and the plotlayer now that we're done messing with them
+				timeline.refresh(false); // we choose false to avoid the timeline recalculating the min/maxes for us
 				_plotLayer.refresh(false); // we choose false to avoid rebuilding the quadtree
 				
 				dispatchUpdated(); // called for IStatefulVis
@@ -1295,6 +1471,12 @@
 						"&timeline_height=" + timeline.height;
 				}
 				trace(url);		 		
+				return url;
+			}
+			
+			protected function buildPmQueryURL(start_time:String, end_time:String, device_id:String, filter_type:String):String{
+				var url:String = BASE_PM_QUERY_URL + "?start_time=" + start_time + "&end_time=" + end_time + "&device_id=" + device_id + "&filter_type=" + filter_type;
+				trace(url);	
 				return url;
 			}
 			

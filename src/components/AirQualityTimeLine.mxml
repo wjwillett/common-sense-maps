@@ -719,6 +719,7 @@
 				if(dataPoint.value){
 					//FIXME: Currently defaulting to pollutant from the first dataset, should be able to support per-track
 					var pollutant:String = dataSets[0].pollutant;
+					var multiplier:Number = dataSets[0].multiplier;
 					
 					var cat:String = AirQualityConstants.getAQICategoryForValue(pollutant,dataPoint.value);
 					var color:uint = AirQualityConstants.getColorForAQICategory(cat);
@@ -728,8 +729,8 @@
 					
 					var time:Number = Number(dataPoint.time * 1000);
 					var date:Date = new Date(time);
-					var value:Number = Number(dataPoint.value);
-					var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
+					var value:Number = Number(dataPoint.value / multiplier); // scaled down for displaying the tooltip
+					var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : (dataPoint.device ? 'Device ' + dataPoint.device : 'Unknown Badge');
 					
 					_plotTip.text = date.toLocaleDateString() + "\n" +
 						date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 

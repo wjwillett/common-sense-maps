@@ -13,6 +13,7 @@ package components
 	import etc.AirQualityConstants;
 	import etc.DirtyFlag;
 	import etc.PointRenderer;
+	import etc.AirQualityColors;
 	
 	import events.DataPointEvent;
 	
@@ -52,12 +53,14 @@ package components
 		
 		protected var _prevMaxPtNums:Object = {}; 	//last point number drawn by the last append pass (indexed by dataURI)
 		protected var _prevPos:Object = {} 			//position of the last point drawn (indexed by dataURI)
+		protected var _prevVal:Object = {}			//value of the last point drawn (indexed by dataURI)
 		
 		protected function get map():Map{ return _map;}
 		
-		public var pointOverlapTolerance:Number = 11;
+		public var pointOverlapTolerance:Number = 15;
+		//public var pointValueTolerance:Number; // This might be needed to deal with seeing-spikes problem
 		public var zoomTolerance:Number = 5; 
-		public var pointDiameter:Number = 12;
+		public var pointDiameter:Number = 15;
 		public var numMouseOverAdjacents:uint = 15;
 		
 		protected var _yMin:Number;			//the lowest data value on the y axis
@@ -209,11 +212,13 @@ package components
 		        else {
 		            plotBitmapData.fillRect(new Rectangle(0,0,plotBitmapData.width,plotBitmapData.height),0x00000000);
 		        }
-		        _prevPos = {};	
+		        _prevPos = {};
+		        _prevVal = {};
 			}
 	        
 			//prep the renderer we'll use to draw points
 			var renderer:PointRenderer = new PointRenderer(plotBitmapData,pointDiameter,pointOverlapTolerance);
+			
 			
 			plotBitmapData.lock();
 			
@@ -247,7 +252,11 @@ package components
 					//skip if position not different different from last plotted point
 					if(!selections.isSelected(point) && _prevPos[ds.dataURI]
 							&& Math.abs(_prevPos[ds.dataURI].x - dPt.x) < pointOverlapTolerance 
-							&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance){
+							&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance
+							&& (AirQualityColors.getColorForValue(ds.pollutant, point.value) == AirQualityColors.GOOD_COLOR
+								|| AirQualityColors.getColorForValue(ds.pollutant, point.value) == AirQualityColors.MODERATE_COLOR)){ // skip the green and yellow
+							// for now we deal with the "making spikes obvious" problem by just showing anything that looks red (unhealthysensitive) or worse.
+							// could add a && _prevVal[ds.dataURI] == point.value here as additional check to see if previous value is sufficiently different
 						continue;
 					}
 					
@@ -261,6 +270,7 @@ package components
 					//plot the point to the current bitmapdata
 					renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point));
 					_prevPos[ds.dataURI] = dPt;
+					_prevVal[ds.dataURI] = point.value;
 				}
 				_prevMaxPtNums[ds.dataURI] = Math.max(i - 1,0);
 			}
@@ -367,6 +377,7 @@ package components
 				
 				//FIXME: Currently defaulting to pollutant from the first dataset, should be able to support per-track
 				var pollutant:String = dataSets[0].pollutant;
+				var multiplier:Number = dataSets[0].multiplier;
 					
 				var cat:String = AirQualityConstants.getAQICategoryForValue(pollutant,dataPoint.value);
 				var color:uint = AirQualityConstants.getColorForAQICategory(cat);
@@ -376,8 +387,8 @@ package components
 				_plotTip.setStyle("backgroundAlpha",0.7);
 				var time:Number = Number(dataPoint.time * 1000);
 				var date:Date = new Date(time);
-				var value:Number = Number(dataPoint.value);
-				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : 'Unknown Badge';
+				var value:Number = Number(dataPoint.value / multiplier); // scaled down for the tooltip
+				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : (dataPoint.device ? 'Device ' + dataPoint.device : 'Unknown Badge');
 				_plotTip.text = date.toLocaleDateString() + "\n" +
 					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
 					" " + pollutantUnits + 
