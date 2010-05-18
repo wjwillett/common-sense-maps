@@ -51,7 +51,7 @@
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
 			labelField="name" height="115" width="330" selectedIndex="0" />
 		
-		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
+		<mx:Button label="Load/refresh" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
 			height="25" />
 	</flexlib:WindowShade>
