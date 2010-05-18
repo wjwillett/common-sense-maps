@@ -4,7 +4,7 @@
 	implements="commentspace.IStatefulVis" 
 	horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:ns1="components.*"
 	xmlns="*"
-	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]">
+	backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFFFF, #FFFFFF]" >
 	
 	
 	<mx:Canvas id="container" width="100%" height="100%" backgroundColor="0xffffff" 
@@ -44,16 +44,16 @@
 		
 		<mx:RadioButtonGroup id="pollutantRadioGroup" itemClick="{fileBadgeListHandler()}" />
 		<mx:Repeater id="pollutantRepeater" dataProvider="{POLLUTANTS}">
-			<mx:RadioButton label="{pollutantRepeater.currentItem.pollutant}" groupName="pollutantRadioGroup" value="{pollutantRepeater.currentItem}" />
+			<mx:RadioButton label="{pollutantRepeater.currentItem.pollutant}" visible="{pollutantRepeater.currentItem.abbreviation == 'co' ? false : true}" groupName="pollutantRadioGroup" value="{pollutantRepeater.currentItem}" />
 		</mx:Repeater>
 		
 		<mx:Text text="file/badge listing for selected pollutant" fontWeight="normal" fontSize="9" />
 		<mx:List dataProvider="{FILES}" id="fileBadgeList" allowMultipleSelection="true"
-			labelField="name" height="115" width="330" selectedIndex="0"/>
+			labelField="name" height="115" width="330" selectedIndex="0" />
 		
 		<mx:Button label="refresh/load" click="{selectorHandler(false)}"  
 			toolTip="reloads all loaded datasets or loads any new data"
-			height="25"/>
+			height="25" />
 	</flexlib:WindowShade>
 	
 	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="episodesSelector" label="Air Quality" 
@@ -83,7 +83,10 @@
 		
 	</flexlib:WindowShade>
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="locationSelector" label="Location" 
+	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + episodesSelector.width}" id="shadeCloser" label="▲" click="{closeAllShades()}" />
+	<!--<mx:Button toolTip="opens a new instance of this visualization" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + episodesSelector.width + shadeCloser.width}" id="newInstanceOpener" label="New Instance" click="{openNewInstance()}" />-->
+	
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="locationSelector" label="Location" visible = "false"
 		x="{badgeSelector.width}" width="250" styleName="windowShadeStyle" opened="false">
 		<flexlib:headerRenderer>
 			<mx:Component>
@@ -95,8 +98,8 @@
 		<mx:Button label="Go" click="{locationHandler()}" />
 	</flexlib:WindowShade>
 	
-	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" opened="false"
-		x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle" >
+	<flexlib:WindowShade paddingBottom="15" paddingLeft="15" id="timeSelector" label="Time" opened="false" visible = "false"
+		x="{badgeSelector.width + locationSelector.width}" width="220" styleName="windowShadeStyle">
 		<flexlib:headerRenderer>
 			<mx:Component>
 				<mx:LinkButton cornerRadius="10" fontSize="15" fontFamily="Verdana" color="#73C400"/>
@@ -110,7 +113,6 @@
 		<!--<mx:Button label="Show all times" click="{selectorHandler()}" />-->
 	</flexlib:WindowShade>
 	
-	<mx:Button toolTip="close all menus" top="5" height="28" cornerRadius="10" x="{badgeSelector.width + locationSelector.width + timeSelector.width + episodesSelector.width}" id="shadeCloser" label="▲" click="{closeAllShades()}" />
 	</mx:HBox>
 	
 	<mx:VDividedBox left="15" bottom="15" right="15" width="100" height="100%" dividerRelease="{adjustMapControlsPosition()}">
@@ -285,6 +287,10 @@
 			
 			protected var firstLoad:Boolean = false;
 			protected function setup():void{
+				// Force select and load pm shift list by default
+				pollutantRadioGroup.getRadioButtonAt(1).selected = true;
+				fileBadgeListHandler();
+				
 				if(!firstLoad) firstLoad = true;
 				else{
 					setupMap();
@@ -513,6 +519,13 @@
 				timeSelector.opened = false;
 				episodesSelector.opened = false;
 			}
+			 
+			 protected function defaultSelector():void{
+			 	if(pollutantRadioGroup.getRadioButtonAt(1) != null){ 
+			 		pollutantRadioGroup.getRadioButtonAt(1).selected = true; 
+			 		fileBadgeListHandler();
+			 	}
+			 }
 			
 			/**
 			 * New method for setting up episodes mini-timelines
@@ -1108,6 +1121,7 @@
 			 */
 			 
 			protected function fileBadgeListHandler():void{
+				/*
 				if(pollutantRadioGroup.selectedValue.abbreviation == "co"){
 					// Enable Location and Time selectors
 					locationSelector.enabled = true;
@@ -1119,8 +1133,9 @@
 					
 					fileBadgeList.dataProvider = BADGES;
 				}
+				*/
 				// note we include just 'pm' in the OR because originally we had user queries divided up by specific pm type...
-				else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10" || pollutantRadioGroup.selectedValue.abbreviation == "pm"){
+				//else if(pollutantRadioGroup.selectedValue.abbreviation == "pm25" || pollutantRadioGroup.selectedValue.abbreviation == "pm10" || pollutantRadioGroup.selectedValue.abbreviation == "pm"){
 					// Disable Location and Time selectors (since PM data is being retrieved from files right now)
 					locationSelector.enabled = false;
 					locationSelector.alpha = 0.5;
@@ -1201,7 +1216,7 @@
 							trace("We failed to get a string from the shiftQuery");
 					});			
 					
-				}
+				//}
 			}
 			
 			protected function selectorHandler(fromLocationHandler:Boolean):void{
