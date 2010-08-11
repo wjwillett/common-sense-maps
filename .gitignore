@@ -1,5 +1,5 @@
 # Ignore binaries and FlexBuilder settings
-.settings/
+#.settings/
 bin-debug/
 bin-release/
 # Ignore all dotfiles...
