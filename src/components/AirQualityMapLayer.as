@@ -53,15 +53,16 @@ package components
 		
 		protected var _prevMaxPtNums:Object = {}; 	//last point number drawn by the last append pass (indexed by dataURI)
 		protected var _prevPos:Object = {} 			//position of the last point drawn (indexed by dataURI)
-		protected var _prevVal:Object = {}			//value of the last point drawn (indexed by dataURI)
+		protected var _prevColor:Object = {}			//color of the last point drawn (indexed by dataURI)
+		protected var _prevVal:Object  = {}			// previous point value
 		
 		protected function get map():Map{ return _map;}
 		
-		public var pointOverlapTolerance:Number = 15;
+		public var pointOverlapTolerance:Number = 10;
 		//public var pointValueTolerance:Number; // This might be needed to deal with seeing-spikes problem
 		public var zoomTolerance:Number = 5; 
-		public var pointDiameter:Number = 15;
-		public var numMouseOverAdjacents:uint = 15;
+		public var pointDiameter:Number = 10;
+		//public var numMouseOverAdjacents:uint = 15;
 		
 		protected var _yMin:Number;			//the lowest data value on the y axis
 		protected var _yMax:Number; 		//the highest data value on the y axis
@@ -213,6 +214,7 @@ package components
 		            plotBitmapData.fillRect(new Rectangle(0,0,plotBitmapData.width,plotBitmapData.height),0x00000000);
 		        }
 		        _prevPos = {};
+		        _prevColor = {};
 		        _prevVal = {};
 			}
 	        
@@ -250,13 +252,13 @@ package components
 					dPt.y += (h - map.getHeight()) / 2;
 		
 					//skip if position not different different from last plotted point
+					// for now we deal with the "making spikes obvious" problem by just showing anything that is a different color from prev point
 					if(!selections.isSelected(point) && _prevPos[ds.dataURI]
 							&& Math.abs(_prevPos[ds.dataURI].x - dPt.x) < pointOverlapTolerance 
 							&& Math.abs(_prevPos[ds.dataURI].y - dPt.y) < pointOverlapTolerance
-							&& (AirQualityColors.getColorForValue(ds.pollutant, point.value) == AirQualityColors.GOOD_COLOR
-								|| AirQualityColors.getColorForValue(ds.pollutant, point.value) == AirQualityColors.MODERATE_COLOR)){ // skip the green and yellow
-							// for now we deal with the "making spikes obvious" problem by just showing anything that looks red (unhealthysensitive) or worse.
-							// could add a && _prevVal[ds.dataURI] == point.value here as additional check to see if previous value is sufficiently different
+							&& (_prevColor[ds.dataURI] == AirQualityColors.getColorForValue(ds.pollutant, point.value)
+								|| _prevVal[ds.dataURI] > point.value)){
+							// Only plot spikes going up to avoid the green points afterwards overplotting
 						continue;
 					}
 					
@@ -270,6 +272,7 @@ package components
 					//plot the point to the current bitmapdata
 					renderer.plotPoint(point,dPt,ds.pollutant,selections.isSelected(point));
 					_prevPos[ds.dataURI] = dPt;
+					_prevColor[ds.dataURI] = AirQualityColors.getColorForValue(ds.pollutant, point.value);
 					_prevVal[ds.dataURI] = point.value;
 				}
 				_prevMaxPtNums[ds.dataURI] = Math.max(i - 1,0);
@@ -390,7 +393,7 @@ package components
 				var value:Number = Number(dataPoint.value / multiplier); // scaled down for the tooltip
 				var badgeName:String = dataPoint.badge_id ? 'Badge ' + parseInt(dataPoint.badge_id,16).toString() : (dataPoint.device ? 'Device ' + dataPoint.device : 'Unknown Badge');
 				_plotTip.text = date.toLocaleDateString() + "\n" +
-					date.toLocaleTimeString() + "\n" + value.toPrecision(5) + 
+					date.toLocaleTimeString() + "\n" + value.toPrecision(2) + 
 					" " + pollutantUnits + 
 					" (" + cat + ")" + "\n" +
 					"[" + badgeName + "]";

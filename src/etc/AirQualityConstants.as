@@ -86,9 +86,9 @@ package etc
 			//Ozone (1-hour) ppm
 			ozone1 : "ppm",
 			//Particulate Matter 2.5 (24-hour) milligrams / m^3
-			pm25   : "μg / m^3",
+			pm25   : "mg / m^3",
 			//Particulate Matter 10 (24-hour) micrograms / m^3
-			pm10   : "μg / m^3",
+			pm10   : "mg / m^3",
 			//Carbon Monoxide (8-hour) ppm
 			co     : "ppm",
 			//Sulfur Dioxide (24-hour) ppm

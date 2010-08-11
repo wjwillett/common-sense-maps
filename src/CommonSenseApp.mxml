@@ -4,6 +4,12 @@
 	initialize="{initScript()}"	xmlns:entity="commentspace.components.entity.*" xmlns:commentspace="commentspace.*" xmlns:site="site.*">
 		
 	<mx:HDividedBox width="100%" height="100%">
+		<commentspace:VisLoader id="secondaryVis" left="0" width="0%" height="100%" visEntityName="Secondary Visualzation" 
+			visReloaded="{}"
+			creationComplete="{secondaryVis.source = mainVisSource; 
+				secondaryVis.namingToolbar.backButton.visible=false; 
+				secondaryVis.namingToolbar.forwardButton.visible=false; 
+				secondaryVis.namingToolbar.refreshButton.visible=false;}"  />
 		<commentspace:VisLoader id="mainVis" left="0" width="100%" height="100%" visEntityName="Main Visualzation" 
 			visReloaded="{setupPairing()}"
 			creationComplete="{mainVis.source = mainVisSource}"  />
@@ -14,6 +20,7 @@
 				creationComplete="{commentVis.source = COMMENT_VIS_SOURCE;
 					commentVis.namingToolbar.visible=false;
 					commentVis.namingToolbar.includeInLayout=false;}" />
+			<mx:Button label="Show/Hide Second Viz Window" click="{secondaryVis.width = secondaryVis.width == 0 ? secondaryVis.parent.width*0.4 : 0;}" /> 
 		</mx:VBox>		
  	</mx:HDividedBox>
  					
