@@ -6,4 +6,5 @@ bin-release/
 .*
 # except for .gitignore and .actionScriptProperties
 !.gitignore
+!.project
 !.actionScriptProperties
