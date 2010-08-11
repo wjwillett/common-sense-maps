@@ -3,7 +3,8 @@
 bin-debug/
 bin-release/
 # Ignore all dotfiles...
-.*
+#.*
+.DS_Store
 # except for .gitignore and .actionScriptProperties
 !.gitignore
 !.project
